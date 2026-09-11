@@ -1,0 +1,96 @@
+{
+  "comment": "wire/pairing-v1.md, computed by tools/pairing-vectors.mjs. Byte strings are lowercase hex; messages a–d are base64url as they travel. The cpace block is draft-irtf-cfrg-cpace-21 Appendix B.3, repeated so a client checks its CPace core before the Den layer.",
+  "cpace": {
+    "prs": "50617373776f7264",
+    "ci": "0b415f696e69746961746f720b425f726573706f6e646572",
+    "sid": "7e4b4791d6a8ef019b936c79fb7f2c57",
+    "generatorString": "11435061636552697374726574746f3235350850617373776f72646400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000180b415f696e69746961746f720b425f726573706f6e646572107e4b4791d6a8ef019b936c79fb7f2c57",
+    "generatorHash": "da6d3ddc8802fca9058755ffd3ebde08a9c2c74945901a258482a288b6663af06bf645c93cd1c51512307199c80e84908916d983b34af77205f90851a657ee27",
+    "g": "222b6b195fe84b1652badb6f6a3ae3d24341e7306967f0b8115b40d5698c7e56",
+    "ya": "da3d23700a9e5699258aef94dc060dfda5ebb61f02a5ea77fad53f4ff0976d08",
+    "ADa": "414461",
+    "Ya": "d6bac480f2c386c394efc7c47adb9925dcd2630b64f240c50f8d0eec482b9157",
+    "yb": "d2316b454718c35362d83d69df6320f38578ed5984651435e2949762d900b80d",
+    "ADb": "414462",
+    "Yb": "3ea7e0b19560d7c0b0f5734f63b955286dfa8232b5ebe63324e2d9e7433f7258",
+    "K": "80b69a8a76457ab6a4d7f887a4bf6b55a2f80ac19c333f917a05fc9887c8b40f",
+    "ISK": "b69effbf61b51d56401c0f65601abe428de8206feaaf0e32198896dcae7b35cd2b38950a39dfd5d4a79164614c2984f7daa460b588c1e80c3fa2068af7900447",
+    "scalarMultVfy": {
+      "s": "7cd0e075fa7955ba52c02759a6c90dbbfc10e6d40aea8d283e407d88cf538a05",
+      "X": "2c3c6b8c4f3800e7aef6864025b4ed79bd599117e427c41bd47d93d654b4a51c",
+      "result": "7c13645fe790a468f62c39beb7388e541d8405d1ade69d1778c5fe3e7f6b600e"
+    },
+    "invalidPoints": [
+      "2b3c6b8c4f3800e7aef6864025b4ed79bd599117e427c41bd47d93d654b4a51c",
+      "0000000000000000000000000000000000000000000000000000000000000000"
+    ]
+  },
+  "codes": [
+    {
+      "input": " abcd efgh-jklm ",
+      "parsed": {
+        "nameplate": "ABCD",
+        "secret": "EFGHJKLM"
+      }
+    },
+    {
+      "input": "ABCD-EFGH-JKLM",
+      "parsed": {
+        "nameplate": "ABCD",
+        "secret": "EFGHJKLM"
+      }
+    },
+    {
+      "input": "ABCD-EFGH-JKL0",
+      "parsed": null
+    },
+    {
+      "input": "ABCD-EFGH-JK",
+      "parsed": null
+    },
+    {
+      "input": "ABCD-EFGH-JKLM-N",
+      "parsed": null
+    }
+  ],
+  "pairing": {
+    "code": "ABCD-EFGH-JKLM",
+    "nameplate": "ABCD",
+    "secret": "EFGHJKLM",
+    "sid": "000102030405060708090a0b0c0d0e0f",
+    "ci": "64656e2f706169722f7631",
+    "joinerLabel": "Mac · Chrome",
+    "hostLabel": "Living room",
+    "ADa": "066a6f696e65720d4d616320c2b7204368726f6d65",
+    "ADb": "04686f73740b4c6976696e6720726f6f6d",
+    "generatorString": "11435061636552697374726574746f32353508454647484a4b4c4d64000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000b64656e2f706169722f763110000102030405060708090a0b0c0d0e0f",
+    "g": "bafd211cecfa28e2ae492b13f25f8eaf3433a061fe3aaaceb5486733db52e929",
+    "ya": "da3d23700a9e5699258aef94dc060dfda5ebb61f02a5ea77fad53f4ff0976d08",
+    "Ya": "44f0a31322d46f8349afde56105dc7fc01a0756fe003a9b50a6e9baa8a8cf051",
+    "yb": "d2316b454718c35362d83d69df6320f38578ed5984651435e2949762d900b80d",
+    "Yb": "0c71b89fde5d67f41927b7889618fa13a1fe1da8403b2e55e0ed7aba5c63b664",
+    "K": "5cfbc674c2db9e57e687c99828d1c70a717d20c13f9e57fe5046a5484ce8eb0b",
+    "ISK": "f2a78f0742bd3d791a9a31bdd9013d3df2025d47957b3c081e6e086813a7016343df05c46c5d21c3023a14ee339be50fc9aebe7dd1a97e58114cde69b14d95f3",
+    "macKey": "14327e034cd56fa56f230702093b8a63cba0e0f470a9b8792540d9da8dba33fc051d26da25f404ec681871eec1336f0c986f2abf6e92212c5b9f143e8e99954a",
+    "Ta": "8387bac66ffb3d172283997a3c111ab8ebc2bc7c1caac0b31378cbea605fc3a1ac289b526f069703e89834c4b04ad32dce3f0eb1002a9c4f5c2777f0f79fa076",
+    "Tb": "ed36f68e0054c14327a52bd38153dd9e078322d1e910292aef96d813aa203ca2e0c105bfe6e126487df0669b5d445ae9b9ae006b473f26130cc99571353a08e3",
+    "a": "IETwoxMi1G-DSa_eVhBdx_wBoHVv4AOptQpum6qKjPBRFQZqb2luZXINTWFjIMK3IENocm9tZQ",
+    "b": "IAxxuJ_eXWf0GSe3iJYY-hOh_h2oQDsuVeDterpcY7ZkEQRob3N0C0xpdmluZyByb29tQO029o4AVMFDJ6Ur04FT3Z4HgyLR6RApKu-W2BOqIDyi4MEFv-bhJkh98GabXURa6bmuAGtHPyYTDMmVcTU6COM",
+    "c": "g4e6xm_7PRcig5l6PBEauOvCvHwcqsCzE3jL6mBfw6GsKJtSbwaXA-iYNMSwStMtzj8OsQAqnE9cJ3fw95-gdg",
+    "wrongSecret": {
+      "secret": "EFGHJKLN",
+      "b": "IFQLoREbk6uTzFxLWw-x4Z8lvhUmFNe3-b5q-UrsQ5c5EQRob3N0C0xpdmluZyByb29tQHotc2nSyLLYRxZ2RMwITXI2FZt0wSWnjY26wpHDneMY8GcTaVRnEyhesNgLOP8XXyiVEL-iGWuct_PJMVePhp4"
+    },
+    "handover": {
+      "key": "ba9f6f0242ada807704420122b740a42f60367ba5be303b717d5f77ef3d6a20e",
+      "nonce": "000102030405060708090a0b",
+      "plaintext": "{\"v\":1,\"host\":\"Living room\",\"linkKey\":\"ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8\",\"libraryKey\":\"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8\"}",
+      "d": "AAECAwQFBgcICQoLy3cc-mfSDHnpRVDWlk1Pl5Ggpfz37lu49MdnMMp2DujQjdBWWWN3FbU_ETKsmDcrMIO8e0xqiMg9LCcEHf0yEcqwY8imtNQihAP9Qe8a33HwbaiAlP28bMA_0BxGmlkKg_FPFgRCC8HX4ezY4i5mjqYGUplZQndEXE2ZCgmdtHcxzkLczLceL98uUgId8e7QF4vlBaWnM60L1M99mQo3"
+    },
+    "link": {
+      "linkKey": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+      "inbox": "38d972a13fa43c0ae35b6d5a65fe2a6061790c94456a0427",
+      "enc": "9f1e355e323196e313de5e00c8545cdebfc1cf28677817e59c05cebaa209a500"
+    }
+  }
+}

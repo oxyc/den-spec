@@ -23,7 +23,7 @@ Salts and infos are the UTF-8 bytes of the strings shown.
 
 **Handover (v1).** A linked device gets the library key from the TV's encrypted backup at `/sync`: the
 snapshot carries it as `libraryKey`, base64. That backup is keyed off the link's inbox key, which den-edge
-generates, so den-edge could read it. Issue #8's R5b replaces this with a key in the link QR's URL fragment.
+generates, so den-edge could read it. [Pairing v1](pairing-v1.md) replaces this.
 
 ## 2. Rows
 
