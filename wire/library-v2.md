@@ -112,9 +112,13 @@ Each setting is its own stamped value, so two devices changing different setting
   Watched, the year floor, subtitle and audio choices, …).
 - `keys`: the user's own API keys — `tmdb`, `omdb`, `doesthedogdie` — sealed like every row, so they reach a
   linked device without den-edge seeing them.
+- `plugins`: the user's addons, one setting per manifest URL: `{"bool": true}` while wanted, `null` once removed.
+  What a device does with a wanted URL is its own: the TV installs one only after its user approves it, and
+  writes a declined one back as `null`.
 
-A client writes only the settings it manages and keeps the others as it read them. A client that doesn't know
-the `set` kind skips the row.
+A client writes only the settings it manages and keeps the others as it read them. `plugins` is an **open
+group**: a client manages every entry in it, applying a URL it has never seen — otherwise an addon added on one
+device would never reach another. A client that doesn't know the `set` kind skips the row.
 
 ### What rows don't carry
 
