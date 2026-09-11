@@ -90,6 +90,30 @@ An episode is watched when `progress.value` ≥ 0.95 and its stamp is newer than
 Un-watching one episode writes value 0 in a new viewing. A watched bit learned without a time (a tracker
 import) is written with the zero stamp `[0, 0, ""]`, so any real edit beats it.
 
+### Settings — name `set:<name>`
+
+```json
+{
+  "kind": "set", "schema": 2, "name": "prefs",
+  "values": {
+    "den.hideWatched": {"value": {"bool": true}, "at": […]},
+    "den.minReleaseYear": {"value": null, "at": […]}
+  }
+}
+```
+
+Each setting is its own stamped value, so two devices changing different settings don't overwrite each other;
+`null` is a setting that was cleared. Values are tagged: `{"bool": …}`, `{"int": …}`, `{"string": …}`,
+`{"ints": […]}`, `{"strings": […]}`.
+
+- `prefs`: the TV's synced preferences, by their `UserDefaults` keys (hidden genres and languages, Hide
+  Watched, the year floor, subtitle and audio choices, …).
+- `keys`: the user's own API keys — `tmdb`, `omdb`, `doesthedogdie` — sealed like every row, so they reach a
+  linked device without den-edge seeing them.
+
+A client writes only the settings it manages and keeps the others as it read them. A client that doesn't know
+the `set` kind skips the row.
+
 ### What rows don't carry
 
 No TMDB display data (title text, posters, ratings): each client fetches those from TMDB itself, so TMDB
@@ -117,6 +141,7 @@ merging a row with itself changes nothing. The vectors' `merge` cases check this
 - **Resume and episode progress**: the higher `viewing` wins outright; within one viewing the higher value,
   then the later stamp, then the higher `seconds` (missing counts as −1).
 - `episodesReset`: the later stamp; null is older than any stamp.
+- **Settings**: per setting, the later stamp; a setting only one version has is kept.
 - `addedAt`: the minimum. `watchedAt`: the minimum of the non-null values. `schema`: the maximum.
 - Fields a client doesn't understand come from the version whose newest stamp is later, then the other.
 

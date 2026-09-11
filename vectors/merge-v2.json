@@ -56,6 +56,27 @@
       "merged": {"addedAt": 900, "watchedAt": 1500, "episodesReset": [2000, 0, "aaaa"]}
     }
   ],
+  "settings": [
+    {
+      "case": "each setting keeps its own latest value; one only a side has is kept; a clear is a value",
+      "a": {"kind": "set", "schema": 2, "name": "prefs", "values": {
+        "den.hideWatched": {"value": {"bool": true}, "at": [3000, 0, "aaaa"]},
+        "den.minReleaseYear": {"value": {"int": 1990}, "at": [2000, 0, "aaaa"]},
+        "den.excludedLanguages": {"value": {"strings": ["hi"]}, "at": [1000, 0, "aaaa"]}
+      }},
+      "b": {"kind": "set", "schema": 2, "name": "prefs", "values": {
+        "den.hideWatched": {"value": {"bool": false}, "at": [2500, 0, "bbbb"]},
+        "den.minReleaseYear": {"value": null, "at": [4000, 0, "bbbb"]},
+        "den.hideAnime": {"value": {"bool": true}, "at": [1500, 0, "bbbb"]}
+      }},
+      "merged": {"kind": "set", "schema": 2, "name": "prefs", "values": {
+        "den.hideWatched": {"value": {"bool": true}, "at": [3000, 0, "aaaa"]},
+        "den.minReleaseYear": {"value": null, "at": [4000, 0, "bbbb"]},
+        "den.excludedLanguages": {"value": {"strings": ["hi"]}, "at": [1000, 0, "aaaa"]},
+        "den.hideAnime": {"value": {"bool": true}, "at": [1500, 0, "bbbb"]}
+      }}
+    }
+  ],
   "clock": [
     {"case": "a clock ahead of the last stamp issues its own time", "last": [1000, 3, "dddd"], "now": 2000, "issued": [2000, 0, "dddd"]},
     {"case": "a clock at the last stamp counts up", "last": [2000, 3, "dddd"], "now": 2000, "issued": [2000, 4, "dddd"]},
