@@ -43,6 +43,13 @@ A client writes with `POST /lib/{id}/batch {writes: [{k, base, v}]}`, where `bas
 for `k` (0 for a new row). A conflict answer carries the current row: the client opens it, merges (§5),
 and writes again with the new `base`. It reads with `GET /lib/{id}/changes?since=N`, remembering the `head`.
 
+Every `/lib` answer — a 404 for a library nobody has written included — carries `generation`, a random id of
+den-edge's store. It changes when the store does: restored from a backup, or lost and started over. Sequence
+numbers then continue from wherever that store was, so a `head` or a `base` from before means nothing. A client
+that remembers them MUST compare the generation, and on a different one forget its `head` and every row's `base`,
+read from 0, and write its own rows back (conflicts merge as in §5). The first generation a client sees is simply
+remembered. A client that reads from 0 every time needs nothing.
+
 ## 3. Records
 
 Times are Unix milliseconds (integers). A title is `{"type": "movie" | "tv", "id": <TMDB id>}`.
