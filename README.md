@@ -14,6 +14,9 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
 - [`vectors/pairing-v1.json`](vectors/pairing-v1.json): the CPace draft's ristretto255 vectors and a whole
   pairing for fixed inputs. Generated: `npm ci --prefix tools && node tools/pairing-vectors.mjs >
   vectors/pairing-v1.json`.
+- [`wire/inbox-v1.md`](wire/inbox-v1.md): a paired device's messages to its TV, sealed under its link key.
+- [`vectors/inbox-v1.json`](vectors/inbox-v1.json): sealed messages for pairing's fixed link key. Generated:
+  `node tools/inbox-vectors.mjs > vectors/inbox-v1.json`.
 
 A change to a format is a new version file, never an edit to a released one.
 

@@ -1,0 +1,17 @@
+{
+  "comment": "wire/inbox-v1.md, computed by tools/inbox-vectors.mjs. linkKey is pairing-v1.json's; enc is its HKDF \"enc\" derivation. Byte strings are lowercase hex; sealed is base64url as it travels.",
+  "linkKey": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+  "enc": "9f1e355e323196e313de5e00c8545cdebfc1cf28677817e59c05cebaa209a500",
+  "cases": [
+    {
+      "nonce": "000102030405060708090a0b",
+      "plaintext": "{\"id\":\"00112233445566778899aabbccddeeff\",\"sentAt\":1789000000000,\"message\":{\"type\":\"watchlist\",\"tmdbId\":550,\"mediaType\":\"movie\",\"title\":\"Fight Club\",\"year\":1999}}",
+      "sealed": "AAECAwQFBgcICQoL9booPpdgOWQYB7JVB1UImxMxaAdsjBbt5m74eaqD4Kgq8S2x4nO5vnuxWsNtg1wHgPKY0-xEgVFhjOKHyxZvCEoZlboGTkaTDFnXXtNnigrNKFTffQQQJw5UNfPKs6Eny3lIDqBKtV53rTPDssbJ_0JRM-G1eKkH-3UPmYZetMlwmPEeCx2nFK91bS48sDzHM31LqJWrhimAPNzbXMs956qN5EqVhKq8CIvDNk_wYvzM"
+    },
+    {
+      "nonce": "0c0d0e0f1011121314151617",
+      "plaintext": "{\"id\":\"ffeeddccbbaa99887766554433221100\",\"sentAt\":1789000060000,\"message\":{\"type\":\"play\",\"tmdbId\":1399,\"mediaType\":\"tv\",\"title\":\"Game of Thrones\",\"season\":1,\"episode\":2}}",
+      "sealed": "DA0ODxAREhMUFRYXxBXqhyeMAgXUKdI--8133WiZW5Qrrt4v26RHWzbHVxKMaoDj_fcj5cayZy2Iiu4wMPq8yCLN2LdHNXw0Ryn-p9jxhq9_8bZmijtkpzrToKTwuphtQioHWYXfy3c0aCcbJ_jSOLY_VrkOwZkxcIeT0stBCDxW5BVlSnpxPBbal2IwF7Vgk8sbcwzDmD92mBw8379_aZu0mAkfSguLNlXxImNAAt-OZGaNpA2aMIO5l-4ABBRr0Ub3Vk9c"
+    }
+  ]
+}
