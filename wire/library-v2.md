@@ -110,8 +110,10 @@ Each setting is its own stamped value, so two devices changing different setting
 
 - `prefs`: the TV's synced preferences, by their `UserDefaults` keys (hidden genres and languages, Hide
   Watched, the year floor, subtitle and audio choices, …).
-- `keys`: the user's own API keys — `tmdb`, `omdb`, `doesthedogdie` — sealed like every row, so they reach a
-  linked device without den-edge seeing them.
+- `keys`: the user's own keys — the metadata services' `tmdb`, `omdb`, `doesthedogdie`, and the `simkl` tracker
+  token — sealed like every row, so they reach a linked device without den-edge seeing them. A device applies a
+  credential another device wrote only after checking it with the service. Not Trakt: its refresh token rotates,
+  so two devices can't share one.
 - `plugins`: the user's addons, one setting per manifest URL: `{"bool": true}` while wanted, `null` once removed.
   What a device does with a wanted URL is its own: the TV installs one only after its user approves it, and
   writes a declined one back as `null`.
