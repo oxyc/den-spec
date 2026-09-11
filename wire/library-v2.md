@@ -132,6 +132,10 @@ then `c`, then `d` (by bytes). Each device keeps the last stamp it issued or saw
 
 The device id is 16 random lowercase hex characters, made once per installation.
 
+A stamp more than a day ahead of the reader's clock — a device with a wrong clock, or a key holder writing
+year 2100 — would otherwise win every merge for good. A client reads it as the zero stamp: the value wins
+nothing, the clock never sees it, and the next write of that row replaces it.
+
 ## 5. Merge
 
 A merge of two versions of one row MUST give the same result in either order and in any grouping, and
