@@ -11,12 +11,12 @@ advice.
 
 ## 1. Roles and the code
 
-The **host** is a device already in the library (a TV), and shows the code. The **joiner** is the device
+The **host** is a device already in the library, and shows the code; today that is a TV. The **joiner** is the device
 joining, and types or scans it.
 
 The host asks den-edge for a **nameplate** (§2) and generates the **secret** itself: 8 characters, each chosen
 uniformly from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (no 0/O or 1/I), so 40 bits. The code is the nameplate
-followed by the secret, shown as `ABCD-EFGH-JKLM`, and as a QR of `<den-edge origin>/app/#pair=ABCDEFGHJKLM`.
+followed by the secret, shown as `ABCD-EFGH-JKLM`, and as a QR of `<den-edge origin>/#pair=ABCDEFGHJKLM`, which opens Den Web.
 A URL fragment is never sent to a server, so den-edge sees the nameplate and never the secret.
 
 A joiner reads a typed code by uppercasing it and dropping spaces and dashes. Anything that is then not 12
