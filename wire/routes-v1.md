@@ -30,8 +30,9 @@ the same rule to it (oxyc/den#16).
 - **Every address is listed,** whether or not something answers there. A name that doesn't resolve, or a service
   that isn't published on it, fails the health check (§2), and clients move on. What a deployment publishes is its
   own decision, not the clients'.
-- **No private address on a public name:** on den-edge's public names (`WEB_HOSTS`, `API_HOSTS`), entries on a
-  LAN address (RFC 1918, loopback, link-local, `.local`) are left out.
+- **The same table on every name,** LAN addresses included. A client away from home still holds install URLs
+  issued on the LAN, and matches them against those entries (§4). A LAN address reaches nothing from the internet,
+  and the home check (§3) keeps a client from using one on someone else's network.
 
 ## 2. The rule
 
@@ -63,7 +64,7 @@ the library read a client makes at launch anyway.
 
 ## 4. Install URLs
 
-An addon's install URL keeps the address it was issued on, usually the public name. A client finds its service by
+An addon's install URL keeps the address it was issued on: the LAN address or a public name. A client finds its service by
 matching the URL against the table: the entry the URL starts with names the service, and the rest of the URL (the
 sealed config segment) goes with it to whichever entry wins, as `winner.url + rest`.
 
