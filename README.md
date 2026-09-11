@@ -17,6 +17,8 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
 - [`wire/inbox-v1.md`](wire/inbox-v1.md): a paired device's messages to its TV, sealed under its link key.
 - [`vectors/inbox-v1.json`](vectors/inbox-v1.json): sealed messages for pairing's fixed link key. Generated:
   `node tools/inbox-vectors.mjs > vectors/inbox-v1.json`.
+- [`wire/routes-v1.md`](wire/routes-v1.md): den-edge's table of every address for each service, and the rule
+  every client applies to it — order, health check, and the home check before a plain LAN address.
 
 A change to a format is a new version file, never an edit to a released one.
 
