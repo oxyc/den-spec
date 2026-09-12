@@ -1,0 +1,13 @@
+{
+  "health": {"status": "ok"},
+  "degraded": {"status": "degraded", "reason": "model_unavailable", "detail": "Model files unavailable"},
+  "not_found": {"error": "not_found"},
+  "method_not_allowed": {"error": "method_not_allowed"},
+  "missing_token": {"error": "missing_token"},
+  "bad_config": {"error": "bad_config"},
+  "plaintext_key": {"error": "no_key", "epoch": 2},
+  "sealed_key": {"key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=", "epoch": 2},
+  "not_logged_in": {"error": "not_logged_in", "detail": "Log in first"},
+  "bad_key": {"error": "bad_key", "detail": "Unknown browser key"},
+  "bad_request": {"error": "bad_request", "detail": "Invalid IMDb id"}
+}
