@@ -36,7 +36,6 @@ x-den-link: <inbox>
 | `play` | `tmdbId`, `mediaType`, `title`; `season`, `episode` optional | plays it, if `sentAt` is within two minutes |
 | `addon` | `manifestUrl`: https, or http to a LAN host | offers it for approval on the TV |
 | `libraryKey` | `key`: the new library key, base64 of 32 bytes | moves to it, as when joining a library (library-v2 §1): its rows go up to the new key's log, and the link the message came from stays paired |
-| `approveAddon` | `manifestUrl`: https, or http to a LAN host | installs it without asking: the approval of a device the TV's user allowed at pairing. Waiting for approval or not, and whether or not the library lists it yet |
 | `tmdbKey` | `key` | sets the TMDB key |
 | `apiKey` | `service` (`omdb`, `doesthedogdie`), `key` | sets that key |
 | `device` | `name`: a label as pairing-v1 §3 cleans it | renames the link |
