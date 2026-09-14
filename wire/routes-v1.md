@@ -30,9 +30,16 @@ the same rule to it (oxyc/den#16).
 - **Every address is listed,** whether or not something answers there. A name that doesn't resolve, or a service
   that isn't published on it, fails the health check (§2), and clients move on. What a deployment publishes is its
   own decision, not the clients'.
-- **The same table on every name,** LAN addresses included. A client away from home still holds install URLs
-  issued on the LAN, and matches them against those entries (§4). A LAN address reaches nothing from the internet,
-  and the home check (§3) keeps a client from using one on someone else's network.
+- **The same table on every name,** LAN addresses included, unless a deployment deliberately narrows one. A client
+  away from home still holds install URLs issued on the LAN, and matches them against those entries (§4). A LAN
+  address reaches nothing from the internet, and the home check (§3) keeps a client from using one on someone
+  else's network.
+- **A narrowed table** — naming only what a stranger may be told, for a name the public can reach — must still
+  name an `edge` entry the client reading it can use. Everything else a client can do without: a service with no
+  entry is simply unavailable from here (§2). `edge` is not like that. It is where the table itself came from,
+  and where the library lives; a client left without one has no way back to the deployment at all, and cannot
+  even re-read this table to recover. A deployment narrowing a table for devices should also weigh §4: an install
+  URL matches nothing when its service is unnamed, so a client holding LAN installs loses that addon entirely.
 
 ## 2. The rule
 

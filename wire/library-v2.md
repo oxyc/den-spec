@@ -165,6 +165,19 @@ Each setting is its own stamped value, so two devices changing different setting
   library key and lists itself again the next time it opens the library. Only resetting the library key shuts it
   out. Pairing credentials (inbox and link keys) never go here.
 
+- `addresses`: addresses of the deployment's own services that its routes table does not publish, one setting per
+  service name as routes-v1 spells one (`remux`, …): `{"string": "<base url>"}`. A deployment may serve a narrower
+  table on a public name (routes-v1 §1), and a client reading that table is then told nothing about a service it
+  could otherwise reach — a browser on the tailnet, say, whose den-remux is a hostname away. What the deployment
+  will not publish, the household can carry here, where it is sealed like every row.
+
+  Only `https`, and only a tailnet name: a LAN address is useless to the device that would read this, and a public
+  name is the table's to give. No query, fragment or credentials — a credential in a URL is one written into the
+  library and into every log the URL reaches. A client writes only an address it has itself reached, and rewrites
+  it whenever what it reaches differs, since a tailnet name can change with nothing left on the server to correct
+  it from. A client never clears one: the probe fails exactly when the device is off that network and least able
+  to prove the address. A client tries what it finds here before the table's own entries for that service.
+
 A client writes only the settings it manages and keeps the others as it read them. `plugins`, `trust` and
 `devices` are **open groups**: a client manages every entry in them, applying a name it has never seen —
 otherwise an addon added on one device would never reach another. A client that doesn't know the `set` kind
