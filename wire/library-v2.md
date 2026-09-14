@@ -27,6 +27,18 @@ generates, so den-edge could read it. [Pairing v1](pairing-v1.md) replaces this.
 into backups on 2026-09-11, and rewrites each old one once without it; a client reading an old backup may still
 find the field.
 
+**Resetting the key.** Any device holding the library can move it to a new key, so that one unlinked earlier can no
+longer read or write it:
+
+1. Make a new key and write every row, sealed under it, to the new key's log.
+2. Hand the new key to the devices that should keep the library: a TV to the other TVs on its iCloud account
+   (Keychain), and any device to the TVs it is paired with, through each one's inbox (inbox-v1 `libraryKey`).
+3. Delete the old log (`DELETE /lib/{id}` with the old token). den-edge retires the id, and a device still holding
+   the old key gets `410 library_moved`.
+
+A TV that gets `410` drains its inbox before it gives the library up, since the message moving it may be waiting
+there. Every other device pairs again.
+
 ## 2. Rows
 
 Each record is one row `{k, v}`.
