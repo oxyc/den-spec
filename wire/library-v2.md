@@ -117,17 +117,25 @@ Each setting is its own stamped value, so two devices changing different setting
 
 - `prefs`: the TV's synced preferences, by their `UserDefaults` keys (hidden genres and languages, Hide
   Watched, the year floor, subtitle and audio choices, …). `den.maturityCeiling` is the parental limit:
-  `{"string": "pg13"}` or `{"string": "r"}`, `null` for no limit.
+  `{"string": "pg13"}` or `{"string": "r"}`, `null` for no limit. A limit stricter than a device's own applies at
+  once; a looser one, or `null`, waits on a device that has a PIN until someone enters that PIN on it — anyone
+  holding the library key can write the row, so the PIN, not the row, is what lifts a limit.
 - `keys`: the user's own keys — the metadata services' `tmdb`, `omdb`, `doesthedogdie`, the `simkl` tracker
   token, the Cloudflare Access `cfAccessId`/`cfAccessSecret`, the media servers' `jellyfin` and `plex` access
   tokens, and the `parentalPIN` — sealed like every row, so they reach a linked device without den-edge seeing
   them. A device applies a credential another device wrote only after checking it with the service. Not Trakt:
-  its refresh token rotates, so two devices can't share one.
+  its refresh token rotates, so two devices can't share one. A server token is never sent to a server URL it
+  didn't arrive with: a `servers` URL whose scheme, host or port changed needs its token in the same write.
+  `parentalPIN` is exactly four digits, carried hashed: `{"string": "sha256:<base64 16-byte salt>:<base64
+  SHA-256 of the salt bytes followed by the PIN's UTF-8>"}`, checked by hashing what's typed with the same salt.
+  A bare four-digit value from an older client is accepted, and hashed when next changed. A change to a PIN a
+  device already has waits on that device until its current PIN is entered there.
 - `plugins`: the user's addons, one setting per manifest URL: `{"bool": true}` while wanted, `null` once removed.
   What a device does with a wanted URL is its own: the TV installs one only after its user approves it, and
   writes a declined one back as `null`.
 - `servers`: the connected media servers, `jellyfin` and `plex`, each `{"string": "<server URL>"}` while
-  connected and `null` once removed; `jellyfin.user` is the Jellyfin user id. Their tokens are in `keys`.
+  connected and `null` once removed; `jellyfin.user` is the Jellyfin user id. Their tokens are in `keys`. A URL is
+  `https`, or `http` to a LAN host (as for addons).
 - `trust`: the dataset signing keys the user pinned, one setting per manifest URL: `{"string": "<base64 Ed25519
   public key>"}`, `null` once unpinned.
 - `devices`: the devices that hold the library. Each device writes its own three settings under its stamp device
