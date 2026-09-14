@@ -132,7 +132,9 @@ Each setting is its own stamped value, so two devices changing different setting
   device already has waits on that device until its current PIN is entered there.
 - `plugins`: the user's addons, one setting per manifest URL: `{"bool": true}` while wanted, `null` once removed.
   What a device does with a wanted URL is its own: the TV installs one only after its user approves it, and
-  writes a declined one back as `null`.
+  writes a declined one back as `null`. Approval comes from the TV's own user, or from a device paired to that TV
+  through its inbox (`approveAddon`, inbox-v1 §2): the link proves the device is one the TV's user allowed, which
+  a row in the library, writable by anyone holding its key, can't.
 - `servers`: the connected media servers, `jellyfin` and `plex`, each `{"string": "<server URL>"}` while
   connected and `null` once removed; `jellyfin.user` is the Jellyfin user id. Their tokens are in `keys`. A URL is
   `https`, or `http` to a LAN host (as for addons).
@@ -141,7 +143,9 @@ Each setting is its own stamped value, so two devices changing different setting
 - `devices`: the devices that hold the library. Each device writes its own three settings under its stamp device
   id `d` (§4): `<d>.name` (`{"string": …}`, what it calls itself), `<d>.kind` (`{"string": "tv"}` or
   `{"string": "browser"}`) and `<d>.seen` (`{"int": <ms>}`, when it last opened the library, rewritten at most
-  once a day). Clearing a device's settings takes it off the list, not out of the library: it still holds the
+  once a day). A TV also writes `<d>.pending` (`{"strings": [<manifest URL>, …]}`, sorted), the addons waiting
+  for its approval, so a device paired to it can show them and approve them. Clearing a device's settings takes it
+  off the list, not out of the library: it still holds the
   library key and lists itself again the next time it opens the library. Only resetting the library key shuts it
   out. Pairing credentials (inbox and link keys) never go here.
 
