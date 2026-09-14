@@ -39,6 +39,11 @@ longer read or write it:
 A TV that gets `410` drains its inbox before it gives the library up, since the message moving it may be waiting
 there. Every other device pairs again.
 
+**A device's own library.** A client used with no TV — Den Web in a browser that hasn't linked one — may keep a
+library of its own: a key it makes once and keeps like a link's, the same rows sealed and merged by the same rules,
+held only on the device and never written to den-edge. Linking a TV moves it into the TV's library: every row is
+written there, merged with what the TV has (§5), before the device switches to the TV's key and drops its own.
+
 ## 2. Rows
 
 Each record is one row `{k, v}`.
