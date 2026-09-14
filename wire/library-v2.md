@@ -116,18 +116,31 @@ Each setting is its own stamped value, so two devices changing different setting
 `{"ints": […]}`, `{"strings": […]}`.
 
 - `prefs`: the TV's synced preferences, by their `UserDefaults` keys (hidden genres and languages, Hide
-  Watched, the year floor, subtitle and audio choices, …).
-- `keys`: the user's own keys — the metadata services' `tmdb`, `omdb`, `doesthedogdie`, and the `simkl` tracker
-  token — sealed like every row, so they reach a linked device without den-edge seeing them. A device applies a
-  credential another device wrote only after checking it with the service. Not Trakt: its refresh token rotates,
-  so two devices can't share one.
+  Watched, the year floor, subtitle and audio choices, …). `den.maturityCeiling` is the parental limit:
+  `{"string": "pg13"}` or `{"string": "r"}`, `null` for no limit.
+- `keys`: the user's own keys — the metadata services' `tmdb`, `omdb`, `doesthedogdie`, the `simkl` tracker
+  token, the Cloudflare Access `cfAccessId`/`cfAccessSecret`, the media servers' `jellyfin` and `plex` access
+  tokens, and the `parentalPIN` — sealed like every row, so they reach a linked device without den-edge seeing
+  them. A device applies a credential another device wrote only after checking it with the service. Not Trakt:
+  its refresh token rotates, so two devices can't share one.
 - `plugins`: the user's addons, one setting per manifest URL: `{"bool": true}` while wanted, `null` once removed.
   What a device does with a wanted URL is its own: the TV installs one only after its user approves it, and
   writes a declined one back as `null`.
+- `servers`: the connected media servers, `jellyfin` and `plex`, each `{"string": "<server URL>"}` while
+  connected and `null` once removed; `jellyfin.user` is the Jellyfin user id. Their tokens are in `keys`.
+- `trust`: the dataset signing keys the user pinned, one setting per manifest URL: `{"string": "<base64 Ed25519
+  public key>"}`, `null` once unpinned.
+- `devices`: the devices that hold the library. Each device writes its own three settings under its stamp device
+  id `d` (§4): `<d>.name` (`{"string": …}`, what it calls itself), `<d>.kind` (`{"string": "tv"}` or
+  `{"string": "browser"}`) and `<d>.seen` (`{"int": <ms>}`, when it last opened the library, rewritten at most
+  once a day). Clearing a device's settings takes it off the list, not out of the library: it still holds the
+  library key and lists itself again the next time it opens the library. Only resetting the library key shuts it
+  out. Pairing credentials (inbox and link keys) never go here.
 
-A client writes only the settings it manages and keeps the others as it read them. `plugins` is an **open
-group**: a client manages every entry in it, applying a URL it has never seen — otherwise an addon added on one
-device would never reach another. A client that doesn't know the `set` kind skips the row.
+A client writes only the settings it manages and keeps the others as it read them. `plugins`, `trust` and
+`devices` are **open groups**: a client manages every entry in them, applying a name it has never seen —
+otherwise an addon added on one device would never reach another. A client that doesn't know the `set` kind
+skips the row.
 
 ### What rows don't carry
 
