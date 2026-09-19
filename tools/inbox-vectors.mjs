@@ -32,6 +32,22 @@ const cases = plaintexts.map((body, i) => {
   return { nonce: nonce.toString('hex'), plaintext, sealed: sealed.toString('base64url') }
 })
 
+const deviceBody = {
+  id: '0123456789abcdeffedcba9876543210',
+  sentAt: 1789000120000,
+  message: { type: 'device', name: 'Mac · Chrome', deviceId: '0011223344556677' },
+}
+const devicePlaintext = JSON.stringify(deviceBody)
+const deviceNonce = range(24, 36)
+const deviceCipher = createCipheriv('aes-256-gcm', enc, deviceNonce)
+deviceCipher.setAAD(aad)
+const deviceSealed = Buffer.concat([
+  deviceNonce,
+  deviceCipher.update(devicePlaintext, 'utf8'),
+  deviceCipher.final(),
+  deviceCipher.getAuthTag(),
+])
+
 const vectors = {
   comment:
     'wire/inbox-v1.md, computed by tools/inbox-vectors.mjs. linkKey is pairing-v1.json\'s; enc is its HKDF ' +
@@ -39,6 +55,11 @@ const vectors = {
   linkKey: linkKey.toString('hex'),
   enc: enc.toString('hex'),
   cases,
+  device: {
+    nonce: deviceNonce.toString('hex'),
+    plaintext: devicePlaintext,
+    sealed: deviceSealed.toString('base64url'),
+  },
 }
 
 process.stdout.write(`${JSON.stringify(vectors, null, 2)}\n`)

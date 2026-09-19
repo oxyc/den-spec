@@ -13,5 +13,10 @@
       "plaintext": "{\"id\":\"ffeeddccbbaa99887766554433221100\",\"sentAt\":1789000060000,\"message\":{\"type\":\"play\",\"tmdbId\":1399,\"mediaType\":\"tv\",\"title\":\"Game of Thrones\",\"season\":1,\"episode\":2}}",
       "sealed": "DA0ODxAREhMUFRYXxBXqhyeMAgXUKdI--8133WiZW5Qrrt4v26RHWzbHVxKMaoDj_fcj5cayZy2Iiu4wMPq8yCLN2LdHNXw0Ryn-p9jxhq9_8bZmijtkpzrToKTwuphtQioHWYXfy3c0aCcbJ_jSOLY_VrkOwZkxcIeT0stBCDxW5BVlSnpxPBbal2IwF7Vgk8sbcwzDmD92mBw8379_aZu0mAkfSguLNlXxImNAAt-OZGaNpA2aMIO5l-4ABBRr0Ub3Vk9c"
     }
-  ]
+  ],
+  "device": {
+    "nonce": "18191a1b1c1d1e1f20212223",
+    "plaintext": "{\"id\":\"0123456789abcdeffedcba9876543210\",\"sentAt\":1789000120000,\"message\":{\"type\":\"device\",\"name\":\"Mac · Chrome\",\"deviceId\":\"0011223344556677\"}}",
+    "sealed": "GBkaGxwdHh8gISIjhwk3DkUhIFwWhm3H9xurzGLLavY0cHoY2T0M1tqKd2Of-lIVZ_OmpHpA5PBctmKPIdmll6MHmvCvSu3ZWssvcsL0YWvYV17B_lZ0g1iHNYQIPEdWAymMbH3UwxC40SVfCFkeyie6cAirTeupFcZhQ3xrp3TYXeNn2xqMhjX5ktFiB8yxhA-CE_8hIHthXXLzeSUsg-jdbZOc-O8IvNIn8Ow"
+  }
 }

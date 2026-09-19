@@ -40,11 +40,19 @@ x-den-link: <inbox>
 | `apiKey` | `service` (`omdb`, `doesthedogdie`), `key` | sets that key |
 | `device` | `name`: a label as pairing-v1 §3 cleans it; `deviceId` optional | names the link and records the sender's stable identity |
 
-`deviceId`, when present, is the sender's 16-character lowercase-hex stamp device id (library-v2 §4). A newly
-paired device sends `device` after opening the handover, so the host can match the link to its entry in the
-library's `devices` group without treating its editable label as an identity. It sends another only when its
-name changes. Existing senders may omit `deviceId`, and existing receivers ignore it: den-edge can't tell sealed
-messages apart, so it can't keep just the latest one, and a queue holds fifty messages.
+`deviceId`, when present, is the sender's 16-character lowercase-hex stamp device id (library-v2 §4): the same
+`d` it puts in stamps and uses for its entries in `set:devices`. A sender that supports the field MUST include it.
+It sends `device` after opening a new handover, once on every existing link when upgrading from a version that did
+not send it, and again when its name or stamp device id changes. This lets the host persist the id on the exact
+link whose `enc` key opened the message, then join that link to the sender's entry in `set:devices`; if the entry
+has not arrived yet, the host keeps the association and resolves it later. Labels are never used as identity.
+
+A receiver that supports the field MUST drop a `device` message whose present `deviceId` is not exactly 16
+lowercase hex characters. An omitted `deviceId` from an older sender still updates the label but MUST NOT erase
+an id already associated with the link. Existing receivers ignore the new field. `deviceId` remains inside the
+sealed plaintext and is not a credential or a key input, so den-edge learns no new identifier and the association
+grants no authority. den-edge can't tell sealed messages apart, so it can't keep just the latest one, and a queue
+holds fifty messages.
 
 ## 3. Receiving
 

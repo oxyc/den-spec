@@ -199,7 +199,9 @@ then `c`, then `d` (by bytes). Each device keeps the last stamp it issued or saw
 - **Seeing** a stamp `s` in a row it read: `last = max(last, s)`. So an edit made after reading a row is
   stamped later than that row, even when this device's clock is behind.
 
-The device id is 16 random lowercase hex characters, made once per installation.
+The **stamp device id** is 16 random lowercase hex characters, made once per installation. It is the same `d`
+that keys this installation's entries in `set:devices`; it is a stable identifier, not a credential, and MUST NOT
+be used to authorize a device or derive a key.
 
 A stamp more than a day ahead of the reader's clock — a device with a wrong clock, or a key holder writing
 year 2100 — would otherwise win every merge for good. A client reads it as the zero stamp: the value wins
