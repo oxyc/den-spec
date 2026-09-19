@@ -18,8 +18,16 @@ to den-edge. Everything else is derived from it with HKDF-SHA256:
 | `encKey` | `den/library/v2` | `enc` | 32 | AES-256-GCM key for row values |
 | `macKey` | `den/library/v2` | `mac` | 32 | HMAC-SHA256 key for row keys |
 | `token` | `den/library/v2` | `token` | 32 | The `x-den-library-token` header, lowercase hex |
+| `member` | `den/library/v2` | `member` | 32 | Membership proof for relayed household services, lowercase hex |
 
 Salts and infos are the UTF-8 bytes of the strings shown.
+
+`token` grants read, write, and delete access to the opaque library log. It MUST be sent only to `/lib`.
+`member` proves that a caller holds a library without granting access to that log. A client registers it with
+`PUT /lib/{id}/member`, carrying `x-den-library-token: <token>` and
+`x-den-library-member: <id>:<member>`, before it uses the same member header on a relayed household request.
+Registration is idempotent. A server migrating an older library may accept `token` in the member header until
+the member proof has been registered; once registered, only `member` proves membership.
 
 **Handover (v1).** A linked device gets the library key from the TV's encrypted backup at `/sync`: the
 snapshot carries it as `libraryKey`, base64. That backup is keyed off the link's inbox key, which den-edge

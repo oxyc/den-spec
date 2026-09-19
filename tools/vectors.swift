@@ -24,6 +24,7 @@ let id = derive(salt: "den/library/salt/v1", info: "den/library/id/v1", count: 1
 let encKey = derive(salt: "den/library/v2", info: "enc", count: 32)
 let macKey = derive(salt: "den/library/v2", info: "mac", count: 32)
 let token = derive(salt: "den/library/v2", info: "token", count: 32)
+let member = derive(salt: "den/library/v2", info: "member", count: 32)
 
 let stamp = #"[1789000000000,0,"a1b2c3d4e5f60718"]"#
 let rows: [(name: String, plaintext: String)] = [
@@ -52,7 +53,7 @@ for (index, row) in rows.enumerated() {
 let vectors: [String: Any] = [
     "libraryKey": hex(bytes(libraryKey)),
     "derived": ["id": hex(bytes(id)), "encKey": hex(bytes(encKey)), "macKey": hex(bytes(macKey)),
-                "token": hex(bytes(token))],
+                "token": hex(bytes(token)), "member": hex(bytes(member))],
     "rows": rowVectors,
 ]
 let json = try JSONSerialization.data(withJSONObject: vectors,
