@@ -38,10 +38,13 @@ x-den-link: <inbox>
 | `libraryKey` | `key`: the new library key, base64 of 32 bytes | moves to it, as when joining a library (library-v2 §1): its rows go up to the new key's log, and the link the message came from stays paired |
 | `tmdbKey` | `key` | sets the TMDB key |
 | `apiKey` | `service` (`omdb`, `doesthedogdie`), `key` | sets that key |
-| `device` | `name`: a label as pairing-v1 §3 cleans it | renames the link |
+| `device` | `name`: a label as pairing-v1 §3 cleans it; `deviceId` optional | names the link and records the sender's stable identity |
 
-A device sends `device` only when its name changes: den-edge can't tell sealed messages apart, so it can't keep
-just the latest one, and a queue holds fifty messages.
+`deviceId`, when present, is the sender's 16-character lowercase-hex stamp device id (library-v2 §4). A newly
+paired device sends `device` after opening the handover, so the host can match the link to its entry in the
+library's `devices` group without treating its editable label as an identity. It sends another only when its
+name changes. Existing senders may omit `deviceId`, and existing receivers ignore it: den-edge can't tell sealed
+messages apart, so it can't keep just the latest one, and a queue holds fifty messages.
 
 ## 3. Receiving
 

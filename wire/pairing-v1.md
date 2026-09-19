@@ -117,11 +117,15 @@ The host seals one message to the joiner:
 - The plaintext is a UTF-8 JSON object:
 
 ```json
-{"v": 1, "host": "Living room", "linkKey": "<base64url, 32 bytes>", "libraryKey": "<base64url, 32 bytes>"}
+{"v": 1, "host": "Living room", "hostDeviceId": "a1b2c3d4e5f60718", "linkKey": "<base64url, 32 bytes>", "libraryKey": "<base64url, 32 bytes>"}
 ```
 
 - `libraryKey` is the library's key ([library-v2.md](library-v2.md) §1). A joiner MUST refuse a handover
   without it.
+- `hostDeviceId` is optional for compatibility with existing hosts. When present it is the host's 16-character
+  lowercase-hex stamp device id ([library-v2.md](library-v2.md) §4). A joiner keeps it with the link, so the
+  link can be matched to the host's entry in the library's `devices` group without treating its editable label
+  as an identity.
 - `linkKey` is 32 random bytes the host makes for this joiner, and keeps with the joiner's label in its list
   of linked devices. It replaces the `inboxKey` den-edge used to generate. From it, HKDF-SHA256 with salt
   `den/link/v1`:
