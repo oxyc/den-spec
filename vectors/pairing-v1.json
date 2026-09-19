@@ -87,6 +87,12 @@
       "plaintext": "{\"v\":1,\"host\":\"Living room\",\"linkKey\":\"ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8\",\"libraryKey\":\"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8\"}",
       "d": "AAECAwQFBgcICQoLy3cc-mfSDHnpRVDWlk1Pl5Ggpfz37lu49MdnMMp2DujQjdBWWWN3FbU_ETKsmDcrMIO8e0xqiMg9LCcEHf0yEcqwY8imtNQihAP9Qe8a33HwbaiAlP28bMA_0BxGmlkKg_FPFgRCC8HX4ezY4i5mjqYGUplZQndEXE2ZCgmdtHcxzkLczLceL98uUgId8e7QF4vlBaWnM60L1M99mQo3"
     },
+    "handoverWithHostDeviceId": {
+      "key": "ba9f6f0242ada807704420122b740a42f60367ba5be303b717d5f77ef3d6a20e",
+      "nonce": "0c0d0e0f1011121314151617",
+      "plaintext": "{\"v\":1,\"host\":\"Living room\",\"hostDeviceId\":\"a1b2c3d4e5f60718\",\"linkKey\":\"ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8\",\"libraryKey\":\"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8\"}",
+      "d": "DA0ODxAREhMUFRYXR-MyvK_int2xOb2TolzBDVSK3AwEv8V6kHBOx6dlwB3mtj-GoBECuk2JguZC3MR_7RZqAS6wUeg_gxLA0CPVgzkcHNdHZKatXYdgJWbVIItqVYQpj94jWPU8eHKiXjTF9fZv1cQ9QWOBfTBKOdGd4zdPRWS44PsF02ndfInzvVzSxzfKgMD8yi1loLKcbEjFcVlsPmyldj44sh38xtbkM_Tkxiadvnc028jSBt4uFt1US_Qz4K2cSS0ijsh48soljQ"
+    },
     "link": {
       "linkKey": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
       "inbox": "38d972a13fa43c0ae35b6d5a65fe2a6061790c94456a0427",

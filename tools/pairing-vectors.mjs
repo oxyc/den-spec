@@ -141,11 +141,24 @@ const linkKey = range(32, 64)
 const libraryKey = range(0, 32)
 const handoverKey = hkdf(ISK, sid, 'den/pair/v1/handover', 32)
 const nonce = range(0, 12)
+const deviceNonce = range(12, 24)
 const aad = utf8('den/pair/v1/handover')
 const plaintext = JSON.stringify({ v: 1, host: hostLabel, linkKey: b64url(linkKey), libraryKey: b64url(libraryKey) })
-const cipher = createCipheriv('aes-256-gcm', handoverKey, nonce)
-cipher.setAAD(aad)
-const sealed = cat(nonce, cipher.update(utf8(plaintext)), cipher.final(), cipher.getAuthTag())
+const hostDeviceId = 'a1b2c3d4e5f60718'
+const devicePlaintext = JSON.stringify({
+  v: 1,
+  host: hostLabel,
+  hostDeviceId,
+  linkKey: b64url(linkKey),
+  libraryKey: b64url(libraryKey),
+})
+const sealHandover = (body, iv) => {
+  const cipher = createCipheriv('aes-256-gcm', handoverKey, iv)
+  cipher.setAAD(aad)
+  return cat(iv, cipher.update(utf8(body)), cipher.final(), cipher.getAuthTag())
+}
+const sealed = sealHandover(plaintext, nonce)
+const deviceSealed = sealHandover(devicePlaintext, deviceNonce)
 
 const vectors = {
   comment:
@@ -201,6 +214,12 @@ const vectors = {
       nonce: hex(nonce),
       plaintext,
       d: b64url(sealed),
+    },
+    handoverWithHostDeviceId: {
+      key: hex(handoverKey),
+      nonce: hex(deviceNonce),
+      plaintext: devicePlaintext,
+      d: b64url(deviceSealed),
     },
     link: {
       linkKey: hex(linkKey),

@@ -117,11 +117,18 @@ The host seals one message to the joiner:
 - The plaintext is a UTF-8 JSON object:
 
 ```json
-{"v": 1, "host": "Living room", "linkKey": "<base64url, 32 bytes>", "libraryKey": "<base64url, 32 bytes>"}
+{"v": 1, "host": "Living room", "hostDeviceId": "a1b2c3d4e5f60718", "linkKey": "<base64url, 32 bytes>", "libraryKey": "<base64url, 32 bytes>"}
 ```
 
 - `libraryKey` is the library's key ([library-v2.md](library-v2.md) §1). A joiner MUST refuse a handover
   without it.
+- `hostDeviceId` is optional for compatibility with existing hosts. A host that supports the field MUST include
+  its 16-character lowercase-hex stamp device id ([library-v2.md](library-v2.md) §4): the same `d` it puts in
+  stamps and uses for its entries in `set:devices`. A joiner keeps it with the link, so that local link record can
+  be joined exactly to the host's entry in `set:devices` without treating its editable label as an identity. A
+  joiner that supports the field MUST refuse a handover whose `hostDeviceId` is present but is not exactly 16
+  lowercase hex characters. An absent field leaves an older link unassociated; learning it exactly requires
+  pairing again.
 - `linkKey` is 32 random bytes the host makes for this joiner, and keeps with the joiner's label in its list
   of linked devices. It replaces the `inboxKey` den-edge used to generate. From it, HKDF-SHA256 with salt
   `den/link/v1`:
@@ -130,11 +137,16 @@ The host seals one message to the joiner:
   - `enc` (info `enc`, 32 bytes): the key the link's inbox messages will be sealed under.
 - Fields a client doesn't know are ignored.
 
+The link record on each side keeps the peer label, the `linkKey`, and the peer's stamp device id when known. On
+the host, the peer id arrives later in inbox-v1's sealed `device` message. The ids are identity hints, not
+capabilities: they never authorize a link, replace `linkKey`, or participate in a key derivation.
+
 ## 7. What den-edge still sees
 
 The nameplate, the `sid`, both public shares and both labels (associated data is not encrypted), message
-sizes, timing and client addresses. None of it lets den-edge guess the secret offline, read the handover, or
-pass as either device.
+sizes, timing and client addresses. `hostDeviceId` stays inside the encrypted handover; it is not added to a
+relay message, header, URL or associated data, so this change reveals no stable device identifier to den-edge.
+None of what den-edge sees lets it guess the secret offline, read the handover, or pass as either device.
 
 ## 8. Replaces
 
