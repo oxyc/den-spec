@@ -200,6 +200,13 @@ Each is a `u32` values array of interned ids plus a `u32` offsets array:
 | `ent_name` | `u32` | E — string id |
 | `ent_tmdb` | `u32` | E — TMDB person id, `u32::MAX` = none |
 | `ent_credits` | `u32` | E — titles crediting this entity, for rarity weighting |
+| `ent_alias_v` / `_o` | `u32` | list per entity — the other names they go by, as string ids |
+
+`ent_alias_*` holds STRINGS, not precomputed hashes. People search keys on a folded, normalised form of a
+name, and a writer producing those hashes would be a second copy of that algorithm — the exact drift this
+format exists to prevent. The reader folds them itself and drops the strings once its index is built.
+64,075 of 162,812 entities have aliases, 118,958 in all; without them a search for "Michael James Vogel"
+finds nothing while "Mike Vogel" works.
 
 ### The inverted maker index
 

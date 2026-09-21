@@ -108,7 +108,8 @@ TITLES = [
 ENTITIES = {
     "Q100": {"en": "Ada Director", "tmdbPersonId": "900"},
     "Q101": {"en": "Bo Writer"},
-    "Q102": {"en": "Cy Actor", "tmdbPersonId": "902"},
+    # Aliases: people search indexes these as well as `en`, so the fixture has to carry one.
+    "Q102": {"en": "Cy Actor", "tmdbPersonId": "902", "aliases": ["Cyrus Actor", "C. Actor"]},
     "Q103": {"en": "Di Actor"},
     "Q104": {"en": "Ed Composer"},
     "Q105": {"en": "The Alpha Saga"},
@@ -255,6 +256,13 @@ def main():
              "hasPlotVector": True, "hasPremiseVector": True,
              "_note": "genres: one Q-id mapping to TWO TMDB ids, stored sorted."},
         ],
+        # The entity table, keyed by Q-id. People search reads the aliases as well as the name, so a
+        # reader that indexes only `ent_name` answers "Cyrus Actor" with nothing.
+        "entities": [
+            {"qid": 102, "name": "Cy Actor", "tmdbPersonId": 902,
+             "aliases": ["Cyrus Actor", "C. Actor"]},
+            {"qid": 100, "name": "Ada Director", "tmdbPersonId": 900, "aliases": []},
+        ],
         "notes": [
             "Scores are u16 HUNDREDTHS of a 0..4 axis: 321 is 3.21. They are not twentieths.",
             "Probabilities and confidences are u8 hundredths.",
@@ -263,6 +271,7 @@ def main():
             "The content hash is BLAKE2b with digest_size=8, read little-endian, over every byte from 64.",
             "Rows are sorted by the packed key (media << 32 | tmdbId), so movie rows precede tv rows.",
             "Vectors are re-ordered from their own labels-file order into the store's sorted-key order.",
+            "ent_alias_* holds STRINGS, not hashes: the reader folds them with its own name_key.",
         ],
     }
     with open(os.path.join(args.out_dir, "store-v1.json"), "w", encoding="utf-8") as fh:
