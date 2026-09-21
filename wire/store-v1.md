@@ -113,13 +113,25 @@ what an unenforced contract is worth.
 | name | type | length |
 |---|---|---|
 | `card_title` | `u32` | R — string id |
-| `card_poster` | `u32` | R — string id, `u32::MAX` = none |
+| `card_poster` | `u32` | R — string id, `u32::MAX` = none. **OPTIONAL — no longer written** |
 | `card_year` | `i16` | R — `i16::MIN` = none |
-| `votes` | `u32` | R — TMDB vote count, 0 when unknown |
+| `votes` | `u32` | R — vote count, 0 when unknown. **Being withdrawn** |
+
+**`card_poster` is optional, and it is the only optional section in store-v1.** A reader must treat its
+absence as "no poster paths", never as an error: the producer stopped writing it under oxyc/den#118,
+because a poster path is licensed vendor content and the store is a public artifact. A reader wanting
+artwork has two other sources — a batch metadata route, and the metahub URL keyed by IMDb id — and so
+loses art rather than the card. A reader that takes the whole card map down when this section is missing
+is the bug that removal was gated on, and den-atlas had exactly that shape.
+
+Absence, not a version bump: the section directory is looked up by name, so a store without an optional
+section is still store-v1 and every existing reader of the other 92 sections stays valid.
 
 `votes` is what a browse row is ORDERED by, so a title without one sorts by tmdbId and lands *La Job*
 (tv:5) next to *Game of Thrones*. It used to live only in `facets.bin`, which fell 9,007 titles behind the
-corpus because nothing rebuilt it; here it is written for every row from the enriched batches.
+corpus because nothing rebuilt it. It is now being withdrawn for the same licensing reason as the poster,
+and a reader must have a source of its own before it goes: den-atlas joins IMDb's public
+`title.ratings.tsv.gz` on the `imdb` column at runtime, which covers 99.9% of the corpus.
 
 ### Labels
 

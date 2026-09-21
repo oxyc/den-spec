@@ -18,14 +18,14 @@
   }
  ],
  "header": {
-  "bytes": 11371,
-  "contentHash": 4078556007825232688,
+  "bytes": 11291,
+  "contentHash": 4707274438243570692,
   "datasetVersion": "fixture",
   "endianness": 16909060,
   "formatVersion": 1,
   "magic": "DENSTOR1",
   "rowCount": 3,
-  "sectionCount": 93
+  "sectionCount": 92
  },
  "notes": [
   "Scores are u16 HUNDREDTHS of a 0..4 axis: 321 is 3.21. They are not twentieths.",
@@ -36,6 +36,7 @@
   "Rows are sorted by the packed key (media << 32 | tmdbId), so movie rows precede tv rows.",
   "Vectors are re-ordered from their own labels-file order into the store's sorted-key order.",
   "ent_alias_* holds STRINGS, not hashes: the reader folds them with its own name_key.",
+  "card_poster is NOT a section: the writer is handed posterPath for two of these three titles and drops both, paths included, so a reader must treat the section's absence as 'no posters' rather than as an error.",
   "Q3 is tv-only and a COMPOSITE (10765): stored as-is, the reader folds it to 878 and 14.",
   "Q999 is credited but has no entity entry: it is still in the table, named by its Q-id."
  ],
@@ -53,7 +54,6 @@
    "basedOnKind": [
     "book"
    ],
-   "cardPoster": "/alpha.jpg",
    "cardTitle": "Alpha",
    "cardYear": 1999,
    "cast": [
@@ -158,7 +158,6 @@
   },
   {
    "_note": "A facts-only row: present in facts, absent from every label and vector file.",
-   "cardPoster": null,
    "cardTitle": "Beta",
    "cardYear": 2001,
    "cast": [],
@@ -181,7 +180,6 @@
   },
   {
    "_note": "genres: one Q-id mapping to TWO TMDB ids, in the genreMap's order \u2014 NOT sorted. /recommend treats the first as the most significant, so sorting renames titles.",
-   "cardPoster": "/gamma.jpg",
    "cardTitle": "Gamma",
    "cardYear": 2010,
    "cast": [

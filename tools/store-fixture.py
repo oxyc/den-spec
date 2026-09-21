@@ -205,6 +205,9 @@ def main():
     facts = dump("facts.json", {"datasetVersion": "fixture", "genreMap": GENRE_MAP,
                                 "records": [{"mediaType": t["mediaType"], "tmdbId": t["tmdbId"]}
                                             for t in TITLES]})
+    # `posterPath` is supplied on purpose although `card_poster` is no longer a section: the fixture then
+    # proves the writer DROPS a poster path it was handed, rather than proving only that nothing gave it
+    # one. Removing it here would make the store's lack of poster paths unfalsifiable.
     metadata = dump("metadata.json", {"records": [
         {"mediaType": "movie", "tmdbId": 1, "title": "Alpha", "posterPath": "/alpha.jpg", "year": 1999},
         {"mediaType": "movie", "tmdbId": 2, "title": "Beta", "year": 2001},
@@ -257,7 +260,7 @@ def main():
         },
         "rows": [
             {"key": "movie:1", "row": 0, "media": 0, "tmdbId": 1,
-             "cardTitle": "Alpha", "cardPoster": "/alpha.jpg", "cardYear": 1999, "votes": 4321,
+             "cardTitle": "Alpha", "cardYear": 1999, "votes": 4321,
              "primaryGenre": "Drama", "animated": False,
              "subgenres": [["Prison", 70]], "moods": [["Bleak", 55]],
              # `tone` is collected at 0.37 and WITHHELD by the publication gate (probability < 0.70),
@@ -280,14 +283,14 @@ def main():
              "aliasTitles": ["Alpha", "Alfa", "Alpha One"], "hasVector": True,
              "hasPlotVector": True, "hasPremiseVector": False},
             {"key": "movie:2", "row": 1, "media": 0, "tmdbId": 2,
-             "cardTitle": "Beta", "cardPoster": None, "cardYear": 2001, "votes": 0,
+             "cardTitle": "Beta", "cardYear": 2001, "votes": 0,
              "primaryGenre": None, "subgenres": [], "moods": [],
              "countries": ["FR"], "makers": [], "cast": [],
              "released": None, "hasVector": False,
              "hasPlotVector": False, "hasPremiseVector": False,
              "_note": "A facts-only row: present in facts, absent from every label and vector file."},
             {"key": "tv:10", "row": 2, "media": 1, "tmdbId": 10,
-             "cardTitle": "Gamma", "cardPoster": "/gamma.jpg", "cardYear": 2010, "votes": 77,
+             "cardTitle": "Gamma", "cardYear": 2010, "votes": 77,
              "primaryGenre": "Crime", "subgenres": [], "moods": [],
              # `archetype` is answered at 0.91 and withheld: an open-or-multi-arc narrative may not
              # carry one, and no confidence threshold would have caught it.
@@ -316,6 +319,9 @@ def main():
             "Rows are sorted by the packed key (media << 32 | tmdbId), so movie rows precede tv rows.",
             "Vectors are re-ordered from their own labels-file order into the store's sorted-key order.",
             "ent_alias_* holds STRINGS, not hashes: the reader folds them with its own name_key.",
+            "card_poster is NOT a section: the writer is handed posterPath for two of these three "
+            "titles and drops both, paths included, so a reader must treat the section's absence as "
+            "'no posters' rather than as an error.",
             "Q3 is tv-only and a COMPOSITE (10765): stored as-is, the reader folds it to 878 and 14.",
             "Q999 is credited but has no entity entry: it is still in the table, named by its Q-id.",
         ],
