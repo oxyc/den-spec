@@ -137,7 +137,18 @@ PREMISE_ROWS = ["tv:10"]
 
 
 def vector_blob(keys, fill):
-    body = bytearray(struct.pack("<II", len(keys), DIMS))
+    """A `DENVEC02` int8 blob: magic, count, dims, a u64 key per row, then the rows.
+
+    This is an INPUT to the fixture, not part of store-v1 — the store copies rows out of it and writes
+    its own `keys` section, so the key column here changes nothing about the bytes this tool commits.
+    It is here because `build_store.py` now joins the blob to the corpus BY KEY. The blob used to be
+    the matrix alone, and which title row n belonged to was whatever order `labels-*.json` happened to
+    list its records in — an assumption nothing could check. The key is the same one the store uses:
+    `(media << 32) | tmdbId`, media 0 = movie, 1 = tv.
+    """
+    packed = [((0 if k.split(":")[0] == "movie" else 1) << 32) | int(k.split(":")[1]) for k in keys]
+    body = bytearray(b"DENVEC02" + struct.pack("<II", len(keys), DIMS))
+    body.extend(struct.pack(f"<{len(packed)}Q", *packed))
     for i, _ in enumerate(keys):
         body.extend(bytes((fill + i + j) % 256 for j in range(DIMS)))
     return bytes(body)
