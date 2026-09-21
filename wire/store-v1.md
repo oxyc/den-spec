@@ -165,6 +165,12 @@ be skipped by a cosine's name intersection.
 
 ### Facts
 
+**`released` is not the corpus value.** An earlier draft of this document said it was stored "verbatim",
+which is how the column shipped as 47,618 sentinels: the corpus holds `{"date": "2007-01-20",
+"precision": "day"}` and a writer reading it as an integer finds none. It is resolved to days since the
+epoch here, and its precision kept beside it — **more than half of dated rows are year-precision**, so a
+reader that ignores `released_prec` dates 24,034 titles to 1 January.
+
 Each is a `u32` values array of interned ids plus a `u32` offsets array:
 
 `makers` (directors ∪ creators ∪ **screenwriters**, deduplicated, entity ids), `cast` (entity ids),
@@ -174,7 +180,9 @@ Each is a `u32` values array of interned ids plus a `u32` offsets array:
 | name | type | length | meaning |
 |---|---|---|---|
 | `imdb` | `u32` | R | string id, `u32::MAX` = none |
-| `released` | `i32` | R | the corpus `released`/`started` value verbatim, `i32::MIN` = none |
+| `released` | `i32` | R | **days since 1970-01-01**, `i32::MIN` = none. The corpus value is `{date, precision}`; this is that date resolved |
+| `released_prec` | `u8` | R | 0 day · 1 month · 2 year · 3 decade · 4 century · `0xFF` none |
+| `ended` / `ended_prec` | `i32` / `u8` | R | the same, for a series' last air date |
 | `runtime` | `u16` | R | minutes, 0 = none |
 | `franchise` | `u32` | R | entity id, `u32::MAX` = none |
 | `orig_lang` | `u32` | R | string id of the first language, `u32::MAX` = none |
