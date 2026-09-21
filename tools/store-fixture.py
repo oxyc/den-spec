@@ -93,7 +93,9 @@ TITLES = [
     {
         "key": "tv:10", "mediaType": "tv", "tmdbId": 10,
         "facts": {
-            "titles": {"en": "Gamma"}, "imdbId": "tt0000010",
+            # A Wikidata label carrying a Wikipedia disambiguator. The card must draw "Gamma"; the label
+            # itself stays in the dictionary, because search still has to match what people type.
+            "titles": {"en": "Gamma (TV series)"}, "imdbId": "tt0000010",
             "started": {"date": "2010-01-01", "precision": "day"},
             "ended": {"date": "2014", "precision": "year"},
             "episodes": 62, "seasons": 5,
@@ -205,14 +207,10 @@ def main():
     facts = dump("facts.json", {"datasetVersion": "fixture", "genreMap": GENRE_MAP,
                                 "records": [{"mediaType": t["mediaType"], "tmdbId": t["tmdbId"]}
                                             for t in TITLES]})
-    # `posterPath` is supplied on purpose although `card_poster` is no longer a section: the fixture then
-    # proves the writer DROPS a poster path it was handed, rather than proving only that nothing gave it
-    # one. Removing it here would make the store's lack of poster paths unfalsifiable.
-    metadata = dump("metadata.json", {"records": [
-        {"mediaType": "movie", "tmdbId": 1, "title": "Alpha", "posterPath": "/alpha.jpg", "year": 1999},
-        {"mediaType": "movie", "tmdbId": 2, "title": "Beta", "year": 2001},
-        {"mediaType": "tv", "tmdbId": 10, "title": "Gamma", "posterPath": "/gamma.jpg", "year": 2010},
-    ]})
+    # No metadata sidecar: the writer no longer takes one. The title and the year come from each corpus
+    # row's own `facts` — `titles.en` and `released` — and the poster path has no replacement at all.
+    # The name a card draws is therefore the STRIPPED form of the Wikidata label, which is why tv:10's
+    # label below carries a disambiguator the store must not keep.
     # An enriched batch dir, for vote counts. movie:2 is deliberately absent — a title with no vote count
     # must read 0 rather than inherit a neighbour's, which is what a row ordered by votes depends on.
     enriched = os.path.join(work, "enriched")
@@ -236,7 +234,7 @@ def main():
     store = os.path.join(args.out_dir, "store-v1.store")
     result = subprocess.run(
         [sys.executable, args.build_store, "--corpus", corpus, "--entities", entities, "--facts", facts,
-         "--metadata", metadata, "--vectors", plot_bin, "--vector-labels", plot_labels,
+         "--vectors", plot_bin, "--vector-labels", plot_labels,
          "--premise-vectors", premise_bin, "--premise-labels", premise_labels,
          "--enriched", enriched,
          "--dataset-version", "fixture", "--out", store, *args.writer_args],
@@ -283,14 +281,22 @@ def main():
              "aliasTitles": ["Alpha", "Alfa", "Alpha One"], "hasVector": True,
              "hasPlotVector": True, "hasPremiseVector": False},
             {"key": "movie:2", "row": 1, "media": 0, "tmdbId": 2,
-             "cardTitle": "Beta", "cardYear": 2001, "votes": 0,
+             # No `released` in its facts, so no year: the card's year is the Wikidata release date now,
+             # and a row without one carries the sentinel rather than a year from somewhere else.
+             "cardTitle": "Beta", "cardYear": None, "votes": 0,
+             # Its own name, not a neighbour's: the alias row is per title, and the writer once read a
+             # stale binding here and gave every row the LAST row's names.
+             "aliasTitles": ["Beta"],
              "primaryGenre": None, "subgenres": [], "moods": [],
              "countries": ["FR"], "makers": [], "cast": [],
              "released": None, "hasVector": False,
              "hasPlotVector": False, "hasPremiseVector": False,
              "_note": "A facts-only row: present in facts, absent from every label and vector file."},
             {"key": "tv:10", "row": 2, "media": 1, "tmdbId": 10,
+             # The label is "Gamma (TV series)"; the card draws it stripped, and the FULL label stays in
+             # the alias row, because search still has to match what people type.
              "cardTitle": "Gamma", "cardYear": 2010, "votes": 77,
+             "aliasTitles": ["Gamma (TV series)"],
              "primaryGenre": "Crime", "subgenres": [], "moods": [],
              # `archetype` is answered at 0.91 and withheld: an open-or-multi-arc narrative may not
              # carry one, and no confidence threshold would have caught it.

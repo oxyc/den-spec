@@ -18,8 +18,8 @@
   }
  ],
  "header": {
-  "bytes": 11291,
-  "contentHash": 4707274438243570692,
+  "bytes": 11315,
+  "contentHash": 5534902047943202752,
   "datasetVersion": "fixture",
   "endianness": 16909060,
   "formatVersion": 1,
@@ -158,8 +158,11 @@
   },
   {
    "_note": "A facts-only row: present in facts, absent from every label and vector file.",
+   "aliasTitles": [
+    "Beta"
+   ],
    "cardTitle": "Beta",
-   "cardYear": 2001,
+   "cardYear": null,
    "cast": [],
    "countries": [
     "FR"
@@ -180,6 +183,9 @@
   },
   {
    "_note": "genres: one Q-id mapping to TWO TMDB ids, in the genreMap's order \u2014 NOT sorted. /recommend treats the first as the most significant, so sorting renames titles.",
+   "aliasTitles": [
+    "Gamma (TV series)"
+   ],
    "cardTitle": "Gamma",
    "cardYear": 2010,
    "cast": [
