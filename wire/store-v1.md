@@ -212,7 +212,13 @@ Indexed it is **0.4 µs and flat**. 355 KB.
 |---|---|---|
 | `vec_plot` | `i8` | R × 1024 |
 | `vec_premise` | `i8` | R × 1024 — all-zero for a row with no premise vector |
-| `vec_premise_has` | `u8` | R — 1 where the row has one |
+| `vec_plot_has` | `u8` | R — 1 where the row has a plot vector |
+| `vec_premise_has` | `u8` | R — 1 where the row has a premise vector |
+
+**`vec_plot_has` is the question you want; `facts_has_vec` is not it.** The latter is the facts field of
+that name — a scrape-time claim that a vector was expected — and on the real corpus the two disagree on
+**9,013 rows**: 9,010 carry a vector while `facts_has_vec` reads 0. It was originally called `has_vector`,
+two entries from `vec_premise_has`, which is exactly the confusion the name invited.
 
 `i8` is align-1, so these cost no padding. They stay a contiguous matrix because the ANN scan walks them
 linearly; row *i* is `vec_plot[i * 1024 ..][.. 1024]`.
