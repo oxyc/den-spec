@@ -87,8 +87,8 @@ TITLES = [
             "started": {"date": "2010-01-01", "precision": "day"},
             "ended": {"date": "2014", "precision": "year"},
             "episodes": 62, "seasons": 5,
-            "genres": ["Q2"], "languages": ["SV"],
-            "creators": ["Q100"], "cast": ["Q103"], "broadcaster": ["Q107"],
+            "genres": ["Q2", "Q3"], "languages": ["SV"],
+            "creators": ["Q100"], "cast": ["Q103", "Q999"], "broadcaster": ["Q107"],
             "hasVector": True,
         },
         "labels": {"primaryGenre": "Crime", "animated": False, "subgenres": [], "moods": []},
@@ -122,7 +122,14 @@ ENTITIES = {
     "Q112": {"en": "A Main Subject"},
     "Q113": {"en": "film"},
 }
-GENRE_MAP = {"Q1": {"movie": 18, "tv": 18}, "Q2": {"movie": [80, 18], "tv": [80, 18]}}
+GENRE_MAP = {
+    "Q1": {"movie": 18, "tv": 18},
+    "Q2": {"movie": [80, 18], "tv": [80, 18]},
+    # TV-ONLY, and a COMPOSITE: 10765 is "Sci-Fi & Fantasy". The writer has no film mapping to prefer,
+    # so it stores 10765 and the reader must fold it into 878 and 14. Keeping the composite is what
+    # dropped Horror from Chilling Adventures of Sabrina on the real corpus.
+    "Q3": {"tv": 10765},
+}
 # Which titles carry a vector, in the order their labels file lists them — the store re-orders these into
 # sorted-key order, and getting that wrong is invisible in normal use.
 PLOT_ROWS = ["tv:10", "movie:1"]
@@ -251,8 +258,8 @@ def main():
              "primaryGenre": "Crime", "subgenres": [], "moods": [],
              "facets": {"ensemble": ["ensemble-led", 93]},
              "scores": {"intensity": 300, "humour": 109, "emotional_weight": 300, "complexity": 313},
-             "genres": [80, 18], "episodes": 62, "seasons": 5,
-             "makers": ["Ada Director"], "cast": ["Di Actor"],
+             "genres": [80, 18, 10765], "episodes": 62, "seasons": 5,
+             "makers": ["Ada Director"], "cast": ["Di Actor", "Q999"],
              "hasPlotVector": True, "hasPremiseVector": True,
              "_note": "genres: one Q-id mapping to TWO TMDB ids, in the genreMap's order — NOT sorted. "
                       "/recommend treats the first as the most significant, so sorting renames titles."},
@@ -273,6 +280,8 @@ def main():
             "Rows are sorted by the packed key (media << 32 | tmdbId), so movie rows precede tv rows.",
             "Vectors are re-ordered from their own labels-file order into the store's sorted-key order.",
             "ent_alias_* holds STRINGS, not hashes: the reader folds them with its own name_key.",
+            "Q3 is tv-only and a COMPOSITE (10765): stored as-is, the reader folds it to 878 and 14.",
+            "Q999 is credited but has no entity entry: it is still in the table, named by its Q-id.",
         ],
     }
     with open(os.path.join(args.out_dir, "store-v1.json"), "w", encoding="utf-8") as fh:

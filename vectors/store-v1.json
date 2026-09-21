@@ -18,8 +18,8 @@
   }
  ],
  "header": {
-  "bytes": 11291,
-  "contentHash": 9398799155776768557,
+  "bytes": 11331,
+  "contentHash": 888307257502588163,
   "datasetVersion": "fixture",
   "endianness": 16909060,
   "formatVersion": 1,
@@ -35,7 +35,9 @@
   "The content hash is BLAKE2b with digest_size=8, read little-endian, over every byte from 64.",
   "Rows are sorted by the packed key (media << 32 | tmdbId), so movie rows precede tv rows.",
   "Vectors are re-ordered from their own labels-file order into the store's sorted-key order.",
-  "ent_alias_* holds STRINGS, not hashes: the reader folds them with its own name_key."
+  "ent_alias_* holds STRINGS, not hashes: the reader folds them with its own name_key.",
+  "Q3 is tv-only and a COMPOSITE (10765): stored as-is, the reader folds it to 878 and 14.",
+  "Q999 is credited but has no entity entry: it is still in the table, named by its Q-id."
  ],
  "rows": [
   {
@@ -184,7 +186,8 @@
    "cardTitle": "Gamma",
    "cardYear": 2010,
    "cast": [
-    "Di Actor"
+    "Di Actor",
+    "Q999"
    ],
    "episodes": 62,
    "facets": {
@@ -195,7 +198,8 @@
    },
    "genres": [
     80,
-    18
+    18,
+    10765
    ],
    "hasPlotVector": true,
    "hasPremiseVector": true,
