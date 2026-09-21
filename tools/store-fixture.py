@@ -211,18 +211,6 @@ def main():
     # row's own `facts` — `titles.en` and `released` — and the poster path has no replacement at all.
     # The name a card draws is therefore the STRIPPED form of the Wikidata label, which is why tv:10's
     # label below carries a disambiguator the store must not keep.
-    # An enriched batch dir, for vote counts. movie:2 is deliberately absent — a title with no vote count
-    # must read 0 rather than inherit a neighbour's, which is what a row ordered by votes depends on.
-    enriched = os.path.join(work, "enriched")
-    os.makedirs(enriched, exist_ok=True)
-    with open(os.path.join(enriched, "batch-1.json"), "w", encoding="utf-8") as fh:
-        json.dump([{"mediaType": "movie", "tmdbId": 1, "voteCount": 1234}], fh)
-    # A LATER batch revising movie:1 upward, so the fixture pins batch-number order with last-write-wins:
-    # `sorted()` on the names would put batch-10 before batch-2 and take 1234.
-    with open(os.path.join(enriched, "batch-10.json"), "w", encoding="utf-8") as fh:
-        json.dump([{"mediaType": "movie", "tmdbId": 1, "voteCount": 4321},
-                   {"mediaType": "tv", "tmdbId": 10, "voteCount": 77}], fh)
-
     plot_labels = dump("plot-labels.json", labels_file(PLOT_ROWS))
     premise_labels = dump("premise-labels.json", labels_file(PREMISE_ROWS))
     plot_bin = os.path.join(work, "plot.bin")
@@ -236,7 +224,6 @@ def main():
         [sys.executable, args.build_store, "--corpus", corpus, "--entities", entities, "--facts", facts,
          "--vectors", plot_bin, "--vector-labels", plot_labels,
          "--premise-vectors", premise_bin, "--premise-labels", premise_labels,
-         "--enriched", enriched,
          "--dataset-version", "fixture", "--out", store, *args.writer_args],
         capture_output=True, text=True)
     if result.returncode != 0:
@@ -258,7 +245,7 @@ def main():
         },
         "rows": [
             {"key": "movie:1", "row": 0, "media": 0, "tmdbId": 1,
-             "cardTitle": "Alpha", "cardYear": 1999, "votes": 4321,
+             "cardTitle": "Alpha", "cardYear": 1999,
              "primaryGenre": "Drama", "animated": False,
              "subgenres": [["Prison", 70]], "moods": [["Bleak", 55]],
              # `tone` is collected at 0.37 and WITHHELD by the publication gate (probability < 0.70),
@@ -283,7 +270,7 @@ def main():
             {"key": "movie:2", "row": 1, "media": 0, "tmdbId": 2,
              # No `released` in its facts, so no year: the card's year is the Wikidata release date now,
              # and a row without one carries the sentinel rather than a year from somewhere else.
-             "cardTitle": "Beta", "cardYear": None, "votes": 0,
+             "cardTitle": "Beta", "cardYear": None,
              # Its own name, not a neighbour's: the alias row is per title, and the writer once read a
              # stale binding here and gave every row the LAST row's names.
              "aliasTitles": ["Beta"],
@@ -295,7 +282,7 @@ def main():
             {"key": "tv:10", "row": 2, "media": 1, "tmdbId": 10,
              # The label is "Gamma (TV series)"; the card draws it stripped, and the FULL label stays in
              # the alias row, because search still has to match what people type.
-             "cardTitle": "Gamma", "cardYear": 2010, "votes": 77,
+             "cardTitle": "Gamma", "cardYear": 2010,
              "aliasTitles": ["Gamma (TV series)"],
              "primaryGenre": "Crime", "subgenres": [], "moods": [],
              # `archetype` is answered at 0.91 and withheld: an open-or-multi-arc narrative may not
@@ -325,6 +312,9 @@ def main():
             "Rows are sorted by the packed key (media << 32 | tmdbId), so movie rows precede tv rows.",
             "Vectors are re-ordered from their own labels-file order into the store's sorted-key order.",
             "ent_alias_* holds STRINGS, not hashes: the reader folds them with its own name_key.",
+            "votes is NOT a section: a vote count is a vendor's content and this file is public. A "
+            "reader that orders by popularity joins IMDb's own title.ratings dump on the `imdb` column "
+            "at run time, and must have one before it drops this.",
             "card_poster is NOT a section: the writer is handed posterPath for two of these three "
             "titles and drops both, paths included, so a reader must treat the section's absence as "
             "'no posters' rather than as an error.",

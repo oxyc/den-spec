@@ -18,14 +18,14 @@
   }
  ],
  "header": {
-  "bytes": 11315,
-  "contentHash": 5534902047943202752,
+  "bytes": 11267,
+  "contentHash": 37002057560293968,
   "datasetVersion": "fixture",
   "endianness": 16909060,
   "formatVersion": 1,
   "magic": "DENSTOR1",
   "rowCount": 3,
-  "sectionCount": 92
+  "sectionCount": 91
  },
  "notes": [
   "Scores are u16 HUNDREDTHS of a 0..4 axis: 321 is 3.21. They are not twentieths.",
@@ -36,6 +36,7 @@
   "Rows are sorted by the packed key (media << 32 | tmdbId), so movie rows precede tv rows.",
   "Vectors are re-ordered from their own labels-file order into the store's sorted-key order.",
   "ent_alias_* holds STRINGS, not hashes: the reader folds them with its own name_key.",
+  "votes is NOT a section: a vote count is a vendor's content and this file is public. A reader that orders by popularity joins IMDb's own title.ratings dump on the `imdb` column at run time, and must have one before it drops this.",
   "card_poster is NOT a section: the writer is handed posterPath for two of these three titles and drops both, paths included, so a reader must treat the section's absence as 'no posters' rather than as an error.",
   "Q3 is tv-only and a COMPOSITE (10765): stored as-is, the reader folds it to 878 and 14.",
   "Q999 is credited but has no entity entry: it is still in the table, named by its Q-id."
@@ -153,7 +154,6 @@
     ]
    ],
    "tmdbId": 1,
-   "votes": 4321,
    "world": 25
   },
   {
@@ -178,8 +178,7 @@
    "released": null,
    "row": 1,
    "subgenres": [],
-   "tmdbId": 2,
-   "votes": 0
+   "tmdbId": 2
   },
   {
    "_note": "genres: one Q-id mapping to TWO TMDB ids, in the genreMap's order \u2014 NOT sorted. /recommend treats the first as the most significant, so sorting renames titles.",
@@ -225,8 +224,7 @@
    },
    "seasons": 5,
    "subgenres": [],
-   "tmdbId": 10,
-   "votes": 77
+   "tmdbId": 10
   }
  ],
  "store": "store-v1.store"

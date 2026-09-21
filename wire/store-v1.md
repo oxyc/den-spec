@@ -112,10 +112,10 @@ what an unenforced contract is worth.
 
 | name | type | length |
 |---|---|---|
-| `card_title` | `u32` | R — string id |
+| `card_title` | `u32` | R — string id. Wikidata's English label, disambiguator stripped |
 | `card_poster` | `u32` | R — string id, `u32::MAX` = none. **OPTIONAL — no longer written** |
-| `card_year` | `i16` | R — `i16::MIN` = none |
-| `votes` | `u32` | R — vote count, 0 when unknown. **Being withdrawn** |
+| `card_year` | `i16` | R — `i16::MIN` = none. The year of Wikidata's release date |
+| ~~`votes`~~ | | **REMOVED — see below** |
 
 **`card_poster` is optional, and it is the only optional section in store-v1.** A reader must treat its
 absence as "no poster paths", never as an error: the producer stopped writing it under oxyc/den#118,
@@ -125,13 +125,18 @@ loses art rather than the card. A reader that takes the whole card map down when
 is the bug that removal was gated on, and den-atlas had exactly that shape.
 
 Absence, not a version bump: the section directory is looked up by name, so a store without an optional
-section is still store-v1 and every existing reader of the other 92 sections stays valid.
+section is still store-v1 and every existing reader of the other sections stays valid.
 
-`votes` is what a browse row is ORDERED by, so a title without one sorts by tmdbId and lands *La Job*
-(tv:5) next to *Game of Thrones*. It used to live only in `facets.bin`, which fell 9,007 titles behind the
-corpus because nothing rebuilt it. It is now being withdrawn for the same licensing reason as the poster,
-and a reader must have a source of its own before it goes: den-atlas joins IMDb's public
-`title.ratings.tsv.gz` on the `imdb` column at runtime, which covers 99.9% of the corpus.
+**`votes` is gone, and a reader needs its own source of one.** It was what a browse row is ORDERED by, so
+a title without one sorts by tmdbId and lands *La Job* (tv:5) next to *Game of Thrones* — and that is the
+failure mode to design against, because it is silent. den-atlas joins IMDb's public
+`title.ratings.tsv.gz` on the `imdb` column at load and refreshes it daily: 99.9% of the corpus, fresher
+than a number frozen at build time, and it carries an average rating the store never had. A reader with no
+such source must say so where an operator can see it rather than serve rows in id order.
+
+It was removed for the same reason as the poster path — a vote count is a vendor's content and this file is
+public — and the count it came from was read out of a TMDB batch tree, so dropping it dropped the last TMDB
+artifact the writer touched.
 
 ### Labels
 
