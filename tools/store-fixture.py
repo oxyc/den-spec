@@ -172,6 +172,18 @@ def main():
         {"mediaType": "movie", "tmdbId": 2, "title": "Beta", "year": 2001},
         {"mediaType": "tv", "tmdbId": 10, "title": "Gamma", "posterPath": "/gamma.jpg", "year": 2010},
     ]})
+    # An enriched batch dir, for vote counts. movie:2 is deliberately absent — a title with no vote count
+    # must read 0 rather than inherit a neighbour's, which is what a row ordered by votes depends on.
+    enriched = os.path.join(work, "enriched")
+    os.makedirs(enriched, exist_ok=True)
+    with open(os.path.join(enriched, "batch-1.json"), "w", encoding="utf-8") as fh:
+        json.dump([{"mediaType": "movie", "tmdbId": 1, "voteCount": 1234}], fh)
+    # A LATER batch revising movie:1 upward, so the fixture pins batch-number order with last-write-wins:
+    # `sorted()` on the names would put batch-10 before batch-2 and take 1234.
+    with open(os.path.join(enriched, "batch-10.json"), "w", encoding="utf-8") as fh:
+        json.dump([{"mediaType": "movie", "tmdbId": 1, "voteCount": 4321},
+                   {"mediaType": "tv", "tmdbId": 10, "voteCount": 77}], fh)
+
     plot_labels = dump("plot-labels.json", labels_file(PLOT_ROWS))
     premise_labels = dump("premise-labels.json", labels_file(PREMISE_ROWS))
     plot_bin = os.path.join(work, "plot.bin")
@@ -185,6 +197,7 @@ def main():
         [sys.executable, args.build_store, "--corpus", corpus, "--entities", entities, "--facts", facts,
          "--metadata", metadata, "--vectors", plot_bin, "--vector-labels", plot_labels,
          "--premise-vectors", premise_bin, "--premise-labels", premise_labels,
+         "--enriched", enriched,
          "--dataset-version", "fixture", "--out", store, *args.writer_args],
         capture_output=True, text=True)
     if result.returncode != 0:
@@ -206,7 +219,7 @@ def main():
         },
         "rows": [
             {"key": "movie:1", "row": 0, "media": 0, "tmdbId": 1,
-             "cardTitle": "Alpha", "cardPoster": "/alpha.jpg", "cardYear": 1999,
+             "cardTitle": "Alpha", "cardPoster": "/alpha.jpg", "cardYear": 1999, "votes": 4321,
              "primaryGenre": "Drama", "animated": False,
              "subgenres": [["Prison", 70]], "moods": [["Bleak", 55]],
              "facets": {"era": ["contemporary", 96], "tone": ["bleak", 37]},
@@ -226,14 +239,14 @@ def main():
              "aliasTitles": ["Alpha One"], "hasVector": True,
              "hasPlotVector": True, "hasPremiseVector": False},
             {"key": "movie:2", "row": 1, "media": 0, "tmdbId": 2,
-             "cardTitle": "Beta", "cardPoster": None, "cardYear": 2001,
+             "cardTitle": "Beta", "cardPoster": None, "cardYear": 2001, "votes": 0,
              "primaryGenre": None, "subgenres": [], "moods": [],
              "countries": ["FR"], "makers": [], "cast": [],
              "released": None, "hasVector": False,
              "hasPlotVector": False, "hasPremiseVector": False,
              "_note": "A facts-only row: present in facts, absent from every label and vector file."},
             {"key": "tv:10", "row": 2, "media": 1, "tmdbId": 10,
-             "cardTitle": "Gamma", "cardPoster": "/gamma.jpg", "cardYear": 2010,
+             "cardTitle": "Gamma", "cardPoster": "/gamma.jpg", "cardYear": 2010, "votes": 77,
              "primaryGenre": "Crime", "subgenres": [], "moods": [],
              "facets": {"ensemble": ["ensemble-led", 93]},
              "scores": {"intensity": 300, "humour": 109, "emotional_weight": 300, "complexity": 313},
