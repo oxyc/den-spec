@@ -18,8 +18,8 @@
   }
  ],
  "header": {
-  "bytes": 11347,
-  "contentHash": 1455156813094146593,
+  "bytes": 11371,
+  "contentHash": 4078556007825232688,
   "datasetVersion": "fixture",
   "endianness": 16909060,
   "formatVersion": 1,
@@ -81,14 +81,11 @@
     "era": [
      "contemporary",
      96
-    ],
-    "tone": [
-     "bleak",
-     37
     ]
    },
    "facetsAbsent": [
     "pacing",
+    "tone",
     "setting",
     "scope",
     "ending",
@@ -198,6 +195,9 @@
      93
     ]
    },
+   "facetsAbsent": [
+    "archetype"
+   ],
    "genres": [
     80,
     18,
