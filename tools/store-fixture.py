@@ -251,10 +251,11 @@ def main():
              "primaryGenre": "Crime", "subgenres": [], "moods": [],
              "facets": {"ensemble": ["ensemble-led", 93]},
              "scores": {"intensity": 300, "humour": 109, "emotional_weight": 300, "complexity": 313},
-             "genres": [18, 80], "episodes": 62, "seasons": 5,
+             "genres": [80, 18], "episodes": 62, "seasons": 5,
              "makers": ["Ada Director"], "cast": ["Di Actor"],
              "hasPlotVector": True, "hasPremiseVector": True,
-             "_note": "genres: one Q-id mapping to TWO TMDB ids, stored sorted."},
+             "_note": "genres: one Q-id mapping to TWO TMDB ids, in the genreMap's order — NOT sorted. "
+                      "/recommend treats the first as the most significant, so sorting renames titles."},
         ],
         # The entity table, keyed by Q-id. People search reads the aliases as well as the name, so a
         # reader that indexes only `ent_name` answers "Cyrus Actor" with nothing.

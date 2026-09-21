@@ -19,7 +19,7 @@
  ],
  "header": {
   "bytes": 11291,
-  "contentHash": 2550240066242588520,
+  "contentHash": 9398799155776768557,
   "datasetVersion": "fixture",
   "endianness": 16909060,
   "formatVersion": 1,
@@ -179,7 +179,7 @@
    "votes": 0
   },
   {
-   "_note": "genres: one Q-id mapping to TWO TMDB ids, stored sorted.",
+   "_note": "genres: one Q-id mapping to TWO TMDB ids, in the genreMap's order \u2014 NOT sorted. /recommend treats the first as the most significant, so sorting renames titles.",
    "cardPoster": "/gamma.jpg",
    "cardTitle": "Gamma",
    "cardYear": 2010,
@@ -194,8 +194,8 @@
     ]
    },
    "genres": [
-    18,
-    80
+    80,
+    18
    ],
    "hasPlotVector": true,
    "hasPremiseVector": true,
