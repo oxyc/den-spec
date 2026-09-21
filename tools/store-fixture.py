@@ -144,6 +144,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--build-store", required=True, help="path to den-dataset's build_store.py")
     ap.add_argument("--out-dir", default="vectors")
+    # Anything after `--` goes to the writer untouched. The writer has options that do not change the
+    # bytes — stamping a manifest, for one — and den-dataset's own tests exercise them through this
+    # generator, because this is where the tiny valid inputs live. Without a passthrough those tests
+    # have to skip, which is the false pass this whole fixture exists to prevent.
+    ap.add_argument("writer_args", nargs="*", help="extra arguments for build_store.py (after --)")
     args = ap.parse_args()
 
     work = tempfile.mkdtemp(prefix="store-fixture-")
@@ -180,7 +185,7 @@ def main():
         [sys.executable, args.build_store, "--corpus", corpus, "--entities", entities, "--facts", facts,
          "--metadata", metadata, "--vectors", plot_bin, "--vector-labels", plot_labels,
          "--premise-vectors", premise_bin, "--premise-labels", premise_labels,
-         "--dataset-version", "fixture", "--out", store],
+         "--dataset-version", "fixture", "--out", store, *args.writer_args],
         capture_output=True, text=True)
     if result.returncode != 0:
         sys.exit(f"build_store failed:\n{result.stderr}")
