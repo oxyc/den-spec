@@ -244,7 +244,7 @@ def main():
              "productionCompanies": ["A Production Company"],
              "narrativeLocations": ["A Narrative Place"], "mainSubjects": ["A Main Subject"],
              "instanceOf": ["film"], "basedOn": ["Alpha, the novel"], "basedOnKind": ["book"],
-             "aliasTitles": ["Alpha One"], "hasVector": True,
+             "aliasTitles": ["Alpha", "Alfa", "Alpha One"], "hasVector": True,
              "hasPlotVector": True, "hasPremiseVector": False},
             {"key": "movie:2", "row": 1, "media": 0, "tmdbId": 2,
              "cardTitle": "Beta", "cardPoster": None, "cardYear": 2001, "votes": 0,

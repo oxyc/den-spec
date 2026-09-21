@@ -180,7 +180,9 @@ Each is a `u32` values array of interned ids plus a `u32` offsets array:
 
 `makers` (directors ∪ creators ∪ **screenwriters**, deduplicated, entity ids), `cast` (entity ids),
 `broadcasters` (entity ids), `genres` (**TMDB genre ids, not entity ids and not interned**), `countries`
-(string ids), `languages` (string ids), `alias_titles` (string ids).
+(string ids), `languages` (string ids), `alias_titles` (string ids — a title's OWN names first, `titles.en`
+then `titles.orig`, THEN `titles.aliases`, deduplicated; `aliases` is a disjoint set that a title's own names
+are vetted against, so writing it alone silently drops the original-language title of most of the corpus).
 
 | name | type | length | meaning |
 |---|---|---|---|

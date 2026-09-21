@@ -18,8 +18,8 @@
   }
  ],
  "header": {
-  "bytes": 11331,
-  "contentHash": 888307257502588163,
+  "bytes": 11347,
+  "contentHash": 1455156813094146593,
   "datasetVersion": "fixture",
   "endianness": 16909060,
   "formatVersion": 1,
@@ -42,6 +42,8 @@
  "rows": [
   {
    "aliasTitles": [
+    "Alpha",
+    "Alfa",
     "Alpha One"
    ],
    "animated": false,
