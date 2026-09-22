@@ -19,14 +19,17 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
   `node tools/inbox-vectors.mjs > vectors/inbox-v1.json`.
 - [`wire/routes-v1.md`](wire/routes-v1.md): den-edge's table of every address for each service, and the rule
   every client applies to it — order, health check, and the home check before a plain LAN address.
-- [`wire/store-v1.md`](wire/store-v1.md): the single mmap'd artifact den-atlas serves from — every
+- [`wire/store-v2.md`](wire/store-v2.md): the single mmap'd artifact den-atlas serves from — every
   per-title signal and both vector matrices in one columnar file. Written by den-dataset, read by
-  den-core's `den-store`.
-- [`vectors/store-v1.json`](vectors/store-v1.json) and `vectors/store-v1.store`: a three-title store and
-  the values a correct reader gets out of it, covering a facts-only row, a declined facet, and a genre
-  Q-id that maps to two TMDB ids. Generated: `python3 tools/store-fixture.py --build-store
-  ../den-dataset/scripts/v2/build_store.py` — by the real writer, so it cannot agree with a
+  den-core's `den-store`. v2 made `franchise` a list; [`wire/store-v1.md`](wire/store-v1.md) is the
+  layout before that.
+- [`vectors/store-v2.json`](vectors/store-v2.json) and `vectors/store-v2.store`: a three-title store and
+  the values a correct reader gets out of it, covering a facts-only row, a declined facet, a genre Q-id
+  that maps to two TMDB ids, and a title in two series. Generated: `python3 tools/store-fixture.py
+  --build-store ../den-dataset/scripts/v2/build_store.py` — by the real writer, so it cannot agree with a
   reimplementation instead of with the format.
+- [`vectors/store-v1.json`](vectors/store-v1.json) and `vectors/store-v1.store`: the same titles as the
+  last store-v1 writer wrote them. Frozen, not regenerated: a reader that still accepts v1 tests against it.
 - [`tools/README.md`](tools/README.md): reusable operational HTTP checks for the seven Den services, with
   explicit profiles for their credentials and routing differences.
 
