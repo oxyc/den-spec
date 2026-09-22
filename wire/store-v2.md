@@ -136,7 +136,7 @@ what an unenforced contract is worth.
 | `card_year` | `i16` | R — `i16::MIN` = none. The year of Wikidata's release date |
 | ~~`votes`~~ | | **REMOVED — see below** |
 
-**`card_poster` is optional, and it is the only optional section in store-v2.** A reader must treat its
+**`card_poster` is optional**, as are the `studio_*` sections below; nothing else is. A reader must treat its
 absence as "no poster paths", never as an error: the producer stopped writing it under oxyc/den#118,
 because a poster path is licensed vendor content and the store is a public artifact. A reader wanting
 artwork has two other sources — a batch metadata route, and the metahub URL keyed by IMDb id — and so
@@ -223,6 +223,10 @@ are vetted against, so writing it alone silently drops the original-language tit
 of, most specific first as the facts order them, deduplicated, NOT sorted; a title in no series owns an
 empty span).
 
+The other Wikidata entity lists are the same shape, entity ids in the facts' order: `composers`, `dops`
+(cinematographers), `distributors`, `companies` (production companies, P272), `locations` (narrative
+locations), `subjects` (main subjects), `instance_of` and `based_on`. `based_kind` holds string ids.
+
 | name | type | length | meaning |
 |---|---|---|---|
 | `imdb` | `u32` | R | string id, `u32::MAX` = none |
@@ -257,6 +261,30 @@ finds nothing while "Mike Vogel" works.
 
 `titles_sharing_makers` was a linear scan of every record, per request: 83.7 µs, and 158.7 µs at 2× corpus.
 Indexed it is **0.4 µs and flat**. 355 KB.
+
+### Iconic studios — OPTIONAL
+
+`S` = studio count.
+
+| name | type | length | meaning |
+|---|---|---|---|
+| `studio_qid` | `u32` | S | the studio's own Wikidata item, raw Q-id number, **sorted** — the id a studio page is addressed by |
+| `studio_name` | `u32` | S | string id: what a viewer calls it, which is not always Wikidata's label (Golden Harvest) |
+| `studio_ent_v` / `_o` | `u32` / `u32` | list per studio | entity ids of every credited item that is this studio |
+
+The production companies a viewer browses by: a house style (Ghibli, Aardman, Hammer) or a curation (A24,
+Searchlight). A title's studios are its `companies` entries found in `studio_ent_v`. They are a hand-kept
+list in den-dataset, `data/iconic-studios.json` (oxyc/den#132), because no measure over plots or credits
+finds the curatorial labels; the writer ships the ones the corpus credits.
+
+One studio is often several Wikidata items — a TV or animation arm, a renamed item, a duplicate — so a
+studio lists all of them, and a reader counts a title crediting Toho Animation as Toho's. An item belongs to
+at most one studio. The studio's own item need not be credited itself: a corpus crediting only HBO Films
+still has HBO.
+
+**Absent means no iconic studios, never an error**, as with `card_poster`: a reader built before these
+sections existed ignores them, and a reader built after must still open a store-v2 written without them. That
+is why they are an addition to store-v2 and not a store-v3. The sections may also be present and empty.
 
 ### Vectors
 

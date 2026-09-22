@@ -57,7 +57,9 @@ TITLES = [
             # Every remaining entity list, so the fixture exercises all of them: a section that is
             # legitimately empty in the real corpus is a bug, and the writer now refuses one.
             "cinematographers": ["Q108"], "distributors": ["Q109"],
-            "productionCompanies": ["Q110"], "narrativeLocations": ["Q111"],
+            # Q127552 is Pixar, one of the writer's iconic studios (den-dataset `data/iconic-studios.json`);
+            # Q110 is not one.
+            "productionCompanies": ["Q110", "Q127552"], "narrativeLocations": ["Q111"],
             "mainSubjects": ["Q112"], "instanceOf": ["Q113"],
             "hasVector": True,
         },
@@ -105,6 +107,9 @@ TITLES = [
             "episodes": 62, "seasons": 5,
             "genres": ["Q2", "Q3"], "languages": ["SV"],
             "creators": ["Q100"], "cast": ["Q103", "Q999"], "broadcaster": ["Q107"],
+            # HBO Films: the writer's list files it under HBO (Q23633), which nothing here credits. The
+            # studio still ships, under HBO's own item.
+            "productionCompanies": ["Q662081"],
             "hasVector": True,
         },
         "labels": {"primaryGenre": "Crime", "animated": False, "subgenres": [], "moods": []},
@@ -146,6 +151,8 @@ ENTITIES = {
     "Q111": {"en": "A Narrative Place"},
     "Q112": {"en": "A Main Subject"},
     "Q113": {"en": "film"},
+    "Q127552": {"en": "Pixar"},
+    "Q662081": {"en": "HBO Films"},
 }
 GENRE_MAP = {
     "Q1": {"movie": 18, "tv": 18},
@@ -267,7 +274,7 @@ def main():
              # Raw Q-id numbers, in the facts' order: Q114 then Q105.
              "composers": ["Ed Composer"], "franchise": [114, 105],
              "cinematographers": ["Fi Cinematographer"], "distributors": ["A Distributor"],
-             "productionCompanies": ["A Production Company"],
+             "productionCompanies": ["A Production Company", "Pixar"],
              "narrativeLocations": ["A Narrative Place"], "mainSubjects": ["A Main Subject"],
              "instanceOf": ["film"], "basedOn": ["Alpha, the novel"], "basedOnKind": ["book"],
              "aliasTitles": ["Alpha", "Alfa", "Alpha One"], "hasVector": True,
@@ -297,6 +304,7 @@ def main():
              "scores": {"intensity": 300, "humour": 109, "emotional_weight": 300, "complexity": 313},
              "genres": [80, 18, 10765], "episodes": 62, "seasons": 5,
              "makers": ["Ada Director"], "cast": ["Di Actor", "Q999"], "franchise": [],
+             "productionCompanies": ["HBO Films"],
              "hasPlotVector": True, "hasPremiseVector": True,
              "_note": "genres: one Q-id mapping to TWO TMDB ids, in the genreMap's order — NOT sorted. "
                       "/recommend treats the first as the most significant, so sorting renames titles."},
@@ -307,6 +315,12 @@ def main():
             {"qid": 102, "name": "Cy Actor", "tmdbPersonId": 902,
              "aliases": ["Cyrus Actor", "C. Actor"]},
             {"qid": 100, "name": "Ada Director", "tmdbPersonId": 900, "aliases": []},
+        ],
+        # The iconic studios the corpus credits, sorted by the studio's own item. `entities` are the
+        # Q-ids of the credited items filed under it: HBO ships through HBO Films alone.
+        "iconicStudios": [
+            {"qid": 23633, "name": "HBO", "entities": [662081]},
+            {"qid": 127552, "name": "Pixar", "entities": [127552]},
         ],
         "notes": [
             "Scores are u16 HUNDREDTHS of a 0..4 axis: 321 is 3.21. They are not twentieths.",
@@ -327,6 +341,9 @@ def main():
             "Q999 is credited but has no entity entry: it is still in the table, named by its Q-id.",
             "franchise is a LIST of raw Q-id numbers (franchise_v/franchise_o), most specific series "
             "first. A row in no series owns an empty span. store-v1 held only the first, as a u32 column.",
+            "The studio_* sections are OPTIONAL: a store without them has no iconic studios, which is not "
+            "an error. Which studios they hold is den-dataset's data/iconic-studios.json, so editing Pixar "
+            "or HBO there changes these bytes.",
         ],
     }
     with open(os.path.join(args.out_dir, "store-v2.json"), "w", encoding="utf-8") as fh:

@@ -18,15 +18,31 @@
   }
  ],
  "header": {
-  "bytes": 11307,
-  "contentHash": 10438768085415012106,
+  "bytes": 11547,
+  "contentHash": 3109238993253204516,
   "datasetVersion": "fixture",
   "endianness": 16909060,
   "formatVersion": 2,
   "magic": "DENSTOR1",
   "rowCount": 3,
-  "sectionCount": 92
+  "sectionCount": 96
  },
+ "iconicStudios": [
+  {
+   "entities": [
+    662081
+   ],
+   "name": "HBO",
+   "qid": 23633
+  },
+  {
+   "entities": [
+    127552
+   ],
+   "name": "Pixar",
+   "qid": 127552
+  }
+ ],
  "notes": [
   "Scores are u16 HUNDREDTHS of a 0..4 axis: 321 is 3.21. They are not twentieths.",
   "Probabilities and confidences are u8 hundredths.",
@@ -40,7 +56,8 @@
   "card_poster is NOT a section: the writer is handed posterPath for two of these three titles and drops both, paths included, so a reader must treat the section's absence as 'no posters' rather than as an error.",
   "Q3 is tv-only and a COMPOSITE (10765): stored as-is, the reader folds it to 878 and 14.",
   "Q999 is credited but has no entity entry: it is still in the table, named by its Q-id.",
-  "franchise is a LIST of raw Q-id numbers (franchise_v/franchise_o), most specific series first. A row in no series owns an empty span. store-v1 held only the first, as a u32 column."
+  "franchise is a LIST of raw Q-id numbers (franchise_v/franchise_o), most specific series first. A row in no series owns an empty span. store-v1 held only the first, as a u32 column.",
+  "The studio_* sections are OPTIONAL: a store without them has no iconic studios, which is not an error. Which studios they hold is den-dataset's data/iconic-studios.json, so editing Pixar or HBO there changes these bytes."
  ],
  "rows": [
   {
@@ -139,7 +156,8 @@
    },
    "primaryGenre": "Drama",
    "productionCompanies": [
-    "A Production Company"
+    "A Production Company",
+    "Pixar"
    ],
    "released": 10956,
    "releasedPrecision": 0,
@@ -221,6 +239,9 @@
    "media": 1,
    "moods": [],
    "primaryGenre": "Crime",
+   "productionCompanies": [
+    "HBO Films"
+   ],
    "row": 2,
    "scores": {
     "complexity": 313,
