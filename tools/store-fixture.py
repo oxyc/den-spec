@@ -140,11 +140,28 @@ TITLES = [
 ]
 
 ENTITIES = {
-    "Q100": {"en": "Ada Director", "tmdbPersonId": "900", "imdbId": "nm0000100"},
-    "Q101": {"en": "Bo Writer"},
+    # People's traits, as the facts stage writes them from Wikidata: gender, citizenship and occupation as
+    # the items Wikidata names, birth and death as `{date, precision}`.
+    "Q100": {"en": "Ada Director", "tmdbPersonId": "900", "imdbId": "nm0000100",
+             "gender": ["Q6581072"], "born": {"date": "1946-06-14", "precision": "day"},
+             "citizenship": ["Q34"], "occupation": ["Q28389", "Q2526255"]},
+    # Born and died before the common era, to the year: a screenwriter credit can reach Sophocles.
+    "Q101": {"en": "Bo Writer", "gender": ["Q6581097"],
+             "born": {"date": "-0496", "precision": "year"}, "died": {"date": "-0405", "precision": "year"},
+             "occupation": ["Q36180"]},
     # Aliases: people search indexes these as well as `en`, so the fixture has to carry one.
+    # A gender beyond male and female, two citizenships, a birth known to the decade and a death to the
+    # month. Q48270, Q33 and Q33999 have no entity entry, and are still in the table, named by their Q-id.
     "Q102": {"en": "Cy Actor", "tmdbPersonId": "902", "aliases": ["Cyrus Actor", "C. Actor"],
-             "imdbId": "nm0000102"},
+             "imdbId": "nm0000102", "gender": ["Q48270"],
+             "born": {"date": "1850", "precision": "decade"}, "died": {"date": "1921-03", "precision": "month"},
+             "citizenship": ["Q33", "Q34"], "occupation": ["Q33999"]},
+    "Q6581072": {"en": "female"},
+    "Q6581097": {"en": "male"},
+    "Q34": {"en": "Sweden"},
+    "Q2526255": {"en": "film director"},
+    "Q28389": {"en": "screenwriter"},
+    "Q36180": {"en": "writer"},
     "Q103": {"en": "Di Actor"},
     "Q104": {"en": "Ed Composer"},
     "Q105": {"en": "The Alpha Saga"},
@@ -326,12 +343,27 @@ def main():
         # The entity table, keyed by Q-id. People search reads the aliases as well as the name, so a
         # reader that indexes only `ent_name` answers "Cyrus Actor" with nothing.
         # `imdb` is the person's IMDb id, a join key only; Q107's is a company's and is not written.
+        # A person's traits: `gender`, `citizenship` and `occupation` are the Q-id numbers of the items
+        # Wikidata names (the store holds them as entity ids); `born`/`died` are days since 1970-01-01 in
+        # the proleptic Gregorian calendar, year 0 being 1 BCE, with the `released` precision codes
+        # (0 day, 1 month, 2 year, 3 decade). -900689 is -0496-01-01; -8602 is 1946-06-14.
         "entities": [
             {"qid": 102, "name": "Cy Actor", "tmdbPersonId": 902,
-             "aliases": ["Cyrus Actor", "C. Actor"], "imdb": "nm0000102"},
+             "aliases": ["Cyrus Actor", "C. Actor"], "imdb": "nm0000102",
+             "gender": [48270], "citizenship": [33, 34], "occupation": [33999],
+             "born": -43829, "bornPrecision": 3, "died": -17838, "diedPrecision": 1},
             {"qid": 100, "name": "Ada Director", "tmdbPersonId": 900, "aliases": [],
-             "imdb": "nm0000100"},
-            {"qid": 107, "name": "A Broadcaster", "tmdbPersonId": None, "aliases": [], "imdb": None},
+             "imdb": "nm0000100",
+             "gender": [6581072], "citizenship": [34], "occupation": [28389, 2526255],
+             "born": -8602, "bornPrecision": 0, "died": None, "diedPrecision": None},
+            {"qid": 101, "name": "Bo Writer", "tmdbPersonId": None, "aliases": [], "imdb": None,
+             "gender": [6581097], "citizenship": [], "occupation": [36180],
+             "born": -900689, "bornPrecision": 2, "died": -867451, "diedPrecision": 2},
+            {"qid": 107, "name": "A Broadcaster", "tmdbPersonId": None, "aliases": [], "imdb": None,
+             "gender": [], "citizenship": [], "occupation": [],
+             "born": None, "bornPrecision": None, "died": None, "diedPrecision": None},
+            # A trait's value is an entity too, named by its Q-id when it has no entry.
+            {"qid": 48270, "name": "Q48270", "tmdbPersonId": None, "aliases": [], "imdb": None},
         ],
         # The ceremony table, sorted by Q-id. Q1011547 has no entity entry, so its name is its Q-id.
         "ceremonies": [
@@ -368,6 +400,9 @@ def main():
             "or HBO there changes these bytes.",
             "directors/creators/writers, award_*/ceremony_* and ent_imdb are OPTIONAL too: a store "
             "without them has no roles, no awards and no IMDb ids, which is not an error.",
+            "ent_gender_*, ent_citizen_*, ent_occupation_*, ent_born(_prec) and ent_died(_prec) are "
+            "OPTIONAL: a store without them has no person traits, which is not an error. Their values are "
+            "entity ids, and born/died are days since the epoch that can reach before the common era.",
         ],
     }
     with open(os.path.join(args.out_dir, "store-v2.json"), "w", encoding="utf-8") as fh:
