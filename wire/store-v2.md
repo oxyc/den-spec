@@ -136,8 +136,8 @@ what an unenforced contract is worth.
 | `card_year` | `i16` | R — `i16::MIN` = none. The year of Wikidata's release date |
 | ~~`votes`~~ | | **REMOVED — see below** |
 
-**`card_poster` is optional**, as are the role lists, `ent_imdb`, the person traits, and the studio and
-award sections below; nothing else is. A reader must treat its
+**`card_poster` is optional**, as are the role lists, `ent_imdb`, the person traits, the tentative facets,
+and the studio and award sections below; nothing else is. A reader must treat its
 absence as "no poster paths", never as an error: the producer stopped writing it under oxyc/den#118,
 because a poster path is licensed vendor content and the store is a public artifact. A reader wanting
 artwork has two other sources — a batch metadata route, and the metahub URL keyed by IMDb id — and so
@@ -187,6 +187,36 @@ Dense rather than 24 per-axis sections: a section name is capped at 16 bytes and
 
 `does-not-apply` is stored as absent, never as a value: it is the model declining, and a scorer counting it
 as agreement would pair every declining title with every other.
+
+`facet_v` holds only what the writer PUBLISHES: an answer that passed den-dataset's publication gates
+(`store/facets.py`, FACETS-V2 § "Publication gates"). Everything else is absent there, whatever the reason.
+
+#### Tentative facets — OPTIONAL
+
+The same dense `R × 12` shape and axis order as `facet_v`.
+
+| name | type | length |
+|---|---|---|
+| `facet_tv` | `u32` | R × 12 — string id, `u32::MAX` = no tentative value |
+| `facet_tp` | `u8` | R × 12 — the value's **probability**, hundredths; 0 where `facet_tv` is absent |
+
+An answer the gates refused only for being **uncertain** (probability under 0.70, or too thin a margin
+over the runner-up), when it is still the model's best guess. The writer decides which: den-dataset's
+`store/facets.py` names the floor and any axis or value left out, and the manifest's `facetGates` records
+them with the counts. The published tier grades 9 to 10 correct in 10; the tentative tier about 8 in 10
+(oxyc/den-atlas#35). A reader that shows one must list it after the published values and say it is
+tentative.
+
+- A cell is tentative only where `facet_v` is absent. The two tiers never hold a value for the same cell,
+  so a reader may read them as one answer per cell: published, else tentative, else none.
+- `facet_tp` is a probability from the answer's distribution. `facet_c` is the model's self-reported
+  confidence, a different number. Do not compare one with the other.
+- A refusal that is not uncertainty gives no tentative value: the wrong work, a non-narrative programme,
+  `does-not-apply`, `ending=unknown`, an archetype outside a bounded narrative.
+- A value may appear in `facet_tv` and nowhere in `facet_v`. It is in the one dictionary like any other.
+
+The two are written together. **Absent means no tentative values, never an error**: a store written
+before them is read exactly as before. One without the other, or either not sized `R × 12`, is malformed.
 
 ### Scores, world, nouls, critique
 

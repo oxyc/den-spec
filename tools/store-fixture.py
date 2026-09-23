@@ -78,9 +78,14 @@ TITLES = [
                                                 "documentary-or-factual": 0.03}}},
         "facets": {"era": {"choice": "contemporary", "confidence": 0.96,
                            "probabilities": {"contemporary": 0.96, "medieval": 0.04}},
-                   # Below the publication gate's 0.70: collected, never published
+                   # Below the publication gate's 0.70 and the tentative tier's 0.50: collected, never
+                   # published, not even as tentative
                    "tone": {"choice": "bleak", "confidence": 0.37,
                             "probabilities": {"bleak": 0.37, "clinical": 0.33, "pulpy": 0.30}},
+                   # Below 0.70 but the argmax at 0.55: withheld from `facet_v`, and written to the
+                   # tentative tier (`facet_tv`/`facet_tp`) with its probability
+                   "ending": {"choice": "bittersweet", "confidence": 0.5,
+                              "probabilities": {"bittersweet": 0.55, "happy": 0.45}},
                    # `does-not-apply` must be stored as ABSENT, never as a value
                    "pacing": {"choice": "does-not-apply", "confidence": 0.5,
                               "probabilities": {"does-not-apply": 0.5, "brisk": 0.5}}},
@@ -289,6 +294,10 @@ def main():
              "facets": {"era": ["contemporary", 96]},
              "facetsAbsent": ["pacing", "tone", "setting", "scope", "ending", "chronology",
                               "continuity", "conflict", "ensemble", "timespan", "archetype"],
+             # The tentative tier: `ending` at 0.55 is the argmax the gate refused as uncertain. `tone` at
+             # 0.37 is under the tier's floor, and `pacing`'s `does-not-apply` is not uncertainty. Every
+             # axis not named here reads absent in `facet_tv`, with probability 0.
+             "facetsTentative": {"ending": ["bittersweet", 55]},
              "scores": {"intensity": 321, "humour": 33, "emotional_weight": 281, "complexity": 229},
              "world": 25, "nouls": {"theme__epic": 90, "theme__vampire": 25},
              "critique": {"institution": 80, "class": 10},
@@ -316,7 +325,7 @@ def main():
              "primaryGenre": None, "subgenres": [], "moods": [],
              "countries": ["FR"], "makers": [], "cast": [], "franchise": [],
              "directors": [], "creators": [], "writers": [], "awards": [],
-             "released": None, "hasVector": False,
+             "released": None, "hasVector": False, "facetsTentative": {},
              "hasPlotVector": False, "hasPremiseVector": False,
              "_note": "A facts-only row: present in facts, absent from every label and vector file."},
             {"key": "tv:10", "row": 2, "media": 1, "tmdbId": 10,
@@ -329,6 +338,9 @@ def main():
              # carry one, and no confidence threshold would have caught it.
              "facets": {"ensemble": ["ensemble-led", 93]},
              "facetsAbsent": ["archetype"],
+             # An archetype on an open narrative is refused for what the title is, not for doubt: no
+             # tentative value either.
+             "facetsTentative": {},
              "scores": {"intensity": 300, "humour": 109, "emotional_weight": 300, "complexity": 313},
              "genres": [80, 18, 10765], "episodes": 62, "seasons": 5,
              "makers": ["Ada Director"], "cast": ["Di Actor", "Q999"], "franchise": [],
@@ -403,6 +415,9 @@ def main():
             "ent_gender_*, ent_citizen_*, ent_occupation_*, ent_born(_prec) and ent_died(_prec) are "
             "OPTIONAL: a store without them has no person traits, which is not an error. Their values are "
             "entity ids, and born/died are days since the epoch that can reach before the common era.",
+            "facet_tv/facet_tp, the tentative tier, are OPTIONAL: a store without them has no tentative "
+            "values, which is not an error. A cell is tentative only where facet_v is absent; its byte is "
+            "the answer's PROBABILITY in hundredths, where facet_c holds a self-reported confidence.",
         ],
     }
     with open(os.path.join(args.out_dir, "store-v2.json"), "w", encoding="utf-8") as fh:
