@@ -16,35 +16,95 @@
     "Cyrus Actor",
     "C. Actor"
    ],
+   "born": -43829,
+   "bornPrecision": 3,
+   "citizenship": [
+    33,
+    34
+   ],
+   "died": -17838,
+   "diedPrecision": 1,
+   "gender": [
+    48270
+   ],
    "imdb": "nm0000102",
    "name": "Cy Actor",
+   "occupation": [
+    33999
+   ],
    "qid": 102,
    "tmdbPersonId": 902
   },
   {
    "aliases": [],
+   "born": -8602,
+   "bornPrecision": 0,
+   "citizenship": [
+    34
+   ],
+   "died": null,
+   "diedPrecision": null,
+   "gender": [
+    6581072
+   ],
    "imdb": "nm0000100",
    "name": "Ada Director",
+   "occupation": [
+    28389,
+    2526255
+   ],
    "qid": 100,
    "tmdbPersonId": 900
   },
   {
    "aliases": [],
+   "born": -900689,
+   "bornPrecision": 2,
+   "citizenship": [],
+   "died": -867451,
+   "diedPrecision": 2,
+   "gender": [
+    6581097
+   ],
+   "imdb": null,
+   "name": "Bo Writer",
+   "occupation": [
+    36180
+   ],
+   "qid": 101,
+   "tmdbPersonId": null
+  },
+  {
+   "aliases": [],
+   "born": null,
+   "bornPrecision": null,
+   "citizenship": [],
+   "died": null,
+   "diedPrecision": null,
+   "gender": [],
    "imdb": null,
    "name": "A Broadcaster",
+   "occupation": [],
    "qid": 107,
+   "tmdbPersonId": null
+  },
+  {
+   "aliases": [],
+   "imdb": null,
+   "name": "Q48270",
+   "qid": 48270,
    "tmdbPersonId": null
   }
  ],
  "header": {
-  "bytes": 12195,
-  "contentHash": 10521815613584593229,
+  "bytes": 13523,
+  "contentHash": 2512770883876636046,
   "datasetVersion": "fixture",
   "endianness": 16909060,
   "formatVersion": 2,
   "magic": "DENSTOR1",
   "rowCount": 3,
-  "sectionCount": 108
+  "sectionCount": 118
  },
  "iconicStudios": [
   {
@@ -77,7 +137,8 @@
   "Q999 is credited but has no entity entry: it is still in the table, named by its Q-id.",
   "franchise is a LIST of raw Q-id numbers (franchise_v/franchise_o), most specific series first. A row in no series owns an empty span. store-v1 held only the first, as a u32 column.",
   "The studio_* sections are OPTIONAL: a store without them has no iconic studios, which is not an error. Which studios they hold is den-dataset's data/iconic-studios.json, so editing Pixar or HBO there changes these bytes.",
-  "directors/creators/writers, award_*/ceremony_* and ent_imdb are OPTIONAL too: a store without them has no roles, no awards and no IMDb ids, which is not an error."
+  "directors/creators/writers, award_*/ceremony_* and ent_imdb are OPTIONAL too: a store without them has no roles, no awards and no IMDb ids, which is not an error.",
+  "ent_gender_*, ent_citizen_*, ent_occupation_*, ent_born(_prec) and ent_died(_prec) are OPTIONAL: a store without them has no person traits, which is not an error. Their values are entity ids, and born/died are days since the epoch that can reach before the common era."
  ],
  "rows": [
   {

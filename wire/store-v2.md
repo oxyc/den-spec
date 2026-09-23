@@ -136,8 +136,8 @@ what an unenforced contract is worth.
 | `card_year` | `i16` | R — `i16::MIN` = none. The year of Wikidata's release date |
 | ~~`votes`~~ | | **REMOVED — see below** |
 
-**`card_poster` is optional**, as are the role lists, `ent_imdb`, and the studio and award sections below;
-nothing else is. A reader must treat its
+**`card_poster` is optional**, as are the role lists, `ent_imdb`, the person traits, and the studio and
+award sections below; nothing else is. A reader must treat its
 absence as "no poster paths", never as an error: the producer stopped writing it under oxyc/den#118,
 because a poster path is licensed vendor content and the store is a public artifact. A reader wanting
 artwork has two other sources — a batch metadata route, and the metahub URL keyed by IMDb id — and so
@@ -272,6 +272,43 @@ Wikidata Q-id. Only person ids are written; a company's or a character's IMDb id
 Wikidata (a CC0 fact), never from IMDb's dumps, which may not be redistributed. Absent means no IMDb ids,
 not an error; present, it has one entry per entity. On the published facts: 131,826 of 162,812 entities,
 93.5% of credited people, and the people behind 98.4% of cast credits.
+
+#### Person traits — OPTIONAL
+
+| name | type | length | meaning |
+|---|---|---|---|
+| `ent_gender_v` / `_o` | `u32` / `u32` | list per entity | sex or gender (P21): entity ids of the items Wikidata names |
+| `ent_citizen_v` / `_o` | `u32` / `u32` | list per entity | countries of citizenship (P27), entity ids |
+| `ent_occupation_v` / `_o` | `u32` / `u32` | list per entity | occupations (P106), entity ids |
+| `ent_born` | `i32` | E | date of birth (P569), days since 1970-01-01, `i32::MIN` = none |
+| `ent_born_prec` | `u8` | E | 0 day · 1 month · 2 year · 3 decade · 4 century · `0xFF` none |
+| `ent_died` / `ent_died_prec` | `i32` / `u8` | E | the same, for the date of death (P570) |
+
+What Wikidata states about a person (oxyc/den#136), and nothing else: no gender is inferred from a name or
+a photo, no nationality from a birthplace. Each is read at best rank, as `wdt:` reads it. A gender, a
+country or an occupation is the item Wikidata names, stored as an entity id like any credit, so a reader
+shows its `ent_name` — whatever values the data holds, which are not only male and female. The items a
+trait names are always in the entity table; one Wikidata gives no English label is named by its Q-id, as
+any unnamed entity is. Lists are in Q-id order.
+
+A date is encoded as `released` is — days since the epoch and a precision code — with two differences a
+reader must allow for. It reaches before the common era (a screenwriter credit can reach Sophocles), in the
+proleptic Gregorian calendar, where year 0 is 1 BCE; and it may be known only to the decade or century. The
+day is Wikidata's value cut to its precision: a year-precision date is 1 January of that year, and a reader
+must not show it as that day. **Below a year, read only what the precision asserts.** A decade is the
+year's decade. A century is ⌈year / 100⌉ and nothing finer: Wikidata writes "20th century" as any year
+from 1901 to 2000, and on the corpus's people as 1953, 2000, 1901 and 1950 — 3,236 births, which a reader
+bucketing by decade would scatter into the 1950s and the 2000s. Where Wikidata gives several best-rank
+dates, the stored one is the earliest that no other refines (a bare 1946 beside 1946-06-14 is the day).
+
+The ten sections are written together. **Absent means no traits, never an error**; some of them without
+the others is malformed, as is any not sized to the entity table. Only credited people — cast, directors,
+creators, writers, composers and cinematographers — are asked, so every other entity has none.
+
+Measured over the 140,521 people the current facts credit: gender 98.7%, born 84.5%, died 25.0%,
+citizenship 85.2%, occupation 98.8%; the people behind cast credits, weighted by credits, 99.9% / 96.0% /
+29.4% / 96.1% / 99.7%. Wikidata holds 23 distinct gender values here (male 94,531, female 43,761,
+non-binary 143, trans woman 142, …), and 71 people carry more than one.
 
 ### The inverted maker index
 
