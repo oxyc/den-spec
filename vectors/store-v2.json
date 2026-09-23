@@ -97,14 +97,14 @@
   }
  ],
  "header": {
-  "bytes": 13523,
-  "contentHash": 2512770883876636046,
+  "bytes": 13787,
+  "contentHash": 14580593670400747068,
   "datasetVersion": "fixture",
   "endianness": 16909060,
   "formatVersion": 2,
   "magic": "DENSTOR1",
   "rowCount": 3,
-  "sectionCount": 118
+  "sectionCount": 120
  },
  "iconicStudios": [
   {
@@ -138,7 +138,8 @@
   "franchise is a LIST of raw Q-id numbers (franchise_v/franchise_o), most specific series first. A row in no series owns an empty span. store-v1 held only the first, as a u32 column.",
   "The studio_* sections are OPTIONAL: a store without them has no iconic studios, which is not an error. Which studios they hold is den-dataset's data/iconic-studios.json, so editing Pixar or HBO there changes these bytes.",
   "directors/creators/writers, award_*/ceremony_* and ent_imdb are OPTIONAL too: a store without them has no roles, no awards and no IMDb ids, which is not an error.",
-  "ent_gender_*, ent_citizen_*, ent_occupation_*, ent_born(_prec) and ent_died(_prec) are OPTIONAL: a store without them has no person traits, which is not an error. Their values are entity ids, and born/died are days since the epoch that can reach before the common era."
+  "ent_gender_*, ent_citizen_*, ent_occupation_*, ent_born(_prec) and ent_died(_prec) are OPTIONAL: a store without them has no person traits, which is not an error. Their values are entity ids, and born/died are days since the epoch that can reach before the common era.",
+  "facet_tv/facet_tp, the tentative tier, are OPTIONAL: a store without them has no tentative values, which is not an error. A cell is tentative only where facet_v is absent; its byte is the answer's PROBABILITY in hundredths, where facet_c holds a self-reported confidence."
  ],
  "rows": [
   {
@@ -210,6 +211,12 @@
     "timespan",
     "archetype"
    ],
+   "facetsTentative": {
+    "ending": [
+     "bittersweet",
+     55
+    ]
+   },
    "franchise": [
     114,
     105
@@ -290,6 +297,7 @@
    ],
    "creators": [],
    "directors": [],
+   "facetsTentative": {},
    "franchise": [],
    "hasPlotVector": false,
    "hasPremiseVector": false,
@@ -336,6 +344,7 @@
    "facetsAbsent": [
     "archetype"
    ],
+   "facetsTentative": {},
    "franchise": [],
    "genres": [
     80,
