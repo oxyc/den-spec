@@ -56,7 +56,36 @@ holds fifty messages.
 
 ## 3. Receiving
 
-The TV drains its links' queues as before and, for a paired link:
+The TV takes a queue by draining it, which empties it. One queue, by its credential in the header:
+
+```
+GET /inbox/drain
+x-den-link: <inbox>
+→ 200 {"messages": [{"sealed": "<base64url>"}, …]}
+```
+
+Or several at once, one per linked device, by their credentials in the body:
+
+```
+POST /inbox/drain
+{"keys": ["<inbox 1>", "<inbox 2>", …]}
+→ 200 {"queues": [[{"sealed": "…"}], [], …]}
+```
+
+- `queues` is index-aligned with `keys`: the *n*th queue is the *n*th key's, and each is emptied.
+- `keys` holds 1–16 distinct credentials. A missing, empty, longer or repeating list is `400 invalid_inbox_keys`;
+  a key that is not one (16 or more hex characters) is `400 invalid_inbox_key`. Either refuses the whole
+  request and empties nothing, so a client never mistakes a refused key for an empty queue.
+- Each key is its own credential, exactly as in the header: a queue is emptied only for the key that names it.
+  The keys travel in the body, never in a URL.
+- An unknown or expired queue is empty, as it is for `GET`: a queue exists only while messages wait.
+- Both forms share one budget per client address: 240 queues a minute, a `POST` costing one per key. Past it the
+  request is refused whole, `429` with `Retry-After` in seconds, and nothing is emptied. A client should ask
+  nothing more until that has passed.
+- A den-edge older than the `POST` form answers it `404` or `405`; a client then drains each queue with `GET`.
+- A client should drain up to 16 queues per `POST` rather than one request per link.
+
+For a paired link, the TV:
 
 - MUST drop any message that isn't sealed. Anything den-edge could write itself counts for nothing.
 - MUST drop a message that doesn't open under the link's `enc`, or whose plaintext isn't as above.
@@ -69,3 +98,6 @@ The TV drains its links' queues as before and, for a paired link:
 
 Stores a sealed message as it came — at most 4096 characters of base64url — in the link's queue, newest fifty
 for 7 days, and hands the queue to the next drain. It learns when a device sends and how much, not what.
+
+In a `POST` drain a queue it cannot read is answered empty and left for the next drain, and one it cannot delete
+is handed over now and again next time, where the TV drops what it already applied (§3).
