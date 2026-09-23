@@ -136,7 +136,8 @@ what an unenforced contract is worth.
 | `card_year` | `i16` | R — `i16::MIN` = none. The year of Wikidata's release date |
 | ~~`votes`~~ | | **REMOVED — see below** |
 
-**`card_poster` is optional**, as are the `studio_*` sections below; nothing else is. A reader must treat its
+**`card_poster` is optional**, as are the role lists, `ent_imdb`, and the studio and award sections below;
+nothing else is. A reader must treat its
 absence as "no poster paths", never as an error: the producer stopped writing it under oxyc/den#118,
 because a poster path is licensed vendor content and the store is a public artifact. A reader wanting
 artwork has two other sources — a batch metadata route, and the metahub URL keyed by IMDb id — and so
@@ -227,6 +228,11 @@ The other Wikidata entity lists are the same shape, entity ids in the facts' ord
 (cinematographers), `distributors`, `companies` (production companies, P272), `locations` (narrative
 locations), `subjects` (main subjects), `instance_of` and `based_on`. `based_kind` holds string ids.
 
+**A franchise's name is its entry in the entity table**, looked up by the Q-id number in `ent_qid`, when it
+has one. The facts stage names every series a title is in, so a current store names nearly all of them
+(702 of 713 series on the published facts; the rest have no English label). A store written before that
+names few, and a reader must treat a franchise with no entry as nameless, not as an error.
+
 | name | type | length | meaning |
 |---|---|---|---|
 | `imdb` | `u32` | R | string id, `u32::MAX` = none |
@@ -235,6 +241,13 @@ locations), `subjects` (main subjects), `instance_of` and `based_on`. `based_kin
 | `ended` / `ended_prec` | `i32` / `u8` | R | the same, for a series' last air date |
 | `runtime` | `u16` | R | minutes, 0 = none |
 | `orig_lang` | `u32` | R | string id of the first language, `u32::MAX` = none |
+
+#### Roles — OPTIONAL
+
+`directors` (P57), `creators` (P170) and `writers` (screenwriters, P58): the three credits `makers` is the
+union of, kept apart, so a reader can tell a director from a writer. Same shape as `makers`: entity ids, in
+the facts' order, deduplicated. On the published facts: directors 88.3% of titles, writers 67.2%, creators
+6.8% (a series credit). Absent means a store written before them, and reads as three empty lists per row.
 
 ### Entities
 
@@ -245,12 +258,20 @@ locations), `subjects` (main subjects), `instance_of` and `based_on`. `based_kin
 | `ent_tmdb` | `u32` | E — TMDB person id, `u32::MAX` = none |
 | `ent_credits` | `u32` | E — titles crediting this entity, for rarity weighting |
 | `ent_alias_v` / `_o` | `u32` | list per entity — the other names they go by, as string ids |
+| `ent_imdb` | `u32` | E — string id of the IMDb person id (`nm…`, Wikidata P345), `u32::MAX` = none. **OPTIONAL** |
 
 `ent_alias_*` holds STRINGS, not precomputed hashes. People search keys on a folded, normalised form of a
 name, and a writer producing those hashes would be a second copy of that algorithm — the exact drift this
 format exists to prevent. The reader folds them itself and drops the strings once its index is built.
 64,075 of 162,812 entities have aliases, 118,958 in all; without them a search for "Michael James Vogel"
 finds nothing while "Mike Vogel" works.
+
+`ent_imdb` is a **join key, never an identity**: it lets a reader join IMDb's own principals at run time —
+who is top-billed, say — the way the `imdb` column joins its ratings. The entity's public id stays its
+Wikidata Q-id. Only person ids are written; a company's or a character's IMDb id is not. It comes from
+Wikidata (a CC0 fact), never from IMDb's dumps, which may not be redistributed. Absent means no IMDb ids,
+not an error; present, it has one entry per entity. On the published facts: 131,826 of 162,812 entities,
+93.5% of credited people, and the people behind 98.4% of cast credits.
 
 ### The inverted maker index
 
@@ -285,6 +306,34 @@ still has HBO.
 **Absent means no iconic studios, never an error**, as with `card_poster`: a reader built before these
 sections existed ignores them, and a reader built after must still open a store-v2 written without them. That
 is why they are an addition to store-v2 and not a store-v3. The sections may also be present and empty.
+
+### Awards — OPTIONAL
+
+`C` = ceremony count.
+
+| name | type | length | meaning |
+|---|---|---|---|
+| `ceremony_qid` | `u32` | C | the ceremony's Wikidata item, raw Q-id number, **sorted** |
+| `ceremony_name` | `u32` | C | string id: its English label, or `Q<n>` when it has none |
+| `award_v` / `award_w` / `award_o` | `u32` / `u8` / `u32` | list | per title: ceremony (an index into `ceremony_qid`), and 1 if it won at least one award there, 0 if it was only nominated. `award_v` and `award_w` share `award_o` |
+
+A title's awards are the ceremonies it was recognised at, one entry per ceremony, in ceremony-table
+order: won beats nominated, so a title that won Best Picture and was nominated for Best Director carries
+the Academy Awards once, as won. The categories themselves are not stored.
+
+They come from Wikidata alone: P166 (award received) and P1411 (nominated for) on the title, and each award
+item filed under its ceremony — a "group of awards" (Q107655869) the item is part of (P361) or an instance of
+(P31), else the item itself when it is one, else the body that confers it (P1027), which is how a festival
+prize names its festival. An award none of those find is not stored.
+
+Measured on the published facts (47,618 titles): 8,200 titles (17.2%) carry P166 or P1411; 2,337 distinct
+award items, of which 1,944 file under a ceremony, covering 91.6% of title–award pairs; 7,447 titles (15.6%)
+end up with at least one of 362 ceremonies, 4,834 of them with a win. The largest unfiled item is
+"International Submission to the Academy Awards" (1,262 titles), which is not an award and is right to be
+left out. One body can still appear twice — the National Board of Review as its organisation (through
+P1027) and as its "Awards" group — because Wikidata files some of its prizes one way and some the other.
+
+**Absent means no awards, never an error**, as with the studio sections.
 
 ### Vectors
 

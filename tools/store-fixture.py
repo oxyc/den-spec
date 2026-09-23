@@ -61,6 +61,9 @@ TITLES = [
             # Q110 is not one.
             "productionCompanies": ["Q110", "Q127552"], "narrativeLocations": ["Q111"],
             "mainSubjects": ["Q112"], "instanceOf": ["Q113"],
+            # Ceremonies, as the facts stage files P166/P1411 under them: won at the Academy Awards
+            # (Q19020), nominated only at Q1011547, which has no entity entry and is named by its Q-id.
+            "awardsWonAt": ["Q19020"], "awardsNominatedAt": ["Q1011547"],
             "hasVector": True,
         },
         "labels": {"primaryGenre": "Drama", "animated": False,
@@ -110,6 +113,7 @@ TITLES = [
             # HBO Films: the writer's list files it under HBO (Q23633), which nothing here credits. The
             # studio still ships, under HBO's own item.
             "productionCompanies": ["Q662081"],
+            "awardsNominatedAt": ["Q1011547"],
             "hasVector": True,
         },
         "labels": {"primaryGenre": "Crime", "animated": False, "subgenres": [], "moods": []},
@@ -136,15 +140,17 @@ TITLES = [
 ]
 
 ENTITIES = {
-    "Q100": {"en": "Ada Director", "tmdbPersonId": "900"},
+    "Q100": {"en": "Ada Director", "tmdbPersonId": "900", "imdbId": "nm0000100"},
     "Q101": {"en": "Bo Writer"},
     # Aliases: people search indexes these as well as `en`, so the fixture has to carry one.
-    "Q102": {"en": "Cy Actor", "tmdbPersonId": "902", "aliases": ["Cyrus Actor", "C. Actor"]},
+    "Q102": {"en": "Cy Actor", "tmdbPersonId": "902", "aliases": ["Cyrus Actor", "C. Actor"],
+             "imdbId": "nm0000102"},
     "Q103": {"en": "Di Actor"},
     "Q104": {"en": "Ed Composer"},
     "Q105": {"en": "The Alpha Saga"},
     "Q106": {"en": "Alpha, the novel"},
-    "Q107": {"en": "A Broadcaster"},
+    # A company's IMDb id: not a person's, so `ent_imdb` holds none for it.
+    "Q107": {"en": "A Broadcaster", "imdbId": "co0000107"},
     "Q108": {"en": "Fi Cinematographer"},
     "Q109": {"en": "A Distributor"},
     "Q110": {"en": "A Production Company"},
@@ -153,6 +159,7 @@ ENTITIES = {
     "Q113": {"en": "film"},
     "Q127552": {"en": "Pixar"},
     "Q662081": {"en": "HBO Films"},
+    "Q19020": {"en": "Academy Awards"},
 }
 GENRE_MAP = {
     "Q1": {"movie": 18, "tv": 18},
@@ -271,6 +278,9 @@ def main():
              "imdb": "tt0000001", "runtime": 101, "released": 10956, "releasedPrecision": 0,
              "genres": [18], "countries": ["US", "GB"], "languages": ["EN"],
              "makers": ["Ada Director", "Bo Writer"], "cast": ["Cy Actor", "Di Actor"],
+             "directors": ["Ada Director"], "creators": [], "writers": ["Bo Writer"],
+             # [ceremony Q-id, won], in ceremony-table order.
+             "awards": [[19020, True], [1011547, False]],
              # Raw Q-id numbers, in the facts' order: Q114 then Q105.
              "composers": ["Ed Composer"], "franchise": [114, 105],
              "cinematographers": ["Fi Cinematographer"], "distributors": ["A Distributor"],
@@ -288,6 +298,7 @@ def main():
              "aliasTitles": ["Beta"],
              "primaryGenre": None, "subgenres": [], "moods": [],
              "countries": ["FR"], "makers": [], "cast": [], "franchise": [],
+             "directors": [], "creators": [], "writers": [], "awards": [],
              "released": None, "hasVector": False,
              "hasPlotVector": False, "hasPremiseVector": False,
              "_note": "A facts-only row: present in facts, absent from every label and vector file."},
@@ -304,6 +315,9 @@ def main():
              "scores": {"intensity": 300, "humour": 109, "emotional_weight": 300, "complexity": 313},
              "genres": [80, 18, 10765], "episodes": 62, "seasons": 5,
              "makers": ["Ada Director"], "cast": ["Di Actor", "Q999"], "franchise": [],
+             # The same person as movie:1's director, credited here as the series' creator.
+             "directors": [], "creators": ["Ada Director"], "writers": [],
+             "awards": [[1011547, False]],
              "productionCompanies": ["HBO Films"],
              "hasPlotVector": True, "hasPremiseVector": True,
              "_note": "genres: one Q-id mapping to TWO TMDB ids, in the genreMap's order — NOT sorted. "
@@ -311,10 +325,18 @@ def main():
         ],
         # The entity table, keyed by Q-id. People search reads the aliases as well as the name, so a
         # reader that indexes only `ent_name` answers "Cyrus Actor" with nothing.
+        # `imdb` is the person's IMDb id, a join key only; Q107's is a company's and is not written.
         "entities": [
             {"qid": 102, "name": "Cy Actor", "tmdbPersonId": 902,
-             "aliases": ["Cyrus Actor", "C. Actor"]},
-            {"qid": 100, "name": "Ada Director", "tmdbPersonId": 900, "aliases": []},
+             "aliases": ["Cyrus Actor", "C. Actor"], "imdb": "nm0000102"},
+            {"qid": 100, "name": "Ada Director", "tmdbPersonId": 900, "aliases": [],
+             "imdb": "nm0000100"},
+            {"qid": 107, "name": "A Broadcaster", "tmdbPersonId": None, "aliases": [], "imdb": None},
+        ],
+        # The ceremony table, sorted by Q-id. Q1011547 has no entity entry, so its name is its Q-id.
+        "ceremonies": [
+            {"qid": 19020, "name": "Academy Awards"},
+            {"qid": 1011547, "name": "Q1011547"},
         ],
         # The iconic studios the corpus credits, sorted by the studio's own item. `entities` are the
         # Q-ids of the credited items filed under it: HBO ships through HBO Films alone.
@@ -344,6 +366,8 @@ def main():
             "The studio_* sections are OPTIONAL: a store without them has no iconic studios, which is not "
             "an error. Which studios they hold is den-dataset's data/iconic-studios.json, so editing Pixar "
             "or HBO there changes these bytes.",
+            "directors/creators/writers, award_*/ceremony_* and ent_imdb are OPTIONAL too: a store "
+            "without them has no roles, no awards and no IMDb ids, which is not an error.",
         ],
     }
     with open(os.path.join(args.out_dir, "store-v2.json"), "w", encoding="utf-8") as fh:
