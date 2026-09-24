@@ -54,6 +54,9 @@ TITLES = [
             # Two series, most specific first — the order the writer must keep, not sort.
             "composers": ["Q104"], "franchise": ["Q114", "Q105"],
             "basedOn": ["Q106"], "basedOnKind": ["book"],
+            # Who wrote Q106, as the facts stage resolves P144 -> P50: Bo Writer, who also wrote the
+            # screenplay, and Q115, who has no entity entry and is named by the Q-id. Q-id order.
+            "sourceAuthors": ["Q101", "Q115"],
             # Every remaining entity list, so the fixture exercises all of them: a section that is
             # legitimately empty in the real corpus is a bug, and the writer now refuses one.
             "cinematographers": ["Q108"], "distributors": ["Q109"],
@@ -147,23 +150,31 @@ TITLES = [
 ENTITIES = {
     # People's traits, as the facts stage writes them from Wikidata: gender, citizenship and occupation as
     # the items Wikidata names, birth and death as `{date, precision}`.
+    # Where a person was born, as the facts stage writes it: the place (P19) and its country (P17), items.
     "Q100": {"en": "Ada Director", "tmdbPersonId": "900", "imdbId": "nm0000100",
              "gender": ["Q6581072"], "born": {"date": "1946-06-14", "precision": "day"},
-             "citizenship": ["Q34"], "occupation": ["Q28389", "Q2526255"]},
-    # Born and died before the common era, to the year: a screenwriter credit can reach Sophocles.
+             "citizenship": ["Q34"], "occupation": ["Q28389", "Q2526255"],
+             "birthplace": ["Q1754"], "birthcountry": ["Q34"]},
+    # Born and died before the common era, to the year: a screenwriter credit can reach Sophocles. Born in
+    # a place Wikidata puts in no country.
     "Q101": {"en": "Bo Writer", "gender": ["Q6581097"],
              "born": {"date": "-0496", "precision": "year"}, "died": {"date": "-0405", "precision": "year"},
-             "occupation": ["Q36180"]},
+             "occupation": ["Q36180"], "birthplace": ["Q1128337"]},
     # Aliases: people search indexes these as well as `en`, so the fixture has to carry one.
     # A gender beyond male and female, two citizenships, a birth known to the decade and a death to the
     # month. Q48270, Q33 and Q33999 have no entity entry, and are still in the table, named by their Q-id.
     "Q102": {"en": "Cy Actor", "tmdbPersonId": "902", "aliases": ["Cyrus Actor", "C. Actor"],
              "imdbId": "nm0000102", "gender": ["Q48270"],
              "born": {"date": "1850", "precision": "decade"}, "died": {"date": "1921-03", "precision": "month"},
-             "citizenship": ["Q33", "Q34"], "occupation": ["Q33999"]},
+             "citizenship": ["Q33", "Q34"], "occupation": ["Q33999"],
+             # Two best-rank birthplaces in two countries. Q1757 and Q33 have no entity entry.
+             "birthplace": ["Q1754", "Q1757"], "birthcountry": ["Q33", "Q34"]},
     "Q6581072": {"en": "female"},
     "Q6581097": {"en": "male"},
-    "Q34": {"en": "Sweden"},
+    # A country carries its ISO 3166-1 alpha-2 code (P297); Q33 has no entry and so none.
+    "Q34": {"en": "Sweden", "iso": "SE"},
+    "Q1754": {"en": "Stockholm"},
+    "Q1128337": {"en": "Colonus"},
     "Q2526255": {"en": "film director"},
     "Q28389": {"en": "screenwriter"},
     "Q36180": {"en": "writer"},
@@ -305,6 +316,8 @@ def main():
              "genres": [18], "countries": ["US", "GB"], "languages": ["EN"],
              "makers": ["Ada Director", "Bo Writer"], "cast": ["Cy Actor", "Di Actor"],
              "directors": ["Ada Director"], "creators": [], "writers": ["Bo Writer"],
+             # The authors of the work it is based on, by entity name: Q115 has no entry.
+             "sourceAuthors": ["Bo Writer", "Q115"],
              # [ceremony Q-id, won], in ceremony-table order.
              "awards": [[19020, True], [1011547, False]],
              # Raw Q-id numbers, in the facts' order: Q114 then Q105.
@@ -324,7 +337,7 @@ def main():
              "aliasTitles": ["Beta"],
              "primaryGenre": None, "subgenres": [], "moods": [],
              "countries": ["FR"], "makers": [], "cast": [], "franchise": [],
-             "directors": [], "creators": [], "writers": [], "awards": [],
+             "directors": [], "creators": [], "writers": [], "awards": [], "sourceAuthors": [],
              "released": None, "hasVector": False, "facetsTentative": {},
              "hasPlotVector": False, "hasPremiseVector": False,
              "_note": "A facts-only row: present in facts, absent from every label and vector file."},
@@ -345,7 +358,7 @@ def main():
              "genres": [80, 18, 10765], "episodes": 62, "seasons": 5,
              "makers": ["Ada Director"], "cast": ["Di Actor", "Q999"], "franchise": [],
              # The same person as movie:1's director, credited here as the series' creator.
-             "directors": [], "creators": ["Ada Director"], "writers": [],
+             "directors": [], "creators": ["Ada Director"], "writers": [], "sourceAuthors": [],
              "awards": [[1011547, False]],
              "productionCompanies": ["HBO Films"],
              "hasPlotVector": True, "hasPremiseVector": True,
@@ -359,23 +372,35 @@ def main():
         # Wikidata names (the store holds them as entity ids); `born`/`died` are days since 1970-01-01 in
         # the proleptic Gregorian calendar, year 0 being 1 BCE, with the `released` precision codes
         # (0 day, 1 month, 2 year, 3 decade). -900689 is -0496-01-01; -8602 is 1946-06-14.
+        # Where a person was born: `birthplace` and `birthcountry` are Q-id numbers, as the traits are, and
+        # `iso` is an entity's ISO 3166-1 alpha-2 code (a country's), or None.
         "entities": [
             {"qid": 102, "name": "Cy Actor", "tmdbPersonId": 902,
              "aliases": ["Cyrus Actor", "C. Actor"], "imdb": "nm0000102",
              "gender": [48270], "citizenship": [33, 34], "occupation": [33999],
-             "born": -43829, "bornPrecision": 3, "died": -17838, "diedPrecision": 1},
+             "born": -43829, "bornPrecision": 3, "died": -17838, "diedPrecision": 1,
+             "birthplace": [1754, 1757], "birthcountry": [33, 34], "iso": None},
             {"qid": 100, "name": "Ada Director", "tmdbPersonId": 900, "aliases": [],
              "imdb": "nm0000100",
              "gender": [6581072], "citizenship": [34], "occupation": [28389, 2526255],
-             "born": -8602, "bornPrecision": 0, "died": None, "diedPrecision": None},
+             "born": -8602, "bornPrecision": 0, "died": None, "diedPrecision": None,
+             "birthplace": [1754], "birthcountry": [34], "iso": None},
             {"qid": 101, "name": "Bo Writer", "tmdbPersonId": None, "aliases": [], "imdb": None,
              "gender": [6581097], "citizenship": [], "occupation": [36180],
-             "born": -900689, "bornPrecision": 2, "died": -867451, "diedPrecision": 2},
+             "born": -900689, "bornPrecision": 2, "died": -867451, "diedPrecision": 2,
+             "birthplace": [1128337], "birthcountry": [], "iso": None},
             {"qid": 107, "name": "A Broadcaster", "tmdbPersonId": None, "aliases": [], "imdb": None,
              "gender": [], "citizenship": [], "occupation": [],
-             "born": None, "bornPrecision": None, "died": None, "diedPrecision": None},
+             "born": None, "bornPrecision": None, "died": None, "diedPrecision": None,
+             "birthplace": [], "birthcountry": [], "iso": None},
             # A trait's value is an entity too, named by its Q-id when it has no entry.
             {"qid": 48270, "name": "Q48270", "tmdbPersonId": None, "aliases": [], "imdb": None},
+            # So is a birthplace, and a country carries its code.
+            {"qid": 1757, "name": "Q1757", "tmdbPersonId": None, "aliases": [], "imdb": None},
+            {"qid": 34, "name": "Sweden", "tmdbPersonId": None, "aliases": [], "imdb": None,
+             "birthplace": [], "birthcountry": [], "iso": "SE"},
+            # And a source work's author.
+            {"qid": 115, "name": "Q115", "tmdbPersonId": None, "aliases": [], "imdb": None},
         ],
         # The ceremony table, sorted by Q-id. Q1011547 has no entity entry, so its name is its Q-id.
         "ceremonies": [
@@ -415,6 +440,9 @@ def main():
             "ent_gender_*, ent_citizen_*, ent_occupation_*, ent_born(_prec) and ent_died(_prec) are "
             "OPTIONAL: a store without them has no person traits, which is not an error. Their values are "
             "entity ids, and born/died are days since the epoch that can reach before the common era.",
+            "ent_bplace_*, ent_bcountry_* and ent_iso are OPTIONAL: a store without them has no "
+            "birthplaces and no country codes, which is not an error. src_authors_* is OPTIONAL too: a store "
+            "without it names no source work's author.",
             "facet_tv/facet_tp, the tentative tier, are OPTIONAL: a store without them has no tentative "
             "values, which is not an error. A cell is tentative only where facet_v is absent; its byte is "
             "the answer's PROBABILITY in hundredths, where facet_c holds a self-reported confidence.",

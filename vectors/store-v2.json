@@ -16,6 +16,14 @@
     "Cyrus Actor",
     "C. Actor"
    ],
+   "birthcountry": [
+    33,
+    34
+   ],
+   "birthplace": [
+    1754,
+    1757
+   ],
    "born": -43829,
    "bornPrecision": 3,
    "citizenship": [
@@ -28,6 +36,7 @@
     48270
    ],
    "imdb": "nm0000102",
+   "iso": null,
    "name": "Cy Actor",
    "occupation": [
     33999
@@ -37,6 +46,12 @@
   },
   {
    "aliases": [],
+   "birthcountry": [
+    34
+   ],
+   "birthplace": [
+    1754
+   ],
    "born": -8602,
    "bornPrecision": 0,
    "citizenship": [
@@ -48,6 +63,7 @@
     6581072
    ],
    "imdb": "nm0000100",
+   "iso": null,
    "name": "Ada Director",
    "occupation": [
     28389,
@@ -58,6 +74,10 @@
   },
   {
    "aliases": [],
+   "birthcountry": [],
+   "birthplace": [
+    1128337
+   ],
    "born": -900689,
    "bornPrecision": 2,
    "citizenship": [],
@@ -67,6 +87,7 @@
     6581097
    ],
    "imdb": null,
+   "iso": null,
    "name": "Bo Writer",
    "occupation": [
     36180
@@ -76,6 +97,8 @@
   },
   {
    "aliases": [],
+   "birthcountry": [],
+   "birthplace": [],
    "born": null,
    "bornPrecision": null,
    "citizenship": [],
@@ -83,6 +106,7 @@
    "diedPrecision": null,
    "gender": [],
    "imdb": null,
+   "iso": null,
    "name": "A Broadcaster",
    "occupation": [],
    "qid": 107,
@@ -94,17 +118,41 @@
    "name": "Q48270",
    "qid": 48270,
    "tmdbPersonId": null
+  },
+  {
+   "aliases": [],
+   "imdb": null,
+   "name": "Q1757",
+   "qid": 1757,
+   "tmdbPersonId": null
+  },
+  {
+   "aliases": [],
+   "birthcountry": [],
+   "birthplace": [],
+   "imdb": null,
+   "iso": "SE",
+   "name": "Sweden",
+   "qid": 34,
+   "tmdbPersonId": null
+  },
+  {
+   "aliases": [],
+   "imdb": null,
+   "name": "Q115",
+   "qid": 115,
+   "tmdbPersonId": null
   }
  ],
  "header": {
-  "bytes": 13787,
-  "contentHash": 14580593670400747068,
+  "bytes": 14675,
+  "contentHash": 762765615248593023,
   "datasetVersion": "fixture",
   "endianness": 16909060,
   "formatVersion": 2,
   "magic": "DENSTOR1",
   "rowCount": 3,
-  "sectionCount": 120
+  "sectionCount": 127
  },
  "iconicStudios": [
   {
@@ -139,6 +187,7 @@
   "The studio_* sections are OPTIONAL: a store without them has no iconic studios, which is not an error. Which studios they hold is den-dataset's data/iconic-studios.json, so editing Pixar or HBO there changes these bytes.",
   "directors/creators/writers, award_*/ceremony_* and ent_imdb are OPTIONAL too: a store without them has no roles, no awards and no IMDb ids, which is not an error.",
   "ent_gender_*, ent_citizen_*, ent_occupation_*, ent_born(_prec) and ent_died(_prec) are OPTIONAL: a store without them has no person traits, which is not an error. Their values are entity ids, and born/died are days since the epoch that can reach before the common era.",
+  "ent_bplace_*, ent_bcountry_* and ent_iso are OPTIONAL: a store without them has no birthplaces and no country codes, which is not an error. src_authors_* is OPTIONAL too: a store without it names no source work's author.",
   "facet_tv/facet_tp, the tentative tier, are OPTIONAL: a store without them has no tentative values, which is not an error. A cell is tentative only where facet_v is absent; its byte is the answer's PROBABILITY in hundredths, where facet_c holds a self-reported confidence."
  ],
  "rows": [
@@ -271,6 +320,10 @@
     "humour": 33,
     "intensity": 321
    },
+   "sourceAuthors": [
+    "Bo Writer",
+    "Q115"
+   ],
    "subgenres": [
     [
      "Prison",
@@ -309,6 +362,7 @@
    "primaryGenre": null,
    "released": null,
    "row": 1,
+   "sourceAuthors": [],
    "subgenres": [],
    "tmdbId": 2,
    "writers": []
@@ -371,6 +425,7 @@
     "intensity": 300
    },
    "seasons": 5,
+   "sourceAuthors": [],
    "subgenres": [],
    "tmdbId": 10,
    "writers": []

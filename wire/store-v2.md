@@ -136,8 +136,8 @@ what an unenforced contract is worth.
 | `card_year` | `i16` | R — `i16::MIN` = none. The year of Wikidata's release date |
 | ~~`votes`~~ | | **REMOVED — see below** |
 
-**`card_poster` is optional**, as are the role lists, `ent_imdb`, the person traits, the tentative facets,
-and the studio and award sections below; nothing else is. A reader must treat its
+**`card_poster` is optional**, as are the role lists, the source authors, `ent_imdb`, the person traits,
+the birthplaces, the tentative facets, and the studio and award sections below; nothing else is. A reader must treat its
 absence as "no poster paths", never as an error: the producer stopped writing it under oxyc/den#118,
 because a poster path is licensed vendor content and the store is a public artifact. A reader wanting
 artwork has two other sources — a batch metadata route, and the metahub URL keyed by IMDb id — and so
@@ -279,6 +279,23 @@ union of, kept apart, so a reader can tell a director from a writer. Same shape 
 the facts' order, deduplicated. On the published facts: directors 88.3% of titles, writers 67.2%, creators
 6.8% (a series credit). Absent means a store written before them, and reads as three empty lists per row.
 
+#### Source authors — OPTIONAL
+
+| name | type | length | meaning |
+|---|---|---|---|
+| `src_authors_v` / `_o` | `u32` / `u32` | list per row | the authors (P50) of the works the title is based on (P144), entity ids |
+
+Who wrote what the title is adapted from (oxyc/den-dataset#114): "films adapted from Stephen King" is a
+question about the source work's author, which `based_on` cannot answer. One hop only: the author of each
+`based_on` work, as Wikidata states it at best rank, deduplicated across the works and in Q-id order. A
+source Wikidata names no author for (a character, a franchise, a folk tale, a film being remade) adds none,
+and a screenwriter is not a source author. The authors are always in the entity table, named like any
+entity, and asked for none of the person traits: they are not credits.
+
+Absent means a store written before them, and reads as an empty list per row. Measured on the corpus's
+47,539 titles against QLever's Wikidata dump: 9,503 (20.0%) are based on something, and 6,860 of those
+(72.2%) on a work with an author — 3,893 distinct authors, Stephen King the most adapted at 86 titles.
+
 ### Entities
 
 | name | type | length |
@@ -339,6 +356,39 @@ Measured over the 140,521 people the current facts credit: gender 98.7%, born 84
 citizenship 85.2%, occupation 98.8%; the people behind cast credits, weighted by credits, 99.9% / 96.0% /
 29.4% / 96.1% / 99.7%. Wikidata holds 23 distinct gender values here (male 94,531, female 43,761,
 non-binary 143, trans woman 142, …), and 71 people carry more than one.
+
+#### Birthplaces — OPTIONAL
+
+| name | type | length | meaning |
+|---|---|---|---|
+| `ent_bplace_v` / `_o` | `u32` / `u32` | list per entity | place of birth (P19), entity ids |
+| `ent_bcountry_v` / `_o` | `u32` / `u32` | list per entity | the country (P17) of each of those places, entity ids |
+| `ent_iso` | `u32` | E | string id of a country's ISO 3166-1 alpha-2 code (P297), `u32::MAX` = none |
+
+Where a person was born (oxyc/den-dataset#114), so a reader can answer "born in Stockholm" and "born in
+Sweden". The place is the item Wikidata names — a city, a village, a hospital, now and then a country — and
+the country is Wikidata's own P17 on that place, not a guess from the person's citizenship; the two are
+different questions and both are stored. Both are read at best rank, deduplicated, in Q-id order. A person
+can have several (1,195 of the corpus's people have more than one place, 837 more than one country), and a
+place Wikidata puts in no country gives none. The places and countries are always in the entity table,
+named by their Q-id when they have no English label.
+
+`ent_iso` is the code a reader resolves `SE` through. It is written for the countries a person's
+citizenship or birthplace names, where Wikidata gives one at best rank, and is `u32::MAX` for every other
+entity. A code may belong to more than one entity, and a reader matching a code matches all of them. Some
+countries have none: historical states (the Soviet Union, the Kingdom of England), and the Netherlands
+(Q55), whose `NL` is deprecated on Wikidata in favour of the Kingdom of the Netherlands (Q29999) — 1,167 of
+the corpus's people are born in a place whose country is Q55. A reader must accept the entity's Q-id as
+well as its code.
+
+The five sections are written together. **Absent means no birthplaces, never an error**; some of them
+without the others is malformed, as is any not sized to the entity table. Only credited people are asked,
+as for the traits.
+
+Measured over the 140,462 people the corpus's 47,539 titles credit, against QLever's Wikidata dump: a
+birthplace for 77.0%, a birth country for 76.9%, a country with an ISO code for 75.8%; weighted by credits,
+91.5% of credits name someone with a birthplace. 20,000 distinct places, in 338 countries, 136 of them with
+no code.
 
 ### The inverted maker index
 
