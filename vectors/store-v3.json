@@ -145,14 +145,14 @@
   }
  ],
  "header": {
-  "bytes": 14643,
-  "contentHash": 1331653440383025511,
+  "bytes": 15419,
+  "contentHash": 3806480228933036767,
   "datasetVersion": "fixture",
   "endianness": 16909060,
   "formatVersion": 3,
   "magic": "DENSTOR1",
   "rowCount": 3,
-  "sectionCount": 123
+  "sectionCount": 130
  },
  "iconicStudios": [
   {
