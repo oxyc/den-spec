@@ -359,6 +359,56 @@ P1027) and as its "Awards" group — because Wikidata files some of its prizes o
 
 **Absent means no awards, never an error**, as with the studio sections.
 
+### Curated franchises — OPTIONAL
+
+The raw `franchise_v` facts above answer which Wikidata P179 series a title states. They do not answer the
+viewer-facing question: a catalogue can be a P179 series, one story may span several P179 series, and a
+shared universe is broader than the primary franchise a More Like This row must omit. These sections are
+the curated answer produced by den-dataset's franchise stage. They are deliberately separate from the raw
+facts: a reader must never reconstruct one from the other.
+
+`F` = curated primary franchises, `E` = eras, and `M` = memberships. Franchise rows are sorted by their
+stable string id. Era rows are grouped by franchise and then by `fr_era_order`; membership rows are grouped
+by franchise and then by `fr_mem_order`.
+
+| name | type | length | meaning |
+|---|---|---|---|
+| `fr_primary` | `u32` | R | index into `fr_id`, `u32::MAX` = no curated primary franchise |
+| `fr_id` | `u32` | F | string id of the stable franchise id, sorted by the referenced UTF-8 string |
+| `fr_name` | `u32` | F | string id of the viewer-facing name |
+| `fr_conf` | `u8` | F | confidence in hundredths |
+| `fr_source` | `u32` | F | string id naming the derivation source |
+| `fr_umb_id` | `u32` | R | string id of the title's optional shared-universe/umbrella id, `u32::MAX` = none |
+| `fr_umb_name` | `u32` | R | its viewer-facing name, `u32::MAX` exactly when `fr_umb_id` is none |
+| `fr_era_id` | `u32` | E | string id of the stable era id |
+| `fr_era_name` | `u32` | E | string id of the viewer-facing era name, `u32::MAX` = unnamed |
+| `fr_era_order` | `u32` | E | zero-based canonical order within its franchise |
+| `fr_era_o` | `u32` | F+1 | franchise *f* owns eras `fr_era_o[f]..fr_era_o[f+1]` |
+| `fr_mem_row` | `u32` | M | corpus row in `keys`; movie/TV identity therefore stays mixed and unambiguous |
+| `fr_mem_era` | `u32` | M | absolute index into `fr_era_id` |
+| `fr_mem_order` | `u32` | M | zero-based release order within the franchise |
+| `fr_mem_o` | `u32` | F+1 | franchise *f* owns memberships `fr_mem_o[f]..fr_mem_o[f+1]` |
+
+A title appears at most once in `fr_mem_row`, and `fr_primary[fr_mem_row[m]]` names the franchise whose
+membership span contains *m*. Every franchise has at least two members and at least one era. Every era has
+at least one member. Era ids are unique across the table; era orders are exactly `0..n-1` within a
+franchise. Member orders are exactly `0..n-1` within a franchise, and are the dataset's release ordering
+(date, then stable title key), not an order a reader recomputes from possibly imprecise dates. A member's
+`fr_mem_era` must point inside the owning franchise's era span.
+
+`fr_umb_*` is per-title display metadata only. It is not a second primary membership and must not be used
+to omit a candidate from More Like This. It is per title rather than per primary franchise because one
+Spider-Man era can belong to the MCU while another does not: Homecoming may name the MCU, without giving
+Raimi's Spider-Man that umbrella or making other MCU primary franchises ineligible.
+
+IDs are strings, not Q-id integers. A Wikidata-backed group normally uses its Q-id, but a deterministic
+sequel-chain or character-derived group has a synthetic id. Treating those as entities would either lose
+them or create a second id space with no representation for them.
+
+All fifteen sections are written together. **Absent means no curated franchise data, never an error**: a
+store written before this addition still opens and serves every older feature. Present-but-incomplete or
+internally inconsistent sections are invalid; a reader must not silently fall back to raw P179 facts.
+
 ### Vectors
 
 | name | type | length |

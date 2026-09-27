@@ -276,6 +276,28 @@ def main():
     open(plot_bin, "wb").write(vector_blob(PLOT_ROWS, 7))
     premise_bin = os.path.join(work, "premise.bin")
     open(premise_bin, "wb").write(vector_blob(PREMISE_ROWS, 200))
+    franchises = dump("franchises.json", {
+        "schema": 2, "datasetVersion": "fixture",
+        "franchises": {"fixture:alpha": {
+            "id": "fixture:alpha", "name": "Alpha franchise", "confidence": 0.85,
+            "source": "fixture",
+            "eras": [
+                {"id": "fixture:alpha:era:film", "name": "Film run", "order": 0,
+                 "members": ["movie:1"]},
+                {"id": "fixture:alpha:era:tv", "name": "TV run", "order": 1,
+                 "members": ["tv:10"]},
+            ],
+            "members": [
+                {"key": "movie:1", "eraId": "fixture:alpha:era:film", "order": 0},
+                {"key": "tv:10", "eraId": "fixture:alpha:era:tv", "order": 1},
+            ],
+        }},
+        "titles": {
+            "movie:1": {"primary": "fixture:alpha"},
+            "tv:10": {"primary": "fixture:alpha",
+                       "umbrella": {"id": "fixture:world", "name": "Fixture World"}},
+        },
+    })
 
     os.makedirs(args.out_dir, exist_ok=True)
     store = os.path.join(args.out_dir, "store-v3.store")
@@ -283,6 +305,7 @@ def main():
         [sys.executable, args.build_store, "--corpus", corpus, "--entities", entities, "--facts", facts,
          "--vectors", plot_bin, "--vector-labels", plot_labels,
          "--premise-vectors", premise_bin, "--premise-labels", premise_labels,
+         "--franchises", franchises,
          "--dataset-version", "fixture", "--out", store, *args.writer_args],
         capture_output=True, text=True)
     if result.returncode != 0:
@@ -423,6 +446,19 @@ def main():
             {"qid": 23633, "name": "HBO", "entities": [662081]},
             {"qid": 127552, "name": "Pixar", "entities": [127552]},
         ],
+        "curatedFranchises": [
+            {"id": "fixture:alpha", "name": "Alpha franchise", "confidence": 85,
+             "source": "fixture",
+             "eras": [
+                 {"id": "fixture:alpha:era:film", "name": "Film run", "order": 0},
+                 {"id": "fixture:alpha:era:tv", "name": "TV run", "order": 1},
+             ],
+             "members": [
+                 {"key": "movie:1", "era": 0, "order": 0},
+                 {"key": "tv:10", "era": 1, "order": 1},
+             ]},
+        ],
+        "curatedUmbrellas": {"tv:10": {"id": "fixture:world", "name": "Fixture World"}},
         "notes": [
             "Scores are u16 HUNDREDTHS of a 0..4 axis: 321 is 3.21. They are not twentieths.",
             "Probabilities and confidences are u8 hundredths.",
@@ -456,6 +492,8 @@ def main():
             "facet_tv/facet_tp, the tentative tier, are OPTIONAL: a store without them has no tentative "
             "values, which is not an error. A cell is tentative only where facet_v is absent; its byte is "
             "the answer's PROBABILITY in hundredths, where facet_c holds a self-reported confidence.",
+            "fr_* is OPTIONAL curated franchise data, separate from raw P179 franchise_v. It keeps mixed "
+            "movie/TV members in release order, stable eras, and an umbrella label that is not primary.",
         ],
     }
     with open(os.path.join(args.out_dir, "store-v3.json"), "w", encoding="utf-8") as fh:
