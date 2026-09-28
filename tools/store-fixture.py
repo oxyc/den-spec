@@ -67,6 +67,8 @@ TITLES = [
             # Ceremonies, as the facts stage files P166/P1411 under them: won at the Academy Awards
             # (Q19020), nominated only at Q1011547, which has no entity entry and is named by its Q-id.
             "awardsWonAt": ["Q19020"], "awardsNominatedAt": ["Q1011547"],
+            # Other versions, as the facts stage groups them: movie:2 adapts the same novel.
+            "otherVersions": [{"key": "movie:2", "kind": "source"}],
             "hasVector": True,
         },
         "labels": {"primaryGenre": "Drama", "animated": False,
@@ -106,7 +108,10 @@ TITLES = [
     },
     {
         "key": "movie:2", "mediaType": "movie", "tmdbId": 2,
-        "facts": {"titles": {"en": "Beta"}, "countries": ["FR"], "hasVector": False},
+        # Two versions of two kinds: the same novel as movie:1, and tv:10 remakes it. Listed out of row order,
+        # which the store does not keep.
+        "facts": {"titles": {"en": "Beta"}, "countries": ["FR"], "hasVector": False,
+                  "otherVersions": [{"key": "tv:10", "kind": "remake"}, {"key": "movie:1", "kind": "source"}]},
         "labels": None, "premiseLabels": None,
         "applicability": {}, "facets": {}, "scores": {}, "nouls": {},
         "critique": {}, "technique": {}, "depicts": {}, "structural": {}, "audience": {},
@@ -126,6 +131,7 @@ TITLES = [
             # studio still ships, under HBO's own item.
             "productionCompanies": ["Q662081"],
             "awardsNominatedAt": ["Q1011547"],
+            "otherVersions": [{"key": "movie:2", "kind": "remake"}],
             "hasVector": True,
         },
         "labels": {"primaryGenre": "Crime", "animated": False, "subgenres": [], "moods": []},
@@ -368,6 +374,8 @@ def main():
              "instanceOf": ["film"], "basedOn": ["Alpha, the novel"], "basedOnKind": ["book"],
              "aliasTitles": ["Alpha", "Alfa", "Alpha One"], "hasVector": True,
              "premiseTags": ["wrongly-convicted-banker", "prison-friendship", "found-family"],
+             # [key, kind] ascending by row: kind 0 shares a source work, 1 is a remake.
+             "otherVersions": [["movie:2", 0]],
              "hasPlotVector": True, "hasPremiseVector": False},
             {"key": "movie:2", "row": 1, "media": 0, "tmdbId": 2,
              # No `released` in its facts, so no year: the card's year is the Wikidata release date now,
@@ -380,6 +388,7 @@ def main():
              "countries": ["FR"], "makers": [], "cast": [], "franchise": [],
              "directors": [], "creators": [], "writers": [], "awards": [], "sourceAuthors": [],
              "released": None, "hasVector": False, "facetsTentative": {}, "premiseTags": [],
+             "otherVersions": [["movie:1", 0], ["tv:10", 1]],
              "hasPlotVector": False, "hasPremiseVector": False,
              "_note": "A facts-only row: present in facts, absent from every label and vector file."},
             {"key": "tv:10", "row": 2, "media": 1, "tmdbId": 10,
@@ -403,6 +412,7 @@ def main():
              "awards": [[1011547, False]],
              "productionCompanies": ["HBO Films"],
              "premiseTags": ["found-family", "rise-and-fall-of-a-crime-boss"],
+             "otherVersions": [["movie:2", 1]],
              "hasPlotVector": True, "hasPremiseVector": True,
              "_note": "genres: one Q-id mapping to TWO TMDB ids, in the genreMap's order — NOT sorted. "
                       "/recommend treats the first as the most significant, so sorting renames titles."},
@@ -506,6 +516,10 @@ def main():
             "premise_tag_v/premise_tag_o are OPTIONAL: a store without them has no premise tags, which is "
             "not an error. Each row's tags are string ids in the order the tags file lists them, most "
             "defining first; a row with none owns an empty span.",
+            "versions_v/versions_k/versions_o are OPTIONAL: a store without them has no other versions, "
+            "which is not an error. Each row's versions are other rows, ascending, with a kind beside each "
+            "(0 shared source, 1 remake); links are symmetric. movie:1 and tv:10 share a curated franchise "
+            "and are NOT versions of each other: a reader leaves a title's own franchise members out anyway.",
         ],
     }
     with open(os.path.join(args.out_dir, "store-v3.json"), "w", encoding="utf-8") as fh:

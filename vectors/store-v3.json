@@ -183,14 +183,14 @@
   }
  ],
  "header": {
-  "bytes": 16395,
-  "contentHash": 11206622769658724365,
+  "bytes": 16531,
+  "contentHash": 5549330602165552719,
   "datasetVersion": "fixture",
   "endianness": 16909060,
   "formatVersion": 3,
   "magic": "DENSTOR1",
   "rowCount": 3,
-  "sectionCount": 147
+  "sectionCount": 150
  },
  "iconicStudios": [
   {
@@ -228,7 +228,8 @@
   "ent_bplace_*, ent_bcountry_* and ent_iso are OPTIONAL: a store without them has no birthplaces and no country codes, which is not an error. src_authors_* is OPTIONAL too: a store without it names no source work's author.",
   "facet_tv/facet_tp, the tentative tier, are OPTIONAL: a store without them has no tentative values, which is not an error. A cell is tentative only where facet_v is absent; its byte is the answer's PROBABILITY in hundredths, where facet_c holds a self-reported confidence.",
   "fr_* is OPTIONAL curated franchise data, separate from raw P179 franchise_v. It keeps mixed movie/TV members in release order, stable eras, and an umbrella label that is not primary.",
-  "premise_tag_v/premise_tag_o are OPTIONAL: a store without them has no premise tags, which is not an error. Each row's tags are string ids in the order the tags file lists them, most defining first; a row with none owns an empty span."
+  "premise_tag_v/premise_tag_o are OPTIONAL: a store without them has no premise tags, which is not an error. Each row's tags are string ids in the order the tags file lists them, most defining first; a row with none owns an empty span.",
+  "versions_v/versions_k/versions_o are OPTIONAL: a store without them has no other versions, which is not an error. Each row's versions are other rows, ascending, with a kind beside each (0 shared source, 1 remake); links are symmetric. movie:1 and tv:10 share a curated franchise and are NOT versions of each other: a reader leaves a title's own franchise members out anyway."
  ],
  "rows": [
   {
@@ -345,6 +346,12 @@
     "theme__epic": 90,
     "theme__vampire": 25
    },
+   "otherVersions": [
+    [
+     "movie:2",
+     0
+    ]
+   ],
    "premiseTags": [
     "wrongly-convicted-banker",
     "prison-friendship",
@@ -408,6 +415,16 @@
    "makers": [],
    "media": 0,
    "moods": [],
+   "otherVersions": [
+    [
+     "movie:1",
+     0
+    ],
+    [
+     "tv:10",
+     1
+    ]
+   ],
    "premiseTags": [],
    "primaryGenre": null,
    "released": null,
@@ -463,6 +480,12 @@
    ],
    "media": 1,
    "moods": [],
+   "otherVersions": [
+    [
+     "movie:2",
+     1
+    ]
+   ],
    "premiseTags": [
     "found-family",
     "rise-and-fall-of-a-crime-boss"

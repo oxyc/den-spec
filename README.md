@@ -25,8 +25,8 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
   made `franchise` a list and [`wire/store-v1.md`](wire/store-v1.md) is the layout before that.
 - [`vectors/store-v3.json`](vectors/store-v3.json) and `vectors/store-v3.store`: a three-title store and
   the values a correct reader gets out of it, covering a facts-only row, a declined facet, a genre Q-id
-  that maps to two TMDB ids, a title in two raw series, a curated franchise spanning film and TV, and
-  premise tags shared across two titles.
+  that maps to two TMDB ids, a title in two raw series, a curated franchise spanning film and TV,
+  premise tags shared across two titles, and other versions of both kinds.
   Generated: `python3 tools/store-fixture.py
   --build-store ../den-dataset/pipeline/build_store.py` — by the real writer, so it cannot agree with a
   reimplementation instead of with the format.
