@@ -312,13 +312,21 @@ def main():
         "tv:10": ["found-family", "rise-and-fall-of-a-crime-boss"],
     }})
 
+    # Jev's More Like This scores: per anchor, the candidates it weighed with the overall Noul of each, in the
+    # order the file lists them — NOT by row. movie:2, the facts-only row, was never weighed and owns an empty
+    # span. Not symmetric: tv:10 scores movie:1 differently from movie:1 scoring tv:10.
+    jev_more_like = dump("jev-more-like.json", {"anchors": {
+        "movie:1": [["tv:10", 0.74], ["movie:2", 0.31]],
+        "tv:10": [["movie:1", 0.62]],
+    }})
+
     os.makedirs(args.out_dir, exist_ok=True)
     store = os.path.join(args.out_dir, "store-v3.store")
     result = subprocess.run(
         [sys.executable, args.build_store, "--corpus", corpus, "--entities", entities, "--facts", facts,
          "--vectors", plot_bin, "--vector-labels", plot_labels,
          "--premise-vectors", premise_bin, "--premise-labels", premise_labels,
-         "--franchises", franchises, "--premise-tags", premise_tags,
+         "--franchises", franchises, "--premise-tags", premise_tags, "--jev-more-like", jev_more_like,
          "--dataset-version", "fixture", "--out", store, *args.writer_args],
         capture_output=True, text=True)
     if result.returncode != 0:
@@ -376,6 +384,8 @@ def main():
              "premiseTags": ["wrongly-convicted-banker", "prison-friendship", "found-family"],
              # [key, kind] ascending by row: kind 0 shares a source work, 1 is a remake.
              "otherVersions": [["movie:2", 0]],
+             # [key, Noul in hundredths] in the file's order, not by row.
+             "jevMoreLike": [["tv:10", 74], ["movie:2", 31]],
              "hasPlotVector": True, "hasPremiseVector": False},
             {"key": "movie:2", "row": 1, "media": 0, "tmdbId": 2,
              # No `released` in its facts, so no year: the card's year is the Wikidata release date now,
@@ -389,6 +399,7 @@ def main():
              "directors": [], "creators": [], "writers": [], "awards": [], "sourceAuthors": [],
              "released": None, "hasVector": False, "facetsTentative": {}, "premiseTags": [],
              "otherVersions": [["movie:1", 0], ["tv:10", 1]],
+             "jevMoreLike": [],
              "hasPlotVector": False, "hasPremiseVector": False,
              "_note": "A facts-only row: present in facts, absent from every label and vector file."},
             {"key": "tv:10", "row": 2, "media": 1, "tmdbId": 10,
@@ -413,6 +424,7 @@ def main():
              "productionCompanies": ["HBO Films"],
              "premiseTags": ["found-family", "rise-and-fall-of-a-crime-boss"],
              "otherVersions": [["movie:2", 1]],
+             "jevMoreLike": [["movie:1", 62]],
              "hasPlotVector": True, "hasPremiseVector": True,
              "_note": "genres: one Q-id mapping to TWO TMDB ids, in the genreMap's order — NOT sorted. "
                       "/recommend treats the first as the most significant, so sorting renames titles."},
@@ -520,6 +532,9 @@ def main():
             "which is not an error. Each row's versions are other rows, ascending, with a kind beside each "
             "(0 shared source, 1 remake); links are symmetric. movie:1 and tv:10 share a curated franchise "
             "and are NOT versions of each other: a reader leaves a title's own franchise members out anyway.",
+            "jev_like_v/jev_like_p/jev_like_o are OPTIONAL: a store without them has no Jev More Like This "
+            "scores, which is not an error. Each row's candidates are other rows in the file's order, with "
+            "Jev's overall Noul in hundredths beside each; an unscored row owns an empty span. Not symmetric.",
         ],
     }
     with open(os.path.join(args.out_dir, "store-v3.json"), "w", encoding="utf-8") as fh:

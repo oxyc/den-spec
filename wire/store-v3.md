@@ -455,6 +455,31 @@ orders what it shows (by release, then popularity).
 **Absent means no other versions, never an error**, as with the studio sections. The three are written
 together, and a writer that has none still writes them, empty.
 
+### Jev More Like This scores — OPTIONAL
+
+| name | type | length | meaning |
+|---|---|---|---|
+| `jev_like_v` | `u32` | list | per anchor title: the rows of the candidates Jev weighed for its More Like This row |
+| `jev_like_p` | `u8` | list | each candidate's overall Noul in hundredths, sharing `jev_like_o` |
+| `jev_like_o` | `u32` | R+1 | the offsets `jev_like_v` and `jev_like_p` share |
+
+den-dataset precomputes them with the More Like This cascade (oxyc/den-dataset#132). For each anchor, a
+title/year screen over the first 100 titles of den-atlas's row picks the finalists: atlas's top ten and up
+to five titles from further down that the screen recognises as a clearly better match. One call per anchor
+then reads the Wikipedia lead and plot of the anchor and every finalist, and answers, per finalist, how
+likely someone wanting more of the anchor is to want this work. That probability is the `jev_like_p` byte.
+
+The list is **sparse and not symmetric**: an anchor lists only its own finalists, and *b* in *a*'s list says
+nothing about *a* in *b*'s. A row never lists itself or one row twice. An anchor with no scores, because it
+has no article evidence or its call failed, owns an empty span, and a reader then ranks it exactly as it
+would without these sections. The order within a row is the order den-atlas ranked the candidates when they
+were scored; a reader weighs them by score and does not rely on it.
+
+The scores describe the rows den-atlas served when they were computed. A candidate a later row no longer
+holds is simply unused.
+
+**Absent means no Jev scores, never an error**, as with the studio sections. The three are written together.
+
 ### Vectors
 
 | name | type | length |
