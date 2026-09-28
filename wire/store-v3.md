@@ -428,6 +428,33 @@ a key the store does not hold, and an entry that is not a non-empty list of dist
 
 **Absent means no premise tags, never an error**, as with the studio sections. The two are written together.
 
+### Other versions — OPTIONAL
+
+| name | type | length | meaning |
+|---|---|---|---|
+| `versions_v` | `u32` | list | per title: the rows of the other screen versions of its story, **ascending** |
+| `versions_k` | `u8` | list | the relation to each, sharing `versions_o`: 0 = both adapt the same source work (a novel, a play), 1 = a remake (linked through a film or series) |
+| `versions_o` | `u32` | R+1 | the offsets `versions_v` and `versions_k` share |
+
+The other versions of a title are remakes and other adaptations of the same story: the British and Swedish
+*Wallander*, *The Departed* and *Infernal Affairs*, every *Dracula*. They are neither More Like This (the same
+story again is not a different thing you might like) nor a franchise, which is one continuity or rights line.
+A separate production of the same books is its own franchise (oxyc/den-atlas#92) and another version here.
+
+den-dataset groups them from two Wikidata links: P144 (based on), stated on the title, and P4969 (derivative
+work), stated on the source. Wikidata has no "remake of" property: a remake is P144 pointing at the original
+screen work. Its rules are in den-dataset `pipeline/versions.py`, and the measurement behind them is on
+oxyc/den-atlas#112.
+
+Links are **symmetric**: row *a* lists *b* with kind *k* exactly when *b* lists *a* with kind *k*. A row never
+lists itself or one row twice. **A title's own curated franchise members are not left out here**: the franchise
+grouping is a separate derivation that changes on its own schedule, so a reader serving an "other versions" row
+leaves out the members of the title's `fr_primary` itself. The order within a row is by row only; a reader
+orders what it shows (by release, then popularity).
+
+**Absent means no other versions, never an error**, as with the studio sections. The three are written
+together, and a writer that has none still writes them, empty.
+
 ### Vectors
 
 | name | type | length |
