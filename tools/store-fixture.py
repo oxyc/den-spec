@@ -320,6 +320,14 @@ def main():
         "tv:10": [["movie:1", 0.62]],
     }})
 
+    # Fan picks: per asked title, the titles a model named that a fan would also love, matched to the store,
+    # in the model's order — NOT by row. tv:10 was asked and kept none, which is an answer; movie:2 was never
+    # asked, which is not.
+    fan_picks = dump("fan-picks.json", {"anchors": {
+        "movie:1": ["tv:10", "movie:2"],
+        "tv:10": [],
+    }})
+
     os.makedirs(args.out_dir, exist_ok=True)
     store = os.path.join(args.out_dir, "store-v3.store")
     result = subprocess.run(
@@ -327,6 +335,7 @@ def main():
          "--vectors", plot_bin, "--vector-labels", plot_labels,
          "--premise-vectors", premise_bin, "--premise-labels", premise_labels,
          "--franchises", franchises, "--premise-tags", premise_tags, "--jev-more-like", jev_more_like,
+         "--fan-picks", fan_picks,
          "--dataset-version", "fixture", "--out", store, *args.writer_args],
         capture_output=True, text=True)
     if result.returncode != 0:
@@ -386,6 +395,8 @@ def main():
              "otherVersions": [["movie:2", 0]],
              # [key, Noul in hundredths] in the file's order, not by row.
              "jevMoreLike": [["tv:10", 74], ["movie:2", 31]],
+             # Keys in the model's order, not by row; asked.
+             "fanPicks": ["tv:10", "movie:2"], "fanPicksAsked": True,
              "hasPlotVector": True, "hasPremiseVector": False},
             {"key": "movie:2", "row": 1, "media": 0, "tmdbId": 2,
              # No `released` in its facts, so no year: the card's year is the Wikidata release date now,
@@ -400,6 +411,7 @@ def main():
              "released": None, "hasVector": False, "facetsTentative": {}, "premiseTags": [],
              "otherVersions": [["movie:1", 0], ["tv:10", 1]],
              "jevMoreLike": [],
+             "fanPicks": [], "fanPicksAsked": False,
              "hasPlotVector": False, "hasPremiseVector": False,
              "_note": "A facts-only row: present in facts, absent from every label and vector file."},
             {"key": "tv:10", "row": 2, "media": 1, "tmdbId": 10,
@@ -425,6 +437,8 @@ def main():
              "premiseTags": ["found-family", "rise-and-fall-of-a-crime-boss"],
              "otherVersions": [["movie:2", 1]],
              "jevMoreLike": [["movie:1", 62]],
+             # Asked, and none kept: an answer, unlike movie:2's.
+             "fanPicks": [], "fanPicksAsked": True,
              "hasPlotVector": True, "hasPremiseVector": True,
              "_note": "genres: one Q-id mapping to TWO TMDB ids, in the genreMap's order — NOT sorted. "
                       "/recommend treats the first as the most significant, so sorting renames titles."},
@@ -535,6 +549,9 @@ def main():
             "jev_like_v/jev_like_p/jev_like_o are OPTIONAL: a store without them has no Jev More Like This "
             "scores, which is not an error. Each row's candidates are other rows in the file's order, with "
             "Jev's overall Noul in hundredths beside each; an unscored row owns an empty span. Not symmetric.",
+            "fan_picks_v/fan_picks_o/fan_picks_a are OPTIONAL: a store without them has no fan picks, which is "
+            "not an error. Each row's picks are other rows in the model's order; fan_picks_a is 1 for a title "
+            "that was asked, so an asked title with no picks (tv:10) differs from one never asked (movie:2).",
         ],
     }
     with open(os.path.join(args.out_dir, "store-v3.json"), "w", encoding="utf-8") as fh:

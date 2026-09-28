@@ -26,8 +26,9 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
 - [`vectors/store-v3.json`](vectors/store-v3.json) and `vectors/store-v3.store`: a three-title store and
   the values a correct reader gets out of it, covering a facts-only row, a declined facet, a genre Q-id
   that maps to two TMDB ids, a title in two raw series, a curated franchise spanning film and TV,
-  premise tags shared across two titles, other versions of both kinds, and Jev More Like This scores
-  that are not symmetric.
+  premise tags shared across two titles, other versions of both kinds, Jev More Like This scores
+  that are not symmetric, and fan picks for a title asked with picks, one asked with none and one never
+  asked.
   Generated: `python3 tools/store-fixture.py
   --build-store ../den-dataset/pipeline/build_store.py` — by the real writer, so it cannot agree with a
   reimplementation instead of with the format.

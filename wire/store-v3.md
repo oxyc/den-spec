@@ -480,6 +480,28 @@ holds is simply unused.
 
 **Absent means no Jev scores, never an error**, as with the studio sections. The three are written together.
 
+### Fan picks — OPTIONAL
+
+| name | type | length | meaning |
+|---|---|---|---|
+| `fan_picks_v` | `u32` | list | per title: the rows of the titles a fan of it would also love, in rank order |
+| `fan_picks_o` | `u32` | R+1 | the offsets into `fan_picks_v` |
+| `fan_picks_a` | `u8` | R | 1 for a title that was asked, 0 for one that was not |
+
+den-dataset precomputes them for You Might Also Like (oxyc/den-atlas#121). For each title a model is told
+the title, its year, whether it is a film or a series and the lead of its Wikipedia article, and names up to
+20 films or series a fan would also love, in any genre, era or country. Each name is matched to a row by the
+store's own Wikidata names (the English and original labels and the aliases), the same type and a year
+within one; a name that matches no row or more than one is dropped. The title itself, its curated
+franchise, its other versions and its sequel links are dropped too, and so is a repeat. The order is the
+model's.
+
+A row never lists itself or one row twice. `fan_picks_a` tells an asked title that kept no picks, which is an
+answer ("nothing a fan would love that we hold"), from a title nobody has asked about yet, which a reader
+treats as having no fan picks at all. A title that was not asked owns an empty span.
+
+**Absent means no fan picks, never an error**, as with the studio sections. The three are written together.
+
 ### Vectors
 
 | name | type | length |
