@@ -1,0 +1,19 @@
+# Weekly dependency PRs, grouped so a refresh is one reviewable PR rather than several.
+#
+# tools/ is the only npm package (the conformance tooling's crypto); the spec itself has no dependencies.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /tools
+    schedule:
+      interval: weekly
+    labels: [dependencies]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    labels: [dependencies]
