@@ -409,6 +409,25 @@ All fifteen sections are written together. **Absent means no curated franchise d
 store written before this addition still opens and serves every older feature. Present-but-incomplete or
 internally inconsistent sections are invalid; a reader must not silently fall back to raw P179 facts.
 
+### Premise tags — OPTIONAL
+
+| name | type | length | meaning |
+|---|---|---|---|
+| `premise_tag_v` / `premise_tag_o` | `u32` / `u32` | list | per title: string ids of its premise tags, in the tags file's order |
+
+A premise tag is a short hyphenated structural phrase a model wrote from the title's Wikipedia plot
+(`unreliable-narrator`, `one-survivor-tells-the-story`), 2 to 15 per title, most defining first. They are
+den-dataset's `data/premise-tags-v2.json`, the same strings `vec_premise` was embedded from, carried so a
+reader that needs the words rather than the vector has them. They are not a controlled vocabulary: nearly
+every tag is unique to its title (~300,000 distinct over ~380,000 assignments), so they are display and
+classifier input, not a filter axis.
+
+The order is the file's and is kept: a reader cutting the list short keeps the most defining tags. A title
+with no tag set, which includes every facts-only row, owns an empty span. The writer refuses a tag set for
+a key the store does not hold, and an entry that is not a non-empty list of distinct non-empty strings.
+
+**Absent means no premise tags, never an error**, as with the studio sections. The two are written together.
+
 ### Vectors
 
 | name | type | length |

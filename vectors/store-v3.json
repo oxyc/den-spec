@@ -183,14 +183,14 @@
   }
  ],
  "header": {
-  "bytes": 16195,
-  "contentHash": 7376595778960073591,
+  "bytes": 16395,
+  "contentHash": 11206622769658724365,
   "datasetVersion": "fixture",
   "endianness": 16909060,
   "formatVersion": 3,
   "magic": "DENSTOR1",
   "rowCount": 3,
-  "sectionCount": 145
+  "sectionCount": 147
  },
  "iconicStudios": [
   {
@@ -227,7 +227,8 @@
   "ent_gender_*, ent_citizen_*, ent_occupation_*, ent_born(_prec) and ent_died(_prec) are OPTIONAL: a store without them has no person traits, which is not an error. Their values are entity ids, and born/died are days since the epoch that can reach before the common era.",
   "ent_bplace_*, ent_bcountry_* and ent_iso are OPTIONAL: a store without them has no birthplaces and no country codes, which is not an error. src_authors_* is OPTIONAL too: a store without it names no source work's author.",
   "facet_tv/facet_tp, the tentative tier, are OPTIONAL: a store without them has no tentative values, which is not an error. A cell is tentative only where facet_v is absent; its byte is the answer's PROBABILITY in hundredths, where facet_c holds a self-reported confidence.",
-  "fr_* is OPTIONAL curated franchise data, separate from raw P179 franchise_v. It keeps mixed movie/TV members in release order, stable eras, and an umbrella label that is not primary."
+  "fr_* is OPTIONAL curated franchise data, separate from raw P179 franchise_v. It keeps mixed movie/TV members in release order, stable eras, and an umbrella label that is not primary.",
+  "premise_tag_v/premise_tag_o are OPTIONAL: a store without them has no premise tags, which is not an error. Each row's tags are string ids in the order the tags file lists them, most defining first; a row with none owns an empty span."
  ],
  "rows": [
   {
@@ -344,6 +345,11 @@
     "theme__epic": 90,
     "theme__vampire": 25
    },
+   "premiseTags": [
+    "wrongly-convicted-banker",
+    "prison-friendship",
+    "found-family"
+   ],
    "primaryGenre": "Drama",
    "productionCompanies": [
     "A Production Company",
@@ -402,6 +408,7 @@
    "makers": [],
    "media": 0,
    "moods": [],
+   "premiseTags": [],
    "primaryGenre": null,
    "released": null,
    "row": 1,
@@ -456,6 +463,10 @@
    ],
    "media": 1,
    "moods": [],
+   "premiseTags": [
+    "found-family",
+    "rise-and-fall-of-a-crime-boss"
+   ],
    "primaryGenre": "Crime",
    "productionCompanies": [
     "HBO Films"

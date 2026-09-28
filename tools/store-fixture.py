@@ -299,13 +299,20 @@ def main():
         },
     })
 
+    # Premise tags, most defining first — the order the store keeps, not sorted. movie:2, the facts-only
+    # row, has none and must read as an empty list. "found-family" is shared, so it is one string.
+    premise_tags = dump("premise-tags.json", {"tags": {
+        "movie:1": ["wrongly-convicted-banker", "prison-friendship", "found-family"],
+        "tv:10": ["found-family", "rise-and-fall-of-a-crime-boss"],
+    }})
+
     os.makedirs(args.out_dir, exist_ok=True)
     store = os.path.join(args.out_dir, "store-v3.store")
     result = subprocess.run(
         [sys.executable, args.build_store, "--corpus", corpus, "--entities", entities, "--facts", facts,
          "--vectors", plot_bin, "--vector-labels", plot_labels,
          "--premise-vectors", premise_bin, "--premise-labels", premise_labels,
-         "--franchises", franchises,
+         "--franchises", franchises, "--premise-tags", premise_tags,
          "--dataset-version", "fixture", "--out", store, *args.writer_args],
         capture_output=True, text=True)
     if result.returncode != 0:
@@ -360,6 +367,7 @@ def main():
              "narrativeLocations": ["A Narrative Place"], "mainSubjects": ["A Main Subject"],
              "instanceOf": ["film"], "basedOn": ["Alpha, the novel"], "basedOnKind": ["book"],
              "aliasTitles": ["Alpha", "Alfa", "Alpha One"], "hasVector": True,
+             "premiseTags": ["wrongly-convicted-banker", "prison-friendship", "found-family"],
              "hasPlotVector": True, "hasPremiseVector": False},
             {"key": "movie:2", "row": 1, "media": 0, "tmdbId": 2,
              # No `released` in its facts, so no year: the card's year is the Wikidata release date now,
@@ -371,7 +379,7 @@ def main():
              "primaryGenre": None, "subgenres": [], "moods": [],
              "countries": ["FR"], "makers": [], "cast": [], "franchise": [],
              "directors": [], "creators": [], "writers": [], "awards": [], "sourceAuthors": [],
-             "released": None, "hasVector": False, "facetsTentative": {},
+             "released": None, "hasVector": False, "facetsTentative": {}, "premiseTags": [],
              "hasPlotVector": False, "hasPremiseVector": False,
              "_note": "A facts-only row: present in facts, absent from every label and vector file."},
             {"key": "tv:10", "row": 2, "media": 1, "tmdbId": 10,
@@ -394,6 +402,7 @@ def main():
              "directors": [], "creators": ["Ada Director"], "writers": [], "sourceAuthors": [],
              "awards": [[1011547, False]],
              "productionCompanies": ["HBO Films"],
+             "premiseTags": ["found-family", "rise-and-fall-of-a-crime-boss"],
              "hasPlotVector": True, "hasPremiseVector": True,
              "_note": "genres: one Q-id mapping to TWO TMDB ids, in the genreMap's order — NOT sorted. "
                       "/recommend treats the first as the most significant, so sorting renames titles."},
@@ -494,6 +503,9 @@ def main():
             "the answer's PROBABILITY in hundredths, where facet_c holds a self-reported confidence.",
             "fr_* is OPTIONAL curated franchise data, separate from raw P179 franchise_v. It keeps mixed "
             "movie/TV members in release order, stable eras, and an umbrella label that is not primary.",
+            "premise_tag_v/premise_tag_o are OPTIONAL: a store without them has no premise tags, which is "
+            "not an error. Each row's tags are string ids in the order the tags file lists them, most "
+            "defining first; a row with none owns an empty span.",
         ],
     }
     with open(os.path.join(args.out_dir, "store-v3.json"), "w", encoding="utf-8") as fh:
