@@ -403,8 +403,9 @@ deliver for it; one at a time.
   The fourth element is not part of the value: it never makes a target pending and plays no part in a regression. A
   settle by Send writes none; a re-settle by acknowledgement (an unverified one included) rewrites it from that
   pass's remote value; an acknowledgement by a valueless remote entry writes none, and a valueless remote entry
-  whose time is unknown is passed with `at` 1. Simkl's rating time is always passed as unknown; Trakt's as is
-  (Trakt stores the `rated_at` Den sends). When the receipt's value stamp is timeless (Den sent it with no
+  whose time is unknown is passed with `at` 1. Trakt's known time is passed as is (Trakt stores the `rated_at` Den
+  sends); Simkl's is always passed as unknown, because its all-items feed does not reliably carry a per-item rating
+  time. A seed-epoch re-read records the remote value even when it equals the rating Den sends. When the receipt's value stamp is timeless (Den sent it with no
   `rated_at`), a remote rating whose value equals the entry's fourth element or, with none, the rating Den sends
   for its reaction, is passed with `at` 1 whatever its time. A rating entry settled at seed epoch 0 or 1 with no
   fourth element is re-read at the first pass of each lease holder that decides it: a remote rating that maps to
@@ -526,7 +527,12 @@ Every write is a set-to-value; replaying one changes nothing. `register_write` (
   the import's newest play (with no plays, no covering reset at all), the same comparison §5 uses to hide it, so an
   import never writes an `imported` a covering reset hides on arrival. A play known only to the day, as a file
   import's is, is written as the start of that day in UTC (whole seconds), so the same viewing imported from any
-  device gets one key and never outranks a person's reset made later that day. **Known limit**: a reset later
+  device gets one key and never outranks a person's reset made later that day. A day-only play is not written when
+  the register holds a play of either kind whose watchedAt lies in [D − 14 h, D + 38 h), D being 00:00 UTC of its
+  date: that viewing is already recorded (a v2 import wrote it at local noon, §8). The reset comparison above uses
+  the play as written (whole seconds). A play a tracker reports is not written when it matches one-to-one a Den play
+  `W` ≤ that account's `seedBound` within (⌊W⌋, ⌊W⌋ + 86 400 000], by §9's one-play-per-viewing matching: it is a
+  v2 scrobble of that viewing, recorded at the tracker's server time. **Known limit**: a reset later
   than 00:00 UTC of the play's date hides it (for a person west of UTC that includes a late-evening reset on the
   previous local day), so such a viewing reads unwatched until marked. It writes its plays either way (plays are additive and never set watched state), and `imported: true` only under
   that condition (§3). A play whose watchedAt, at second precision, equals `⌊W / 1000⌋ · 1000` of a Den play in the
@@ -759,7 +765,8 @@ client only shows that the switch is offered.
   the outbox, journalled or not. An unsettled target is seeded with the value derived from its earliest unsettled
   event's `before` alone — folded through §8, then read through §5 and §6 — with the title's resets whose `t` is
   less than that event's `at`; an absent `before` seeds the default (`n`, `out`, `null`). It is never seeded as "no receipt". Every other target is seeded with its current value, except that for an account the performing device
-  holds itself, a `watched` value in p > 0 whose current viewing has no settled event and whose current viewing's
+  holds itself, a `watched` value in p > 0 — current, or as the last full reconcile read it when its viewing is the
+  current viewing — whose current viewing has no settled event and whose current viewing's
   play is later than the account's connection stamp (the earliest `set:keys` `simkl` setting stamp the device has
   seen for that account id; for Trakt, the device's local connect stamp, which a ready build holding a Trakt
   connection with none records as its own clock at its first reconcile) is seeded by the
@@ -768,7 +775,8 @@ client only shows that the switch is offered.
   windows, and a scrobble that did land acknowledges it; and the performing device sends every kept `stop` whose
   batch has succeeded before it opens the rewrite. **Known limit**: for an account the performing device holds, a
   viewing below the current one whose best-effort scrobble failed is seeded as delivered (as v2). A value of class `n` (a
-  film's `none`) in viewing p > 0 — current, or derived from a `before` — is instead seeded by the qualifying-target
+  film's `none`) in viewing p > 0 — current, derived from a `before`, or as the last full reconcile read it — is
+  instead seeded by the qualifying-target
   shapes of the handoff paragraph: `w` at p₀ when a lower viewing has a visible Den play (bound: `disconnectedAt.t`
   for a handed-off account, else the performing device's clock at its read of `base`); else `u` at p when `cleared`
   is `[p − 1, …]`; else `w` at p − 1 with the covering-reset floor; `n` only when p = 0. So a replay in progress at
@@ -938,7 +946,10 @@ The rules live in den-sync so both clients share them:
   is sent; a kept stop not sent once a read shows the new generation or after 60 s; a pre-connect rewatch not
   re-decided at the switch; a day-only import written at UTC midnight and hidden by a later same-day reset; a
   handed-off Simkl rating of 8 re-read and recorded before a Den `like` is decided; a Trakt rating sent without
-  `rated_at` not holding a later Den change; a fresh browser waiting 10 minutes before taking the seeded lease.
+  `rated_at` not holding a later Den change; a fresh browser waiting 10 minutes before taking the seeded lease; a
+  rewatch in progress at the last full reconcile, finished with a failed scrobble before the switch, delivered after
+  it, and the same with the reconcile reading the finished viewing and a later write in it; a v2 Netflix row
+  re-imported after the switch writing no play; a pulled-back v2 Simkl scrobble writing no play.
 - Delivery: pending by value (an older-stamped winner on viewing); a reset delivering an un-watch for real and for
   imported episodes, settling without oscillating; a series watchlist add; commands built from values with `at` and
   `watched_at`; each `decide` outcome's receipt (sent then changed → built-from value); no receipt → additive unless
