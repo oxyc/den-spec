@@ -665,8 +665,9 @@ batch that connects or disconnects an account and, for Simkl, in a batch it writ
 `simkl` as `null` or as a token of another account (its own handoff's null excepted); the offering client names every device whose listing blocks the
 switch. A ready build whose own
 handoff for an account is stored does not deliver for it, whatever `set:keys` holds, and resumes only through its
-own withdrawal. A device with no v2 delivery path (the web) lists none; removing a device writes its `delivers`
-and handoffs `null`, and a device excluded from the offer is excluded from this check. The switch is performable
+own withdrawal. A device with no v2 delivery path (the web) lists none; removing a device writes its `delivers`,
+`facade` and handoffs `null`, and a device excluded from the offer is excluded from this check and from the facade
+check. The switch is performable
 only if, for every device other than the performer and every account its `<d>.delivers` lists, that same device's
 `<d>.handoff:<provider>` naming that account is stored, and the
 performer re-checks this on the log it reads through `base`. It also re-checks there that every connected account
@@ -775,7 +776,8 @@ counts as not delivered) — or `"all"` if that list would exceed 2 KiB — and 
 seq ≤ `head` with an unsent or held command for that account (an orphan-retired command is not unsent), never
 replaced by `"all"`; `held` is written in the handoff batch to the handoff's `set:handoff:<provider>:<account id>:<d>`
 row as the setting `held`, beside `ratings`, and a `held` too large for that row keeps the account connected, as
-for `unsettled`. The switch counts an event as settled for
+for `unsettled`, and the offering client shows it (**known limit**: long-lived holds, such as a rating held until
+a person resolves it, can keep such a handoff from being written until they are resolved). The switch counts an event as settled for
 that account only when `readyFrom` ≤ its seq ≤ `head` and it is not in `unsettled`, or by the connection-stamp
 rule (§9 v3 form), and never an event listed in its `held` (every event below `readyFrom`
 is unsettled unless the connection-stamp rule settles it; the known limit on pre-ready deliveries covers the re-decision; an event whose
@@ -862,8 +864,11 @@ or not), the push is uncompleted, is not a catch-up (baseline) command, and its 
 push bound to an earlier identity of P is not (v2 retires it on the next different token), and a catch-up never is
 (the adopter's §6 No receipt catch-up re-derives it). Every ready build writes `<d>.facade` = `{"strings":
 [<provider>, …]}` in `set:devices`: the providers its tracker facade delivers to, connected or not (the web writes
-`[]`). The switch is performable only by a device with a v2 delivery path whose own facade includes every provider
-any other device's `<d>.facade` lists; otherwise the offering client shows why. Kept commands on other devices do not
+`[]`), in the batch that first reports format 3 and in every batch that changes it; a device reporting format 3
+with no `<d>.facade` counts as not ready. The first switch (not §10's re-switch) is performable only by a device
+with a v2 delivery path whose own facade includes every provider any other device's `<d>.facade` lists; otherwise
+the offering client shows why. The performer re-checks this on the log it reads through `base`, and aborts and
+starts over if it fails. Kept commands on other devices do not
 otherwise gate the switch: every ready build with that provider in its facade reconciles the same shared journal,
 so the performer's reconcile derives every event another device keeps (**known limit**: an event the performer
 delivered to, or bound to, an earlier account that another device still held unbound reaches the next account only
@@ -881,7 +886,9 @@ takes the v3 form's shapes with bound the performing device's clock at its read 
 `since` = the switch's stamp (a placeholder no rule reads), no `seededThrough`, no `seedBound`, and `lease` epoch 1.
 No device takes or observes a lease on a `~next` row, and a re-switch neither seeds nor rewrites one, except that a
 re-switch that seeds an account of a provider whose `~next` row has no `adoptedBy` writes `adoptedBy` = that account
-in its staging. The first account of that provider connected
+in its staging and `receiptsFrom` = `~next` in that account's `set:deliver` row; for such an account §6 Seeded
+accounts, not the adopted-account No receipt rule below, decides targets above `seededThrough`. The first account
+of that provider connected
 after the switch that has no `set:deliver` row adopts them: its connect batch writes, by compare-and-set, the
 `~next` row's setting `adoptedBy` = that account and the account's `set:deliver` row with `since` = the connection's
 stamp, `receiptsFrom` = `~next` and `lease` = `["", <the ~next row's lease epoch>]`. `adoptedBy` merges to the
@@ -896,10 +903,11 @@ rating changes reach the next account connected, as in v2, and every other targe
 catch-up. **Known limits**: a removal, un-watch or rating change another device kept around the switch (§10) while
 no account of that provider was connected reaches the next account only as additive catch-up; and when a person
 connects two accounts at once, the one that adopts may be displaced by the other, which then gets only catch-up
-(v2 binds at drain time and is equally racy); and an account that adopts and is disconnected before any lease pass
+(v2 binds at append and at drain time and is equally racy); a push bound to an earlier identity whose same token
+later returns is delivered by v2 but is not kept here; and an account that adopts and is disconnected before any lease pass
 keeps them, where v2 would bind them to the account connected after it.
 When the performing device itself has the account connected at the switch, an event is settled iff it is in the
-device's own acknowledgements, or the handoff settles it by the rule above (`readyFrom` ≤ seq ≤ `head`, not in
+device's own acknowledgements, or `commands(event, event.after)` returns `[]`, or the handoff settles it by the rule above (`readyFrom` ≤ seq ≤ `head`, not in
 `unsettled`, same `generation`, or the connection-stamp rule) and no unsent or held command for it is in the
 performer's outbox; never an event listed in the handoff's `held`. Two handoffs naming different
 accounts of one provider: the one with the later `disconnectedAt` is connected again; the other stays
@@ -978,7 +986,8 @@ client only shows that the switch is offered.
   reaction it seeds, the remote value recorded with the latest settlement of that rating target for that account
   (none when that settlement was a Send, or settled a different reaction) as the rating entry's fourth element
   (§6 Ratings) whenever it differs from the rating Den sends for the seeded reaction; a handed-off account's
-  entries get the handoff's `ratings` value only when it maps (§6 Ratings) to the seeded reaction and differs from
+  entries get the handoff's `ratings` value (when several handoffs name that account, only a value every one of
+  them records the same; otherwise none, and the seed-epoch re-read applies) only when it maps (§6 Ratings) to the seeded reaction and differs from
   the rating Den sends for it (with `"all"`, none, and §6 Ratings' seed-epoch
   re-read applies); a rating target with no recorded value is seeded without one, so the first reconcile of a ready
   build re-reads every rating it catches up against the snapshot to record it (an orphan-retired push was
@@ -1123,7 +1132,7 @@ any stray `ep` or `tracker-event` row folded through §8.
   to a Trakt connect or disconnect a device made locally while its batch was refused, or after the performing device
   read its tokens for staging. Every such write is a compare-and-set. A written-back connection of an account with
   no `set:deliver` row creates it with `since` = the connection's stamp; when a `~next` row of that provider has no
-  `adoptedBy`, the same batch adopts it exactly as §9 Kept for the next account's connect batch does. Write-back also
+  `adoptedBy` in the log and the device holds none for it, the same batch adopts it exactly as §9 Kept for the next account's connect batch does. Write-back also
   writes back every `adoptedBy` and `receiptsFrom` setting the device holds.
 - **No v2 rows in a v3 library.** A v3 client uploads no `ep` or `tracker-event` row on any path — write-back,
   imports, linking a local library, recovery. A v3 reader that finds one folds it through §8 into registers and
@@ -1181,6 +1190,10 @@ The rules live in den-sync so both clients share them:
   seconds sends nothing; a Trakt play with non-zero milliseconds is acknowledged; a handoff seeding `w` at `p₀` so a
   post-`head` rewatch is sent; a rating-only edit not qualifying a film; a held unverified entry staying unverified;
   two handoffs reconnecting one provider.
+- Next account: `~next` seeded from the earliest kept event's `before` (a kept watchlist removal delivered, a kept
+  catch-up not kept); adoption by a connect, by a written-back connect and by a re-switch; a second connect not
+  adopting; an adopter's receipt-less old un-watch not sent; the facade gate refusing a web performer and ignoring a
+  removed device; per-device handoff rows with `held` blocking settlement.
 - Rev-19/20 rules: a baseline rating acknowledged by a valueless remote entry; a ready build's first reconcile
   re-deciding an inherited catch-up id; an old play before the floor or before `W` − 1 day not acknowledging a
   scrobbled current viewing; one window play acknowledging only one viewing; a post-`head` list or rating change
