@@ -544,16 +544,20 @@ Every write is a set-to-value; replaying one changes nothing. `register_write` (
   a zone of UTC−10 to −12 or +12 to +14 and re-imported from another zone can consecutive-day viewings be
   matched to the wrong day. The reset comparison above uses
   the play as written (whole seconds). Before matching, the tracker's plays that equal `⌊W / 1000⌋ · 1000` of any Den
-  play in the register, or a `[-1, …]` element of that account's entry, are set aside (the first are not written, the
-  second are imported plays Den sent); only the remaining plays take part in the matching below. A play a tracker
+  play in the register, the watched-at of any receipt entry of that account for the register, or a `[-1, …]` element
+  of that account's entry, are set aside and none of them is written (the first two are Den plays Den sent, the last
+  imported plays Den sent); only the remaining plays take part in the matching below. A play a tracker
   reports is not written when it matches one-to-one, earliest
-  viewing to earliest play, a viewing of that register whose `⌊W / 1000⌋ · 1000` the tracker does not hold exactly
-  (for Simkl, `L` ≠ it), whatever that account's receipt holds and whether or not the viewing is settled: a viewing
+  viewing to earliest play, a viewing of that register, whatever that account's receipt holds, whatever the tracker
+  holds at that viewing's `⌊W⌋`, and whether or not the viewing is settled: a viewing
   with a Den play `W` ≤ `seedBound` of that account, within the **viewing window**
-  (⌊W⌋ − 86 400 000, min(⌊W⌋ + 90 000 000, `seedBound` + 86 400 000)]; or a viewing with a `[p, null, T]` element
+  (⌊W⌋ − 86 400 000, min(⌊W⌋ + 90 000 000, `seedBound` + 86 400 000)]; a viewing with a `[p, null, T]` element
   in that account's entry, whether or not it has a Den play and whatever its `W`, within
-  (T − 86 400 000, `seedBound` + 86 400 000]. The matching reads only the register's plays, `seedBound`, the
-  `[p, null, T]` elements and the tracker's plays, so a play skipped once stays skipped as receipts advance: it is a
+  (T − 86 400 000, `seedBound` + 86 400 000]; or a viewing below the current one that has no Den play (a v2 viewing
+  finished by playing, §8), within (⌊W′⌋ − 86 400 000, `seedBound` + 86 400 000], `W′` being the greatest Den play of
+  a lower viewing (no lower bound when there is none). The matching reads only the register's plays, `seedBound`, the
+  `[p, null, T]` elements and the tracker's plays, so a play skipped once stays skipped as receipts advance and as
+  Den delivers: it is a
   v2 scrobble of that viewing, recorded at the tracker's server time (**known limit**: a tracker
   play from outside Den within about a day of such a Den play is taken as its v2 scrobble and not written; v2's
   Simkl stop fires only at ≥ 95 %, so it lands at or after `W`; v2's `W` for a viewing finished by playing is its
@@ -678,7 +682,8 @@ final drain read; kept stops are handled below). Before writing a handoff the de
 from the handoff batch on it sends no `stop` for that account, keeping each one it would have sent, and each whose
 batch had not yet succeeded, with its batch under §10's clock and boot-identity rules, the 1-hour and 24-hour
 limits not running while its handoff is stored. On observing the commit it drops them; after a withdrawal
-succeeds it sends each whose batch succeeded less than 24 hours before the send, on §10's clock and under §10's
+succeeds it sends each whose batch succeeded less than 24 hours before the send, not counting the time its handoff
+was stored, on §10's clock and under §10's
 same-generation, minimum-below-3 read, before its reconcile, and drops the rest (a dropped stop is a
 v2-equivalent failed scrobble; the switch's seeding re-decides a current viewing's rewatch). If that batch is refused as too large (den-edge answers 400 for a value
 over its cap; the device treats a 400 as that only when its own measured row exceeds the cap), the device writes `ratings` as `"all"`, then also `unsettled` as `"all"`, and retries; if it is still
@@ -706,9 +711,10 @@ connection for that provider is; once its handoff is null it discards its kept t
 `set:devices` setting `<d>.connectedAt:<provider>` = `{"string": <JSON {account, stamp}>}`, which §9 reads as that
 account's connection stamp in place of a later `set:keys` stamp, only while it names the connected account id; it
 and every device's `<d>.connectedAt:<provider>` naming that account is written `null` in the batch that disconnects
-that provider, and a Trakt local reconnect by withdrawal keeps its
-earlier local connect stamp. The 24-hour withdrawal timer below runs on §6 Holding's sleep-counting clock and
-restarts on a boot-identity change. A
+that provider (a Simkl handoff batch included), and a Trakt local reconnect by withdrawal keeps its
+earlier local connect stamp. The 24-hour withdrawal timer below runs on §6 Holding's sleep-counting clock; the
+device persists its elapsed time, and on a boot-identity change it continues from that value plus the wall-clock
+time since it was persisted (nothing added when that is negative), so a device that restarts often still withdraws. A
 handing-off device that has not observed a commit (a generation change with minimum 3) within 24 hours of its
 handoff, and whose last batch was not refused as `rewrite_in_progress` within the last 5 minutes, **withdraws** it:
 in one batch it writes its handoff and `set:handoff` row `null`, and — only if the connection is still the `null`
@@ -814,7 +820,10 @@ disconnected. **After the switch the handing-off device connects the account aga
 connection into `set:trackers` by compare-and-set, after reading the log to its head, from its kept tokens with its
 original connect stamp — the one case a device writes a connection a person did not — but only if `set:trackers`
 holds no non-null connection for that provider, no connection of that account stamped later than
-`disconnectedAt`, and no other handoff for that provider has a later `disconnectedAt`. Every connection write, a
+`disconnectedAt`, no other handoff for that provider has a later `disconnectedAt`, and, for Simkl, the `set:keys`
+`simkl` setting the switch read through `base` is the `null` that handoff wrote (the same stamp). `v3_form` writes
+`null` every Simkl handoff, and its `set:handoff` row, for which it is not, so a person's later v2 disconnect or
+connect is never undone by a reconnect. Every connection write, a
 person's included, is a compare-and-set on `set:trackers`; a device that reads two non-null connections for one
 provider uses the later-stamped one and writes the other `null` by compare-and-set, whether or not it holds any
 lease; otherwise, or if it has no tokens (Simkl's was
@@ -990,12 +999,14 @@ any stray `ep` or `tracker-event` row folded through §8.
   holds (including a v2 build's kept journal, once that device updates) through §8 into registers first. Its
   converted changes are pending targets (§6). Write-back converts a tracker-credential change the device itself made
   in v2 form and kept — a `set:keys` `simkl` setting whose stamp is later than the one the device last read from the
-  log, never a value it only carried over, and never a handoff's `null` (the handoff reconnect, §9, decides that
-  disconnect) — and never writes it to `set:keys`. A kept non-null value becomes `simkl:<account id>` in
-  `set:trackers` with the kept write's stamp. A kept `null` becomes `null` over `simkl:<a>` only when the log's
-  connection names the account `a` that the change disconnected and carries the `connectedAt` the device held for it
-  when it made the change; it is stamped with the later of the kept write's stamp and a fresh stamp later than that
-  connection's. Otherwise the kept change is dropped, and the offering client shows that it was. The same rules apply
+  log, never a value it only carried over, never a handoff's `null` (the handoff reconnect, §9, decides that
+  disconnect), and never a withdrawal's restore — and never writes it to `set:keys`. A kept change, `null` or not, is
+  dropped when `set:trackers` holds any setting of that provider (a connection or a `null`) stamped later than the
+  kept write. Otherwise a kept non-null value becomes `simkl:<account id>` in `set:trackers` with the kept write's
+  stamp. A kept `null` records the stamp of the `set:keys` setting it replaced, and becomes `null` over `simkl:<a>`
+  only when the log's connection `simkl:<a>` carries that stamp as its `connectedAt`; it is stamped with the later of
+  the kept write's stamp and a fresh stamp later than that connection's. Otherwise the kept change is dropped, and
+  the device that kept it shows that it was. The same rules apply
   to a Trakt connect or disconnect a device made locally while its batch was refused, or after the performing device
   read its tokens for staging. Every such write is a compare-and-set, and a written-back connection creates
   `set:deliver` with `since` = the connection's stamp when it has none.
