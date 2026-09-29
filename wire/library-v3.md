@@ -170,6 +170,9 @@ deliver for it; one at a time.
   - `<provider>:<account id>.token` — the **current token**, written only by the lease holder when it refreshes:
     `{"string": <JSON with the tokens and the `connectedAt` it was refreshed from>}`.
 
+  A v3 build holding a local Trakt token the switch did not move writes no connection from it; only a person's
+  connect, with a fresh stamp, connects that account.
+
   A device uses the account only while the connection is non-null, and uses `.token` only when its `connectedAt`
   equals the connection's element for element; otherwise the connection's own tokens. A failed refresh writes
   neither setting: the holder stops delivering for that account and shows that it needs reconnecting. A refreshed
@@ -309,7 +312,7 @@ deliver for it; one at a time.
   watchedAt through `base` not more than a day ahead of it (§10 Ready builds and `stop`). A re-switch (§10) keeps the
   `seedBound` of the `set:deliver` versions it merges and writes one only for an account that has none and that the
   restored log shows connected in v2 form (its credential in `set:keys`, or a handoff) or, for Trakt, that the
-  performing device held connected with a local connect stamp earlier than the restored log's greatest stamp, by the
+  performing device delivered for (listed in its `<d>.delivers`) with a local connect stamp earlier than the restored log's greatest stamp, by the
   same formula as the first switch; two values merge to the **lesser**, so a re-switch never widens the windows onto
   viewings finished by v3 clients, which send no stop. Every device reads the §9 switch windows from it. For such an account, a target
   with no receipt whose row has seq above `seededThrough` and whose value stamp is real and not later than `since` is
@@ -559,7 +562,8 @@ Every write is a set-to-value; replaying one changes nothing. `register_write` (
   (T − 86 400 000, `seedBound` + 86 400 000]; or a viewing below the current one that has no Den play (a v2 viewing
   finished by playing, §8), within (⌊W′⌋ − 86 400 000, `seedBound` + 86 400 000], `W′` being the greatest Den play of
   a lower viewing (no lower bound when there is none). No window starts before the account's connection stamp (the
-  `connectedAt` of its `set:deliver` row, §9) less 86 400 000, since no v2 scrobble to an account predates its connection. All three apply only to an account whose `set:deliver` row
+  `connectedFrom` of its `set:deliver` row, §9; none when absent) less 86 400 000, since no v2 scrobble to an account
+  predates its connection; §9's acknowledgement windows take the same floor. All three apply only to an account whose `set:deliver` row
   holds `seedBound`. The matching reads only the register's plays, `seedBound`, the
   `[p, null, T]` elements and the tracker's plays, so while the register's plays are unchanged a play skipped once
   stays skipped as receipts advance and as Den delivers (a changed play or a receipt's rewritten watched-at only
@@ -668,18 +672,21 @@ performer re-checks this on the log it reads through `base`. It also re-checks t
 (for Simkl, the account of the `set:keys` `simkl` setting read through `base`; for Trakt, the `trakt:` account the
 performer's own `<d>.delivers` lists and every `trakt:` account another device's `<d>.delivers` lists — a
 connection a build does not deliver for, such as a token kept while Trakt is switched off, is not connected, here or
-in §6 Credentials and the v3 form's credentials) is either named by a stored handoff or is the account its last full
-reconcile and drain ran against, from that same setting (the same stamp; for Trakt, the same local connect stamp).
+in §6 Credentials and the v3 form's credentials) is either named by a stored handoff and not delivered for by the
+performer, or is the account its last full reconcile and drain ran against, from that same setting (the same
+stamp; for Trakt, the same local connect stamp).
 If any other account is connected, the switch is not seeded: the performer aborts the rewrite (or does not open
-it), runs a full reconcile and drain against that setting — or, when its own v2 credential differs from the
-setting, writes its own and starts over — and starts over, so every connected account the switch seeds has been
-drained by the performer or, for a handed-off one, by the device that handed it off. The
+it), runs a full reconcile and drain against that setting — or, when its own v2 credential differs from that
+setting, first settles the two by v2's settings rule (it writes its own only if it changed it locally since its
+last sync, stamped later; otherwise it adopts the setting), and starts over — so every connected account the switch
+seeds has been drained by the performer or, for a handed-off one, by the device that handed it off. The
 performer resolves the account id of the `set:keys` `simkl` credential it last read before it opens the rewrite and
 passes it to `v3_form` (§11); if the setting it reads through `base` differs from the one it resolved (a different
 stamp), the switch aborts and starts over, and while the id cannot be resolved the offering client shows why the
 switch waits. It is **performed** only by a device
 holding the v2 delivery outbox for every connected account it does not see handed off, after a full reconcile and
-drain since its last install, so it holds nothing but held commands. A drain
+drain since its last install, so it holds nothing but held commands and commands for a provider with no account
+connected (kept for the next account, below), which neither block a drain nor count as held. A drain
 counts for the switch or a handoff only once every catch-up (baseline) command for that account has been sent to it
 or acknowledged by it. A catch-up is the additive command the latest full reconcile derives from a row's current
 state; one that reconcile no longer derives (superseded, or its row changed) is neither owed nor replayed. A
@@ -841,7 +848,19 @@ account; when the performing device holds the account itself, its own reconcile 
 switch's stamp. The switch seeds receipts and a `set:deliver` row for every account connected at `base` (after its
 drain) and for every handed-off account, whether or not a handed-off account is connected at `base`. It seeds no
 other account, even one the performer holds settlement state for: a later reconnect of such an account gets the
-additive catch-up of an account connected after the switch (§6 No receipt), as in v2. When the performing device itself has the account connected at
+additive catch-up of an account connected after the switch (§6 No receipt), as in v2. **Kept for the next
+account.** v2 delivers a command queued while no account of its provider is connected to the next account
+connected (it binds an unbound push to the next identity), removals included. The switch keeps that: for each
+provider with no account connected at `base`, it seeds, under the account id `_next`, a receipt for each target
+such a command in the performer's outbox is for, as an unsettled target is seeded (from its earliest unsettled
+event's `before`), and a `set:deliver:<provider>:_next` row with `since` = the switch's stamp and no
+`seededThrough` or `seedBound`. The first account of that provider connected after the switch that has no
+`set:deliver` row adopts them: its connect batch writes, by compare-and-set, the `_next` row's setting `adoptedBy`
+= that account and the account's `set:deliver` row with `since` = the connection's stamp and `receiptsFrom` =
+`_next`. A reader of that account's receipts merges `_next`'s entries in by settle order, and the lease holder
+settles them under the account's own key; a `_next` row with `adoptedBy` set is never adopted again, and its
+receipts are read by no other account. So those removals, un-watches and rating changes reach the next account
+connected, as in v2, and every other target there gets only additive catch-up. When the performing device itself has the account connected at
 the switch, an event is settled iff it is in the device's own acknowledgements, or it is at or below the handoff's
 `head`, not in its `unsettled`, and the handoff's `generation` equals the switch's. Two handoffs naming different
 accounts of one provider: the one with the later `disconnectedAt` is connected again; the other stays
@@ -866,7 +885,9 @@ client only shows that the switch is offered.
 
 **Sequence.**
 1. Open the rewrite (below) and take `base`. From here until commit or abort the performing device **sends no
-   tracker command and no scrobble `stop`**, so every v2 stop precedes `seedBound` on the performer's clock.
+   tracker command and no scrobble `stop`**, so every v2 stop precedes `seedBound` on the performer's clock. A
+   request already in flight at the open whose acknowledgement lands after settlement is read counts as unsettled,
+   and `decide` against the snapshot acknowledges it.
 2. Read the log through `base`, and derive the v3 form from **every row through `base`**.
 3. Stage it, commit with that `base`. On `409`, abort, and start over from 1.
 
@@ -881,20 +902,26 @@ client only shows that the switch is offered.
 - receipts (§6), seeded per account from the performing device's settlement state. A `tracker-event` in the log
   through `base` is **settled** for an account only if its id is among this device's per-account acknowledgements
   for that account, or den-core `commands(event, event.after)` returns `[]` (the change never needed a command), or
-  its `at` is earlier than the account's **connection stamp** and no unsent or held command for it is in the
-  outbox. The connection stamp is, for a handed-off account, the earliest `connectedAt` over its handoffs; otherwise
+  its `at` is earlier than the account's **connection stamp**, no unsent or held command for it is in the
+  outbox, and its seq is at or below the read head of the last full reconcile that ran against that account (for a
+  handed-off account, the handoff's `head`; not checked when `generation` differs). For a handed-off account this
+  rule settles an event only when it is below `readyFrom`, or `unsettled` is `"all"`, or `generation` differs; the
+  handing-off device leaves out of `unsettled` every event its own connection-stamp rule settles, and keeps in it
+  every event with an unsent or held command. The connection stamp is, for a handed-off account, the earliest `connectedAt` over its handoffs; otherwise
   a `<d>.connectedAt:<provider>` naming that account, else the earliest `set:keys` `simkl` setting stamp the device
   has seen for that account id (a token whose account id cannot be resolved counts for no account); for Trakt, the
   device's local connect stamp — the one definition §7 and §9 use everywhere. The switch writes it into each seeded
-  account's `set:deliver` row as the setting `connectedAt` (`{"int": <ms>}`, merging to the earlier; write-back never
-  writes it), and §7 and later readers read it from there, so every device computes the same windows. This rule
+  account's `set:deliver` row as the setting `connectedFrom` (`{"int": <ms>}`, merging to the earlier; write-back
+  never writes it), and §7 and later readers read it from there, so every device computes the same windows; an
+  account whose row has none has no such floor. This rule
   applies to a handed-off account too, with `"all"` and a differing `generation` included. v2 owed that account
   only the additive catch-up of such an event, which the drain completed, so connecting an account never removes
   anything there. **Known limit**: when the connection stamp is later than the account's first connection — a
   person reconnected it in v2 before this ready build first read the log, or for Trakt a connection with no recorded
   stamp — a removal, un-watch or rating change a pre-ready build retired as orphaned or completed while the
   credential was refused, stamped before that stamp, is taken as settled and not delivered, as in v2. An
-  event whose command was superseded by a later change is **unsettled**, and so is one for which `commands` returns
+  event whose command was superseded by a later change is **unsettled** (unless the connection-stamp rule settles
+  it), and so is one for which `commands` returns
   an error (for example `invalid_reaction` for `seen`). An outbox skip, an
   id-only receipt or a completed flag from a pre-ready build never counts as settlement. A target whose row changed
   after the last full reconcile's read head is seeded from the row as that reconcile read it (unsettled). Exception: when such a target is not
