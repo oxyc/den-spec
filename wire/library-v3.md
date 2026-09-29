@@ -730,7 +730,8 @@ succeeds it sends each whose batch has succeeded and that it kept less than 24 h
 handoff was stored included, on §10's clock and under §10's
 same-generation, minimum-below-3 read, before its reconcile, and drops the rest (a dropped stop is a
 v2-equivalent failed scrobble; the switch's seeding re-decides a current viewing's rewatch). If that batch is refused as too large (den-edge answers 400 for a value
-over its cap; the device treats a 400 as that only when its own measured row exceeds the cap), the device writes `ratings` as `"all"`, then also `unsettled` as `"all"`, and retries; if it is still
+over its cap; the device treats a 400 as that only when its own measured row exceeds the cap), the device writes `ratings` as `"all"` (a refusal of the `set:handoff` row phase), then also `unsettled` as `"all"`
+(a refusal of the `set:devices` phase, §10), and retries; if it is still
 refused, the account stays connected, no handoff is written, and the offering client shows why the switch waits.
 Both fallbacks only widen re-decision: with `unsettled` `"all"`, the known limit on pre-ready deliveries applies to
 every delivery of that account; with `ratings` `"all"`, see below. A row is measured as den-edge measures it (the
@@ -749,7 +750,7 @@ the rating Den sends for its reaction (keys that match no row count as absent; *
 person's Den rating change made before the first complete pass against a tracker value Den had acknowledged is
 held as a site edit would be). The device that connects an account of a provider after the switch writes every
 `<d>.handoff:<provider>` of that provider, and their `set:handoff` rows, `null` in the same batch as the
-connection. A handing-off device attempts its reconnect after observing the commit, retrying a transient failure,
+connection (a handoff reconnect: after it, §10). A handing-off device attempts its reconnect after observing the commit, retrying a transient failure,
 an unknown outcome or an unrelated compare-and-set conflict, for as long as its own handoff is stored and no other
 connection for that provider is; it discards its kept tokens only as §10 says (once the account is reconnected or
 superseded). A handoff also carries
@@ -763,7 +764,11 @@ earlier local connect stamp. The 24-hour withdrawal timer below runs on §6 Hold
 device persists its elapsed time, and on a boot-identity change it continues from that value plus the wall-clock
 time since it was persisted (nothing added when that is negative), so a device that restarts often still withdraws. A
 handing-off device that has not observed a commit (a generation change with minimum 3) within 24 hours of its
-handoff, and whose last batch was not refused as `rewrite_in_progress` within the last 5 minutes, **withdraws** it:
+handoff, and whose last batch was not refused as `rewrite_in_progress` within the last 5 minutes, **withdraws** it
+(a device resuming a persisted handoff after a restart decides this timer first; a withdrawal of a handoff whose
+`set:keys` null was never applied cancels that phase, restores nothing, and lists the account again in
+`<d>.delivers` when `set:keys` `simkl` still holds the credential the handoff was built from, the same stamp,
+otherwise taking the "person connected" branch below):
 in one batch (write order: §10) it writes its handoff and `set:handoff` row `null`, and — only if the connection is still the `null`
 its handoff wrote (for Simkl, `set:keys` `simkl` with that same stamp) — restores its connection in v2 form with a
 **fresh** stamp later than that `null` (Simkl: `set:keys` `simkl` = its kept token; the account's connection stamp
@@ -956,7 +961,7 @@ stored in the §10 sense in the v3 log, the account's `set:deliver` row holds `s
 holds no non-null connection for that provider, no connection of that account stamped later than
 `disconnectedAt`, and no other handoff for that provider has a later `disconnectedAt` (its handoff still stored in
 the v3 log). For Simkl, `v3_form` checks that the `set:keys` `simkl` setting at `base` is the `null` the handoff
-wrote (the same stamp). When it is not, `v3_form` writes that handoff and its `set:handoff` row `null`, so no device
+wrote (the same stamp; a handoff whose `null` was never written counts as not matching). When it is not, `v3_form` writes that handoff and its `set:handoff` row `null`, so no device
 reconnects it. If the `set:keys` setting at `base` names the handed-off account, that account is still seeded by
 the handoff (qualification, `p₀`, `since` = the earliest `disconnectedAt`) with the `set:keys` credential; if it
 names another account, the performer drains that account first (above) and the handed-off account stays
@@ -1096,8 +1101,11 @@ any stray `ep` or `tracker-event` row folded through §8.
   is re-read before the next phase is sent. A handing-off device persists the handoff before its first write and
   resumes it after a restart. It writes its `set:handoff:<provider>:<account id>:<d>` row (`ratings`, `held`,
   `headAt`) first; then the `<d>.handoff:<provider>` setting, with `<d>.delivers` and the `connectedAt` nulls, once
-  that is applied; and its `set:keys` null (Simkl) only once that is applied (the partial state — handoff stored,
-  `set:keys` still the account — is one `v3_form` already seeds through the handoff); every reader — the offer, the performer, `v3_form` and the handing-off device
+  that is applied; and its `set:keys` null (Simkl) only once that is applied, by compare-and-set against the
+  `set:keys` version whose `simkl` credential the handoff was built from (the same stamp); if `set:keys` `simkl` no
+  longer holds that credential, the device sends no null, and the handoff stays in the partial state (handoff
+  stored, `set:keys` not the handoff's null), which `v3_form` resolves by §9 (the account then connected is drained
+  and seeded, and a handoff whose null was never written is written `null`); every reader — the offer, the performer, `v3_form` and the handing-off device
   itself — treats a handoff whose row does not carry its `headAt` as not stored. A withdrawal writes its
   `set:devices` settings (its handoff `null`, `<d>.delivers` listing the account, `<d>.connectedAt:<provider>`)
   first, and its `set:handoff` row `null` and the `set:keys` restore only once that write is applied, so every
@@ -1108,14 +1116,19 @@ any stray `ep` or `tracker-event` row folded through §8.
   restore; a withdrawing device resumes delivery only once its restore is applied. A handoff reconnect writes its
   connection first and the handoff nulls only once it is applied, and a device discards its kept tokens only once
   `set:trackers` holds its reconnection, another non-null connection of that provider, or a connection of that
-  account stamped later than `disconnectedAt`. A remover writes the removed
+  account stamped later than `disconnectedAt`, or its own handoff is not stored in a log it read after observing
+  the commit and no reconnect of its own is in progress. A remover writes the removed
   device's `set:devices` settings first, and its `set:handoff` rows `null` only once that write is applied. An
   adoption (§9 Kept for the next account) whose connection write conflicts is retried with it; whether a claim is
   live is defined there. A batch den-edge refuses as a whole (any 4xx or 5xx: `invalid_batch` — including more than
   200 writes or a duplicate key — `bad_request`, `payload_too_large`, `library_full`, `forbidden`,
   `new_libraries_closed`, `library_moved`, `rate_limited`, or a 500) applies nothing and is retried by its own rule.
   den-edge never refuses a single row; a row the client measures as over the cap is sent in a batch of its own,
-  never together with other writes. Nulls `v3_form` writes carry a fresh stamp later than every stamp read through
+  never together with other writes. A client builds every batch with at most 200 writes and a body of at most 2 MiB
+  (as it measures the JSON it sends), and splits a batch refused as `payload_too_large`; only a row the client
+  measures as over the 32 KiB cap counts as "too large" for §6 and §9 (a 413 is read by its error string, never as
+  a row over the cap). A retried connect whose fresh read shows a later-stamped connection of that provider no
+  longer holds. Nulls `v3_form` writes carry a fresh stamp later than every stamp read through
   `base` that is not more than a day ahead of the performer's clock (v2 §4), so a later write-back of a held setting
   cannot bring one back.
 
