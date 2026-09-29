@@ -543,7 +543,10 @@ Every write is a set-to-value; replaying one changes nothing. `register_write` (
   never do, so consecutive-day viewings are all written in any order. **Known limit**: only for a v2 import made in
   a zone of UTC−10 to −12 or +12 to +14 and re-imported from another zone can consecutive-day viewings be
   matched to the wrong day. The reset comparison above uses
-  the play as written (whole seconds). A play a tracker reports is not written when it matches one-to-one, earliest
+  the play as written (whole seconds). Before matching, the tracker's plays that equal `⌊W / 1000⌋ · 1000` of any Den
+  play in the register, or a `[-1, …]` element of that account's entry, are set aside (the first are not written, the
+  second are imported plays Den sent); only the remaining plays take part in the matching below. A play a tracker
+  reports is not written when it matches one-to-one, earliest
   viewing to earliest play, a viewing of that register whose `⌊W / 1000⌋ · 1000` the tracker does not hold exactly
   (for Simkl, `L` ≠ it), whatever that account's receipt holds and whether or not the viewing is settled: a viewing
   with a Den play `W` ≤ `seedBound` of that account, within the **viewing window**
@@ -641,7 +644,7 @@ same batch. A ready build delivers nothing for an account until a batch listing 
 succeeded, and nothing (kept stops included) while its latest batch was refused as `rewrite_in_progress`, until a
 later batch succeeds or a read shows the same generation with minimum below 3. It rewrites `<d>.delivers` in the
 batch that connects or disconnects an account and, for Simkl, in a batch it writes as soon as it reads `set:keys`
-`simkl` as `null` (its own handoff's null excepted); the offering client names every device whose listing blocks the
+`simkl` as `null` or as a token of another account (its own handoff's null excepted); the offering client names every device whose listing blocks the
 switch. A ready build whose own
 handoff for an account is stored does not deliver for it, whatever `set:keys` holds, and resumes only through its
 own withdrawal. A device with no v2 delivery path (the web) lists none; removing a device writes its `delivers`
@@ -670,8 +673,8 @@ refusing that command; a `not_found` from any tracker counts as sent), the offer
 the switch waits. If connected accounts are delivered by different devices, each other device
 disconnects its accounts only once their handoffs are stored, after draining their outboxes: each **handoff** is
 written in the same batch as its disconnect (for Simkl, the `set:keys` null; for Trakt, whose tokens are local, the
-local disconnect follows the stored batch, and the device stops delivering for that account before its final drain
-read). Before writing a handoff the device sends every kept `stop` for that account whose batch has succeeded;
+local disconnect follows the stored batch, and the device stops delivering commands for that account before its
+final drain read; kept stops are handled below). Before writing a handoff the device sends every kept `stop` for that account whose batch has succeeded;
 from the handoff batch on it sends no `stop` for that account, keeping each one it would have sent, and each whose
 batch had not yet succeeded, with its batch under §10's clock and boot-identity rules, the 1-hour and 24-hour
 limits not running while its handoff is stored. On observing the commit it drops them; after a withdrawal
@@ -685,7 +688,9 @@ every delivery of that account; with `ratings` `"all"`, see below. A row is meas
 base64 sealed value as sent); the 2 KiB `unsettled` threshold is measured on its UTF-8 JSON. A handoff is the setting
 `<d>.handoff:<provider>` in `set:devices` = `{"string": <JSON {account, disconnectedAt, generation, head, headAt,
 readyFrom, unsettled, connectedAt}>}` (`v3_form` writes `null` every handoff and `set:handoff` row naming an account
-it seeds as connected), with `ratings` written in the same batch to its own row
+it seeds as connected; when the performing device holds another account of a handed-off provider, it writes that
+provider's handoffs and `set:handoff` rows `null` and the handed-off account stays disconnected — **known limit**:
+one account per provider), with `ratings` written in the same batch to its own row
 `set:handoff:<provider>:<account id>` (setting `ratings`, `"all"` only when that row would exceed den-edge's cap)
 as `{<rec row name>: <remote rating>}` (the logical name, e.g. `rec:movie:550`, never the keyed one, so it
 survives a key reset) for every rating target of
@@ -700,7 +705,8 @@ connection for that provider is; once its handoff is null it discards its kept t
 `connectedAt`, the account's connection stamp as the device knew it, and the withdrawal writes it back as the
 `set:devices` setting `<d>.connectedAt:<provider>` = `{"string": <JSON {account, stamp}>}`, which §9 reads as that
 account's connection stamp in place of a later `set:keys` stamp, only while it names the connected account id; it
-is written `null` in the batch that disconnects that provider, and a Trakt local reconnect by withdrawal keeps its
+and every device's `<d>.connectedAt:<provider>` naming that account is written `null` in the batch that disconnects
+that provider, and a Trakt local reconnect by withdrawal keeps its
 earlier local connect stamp. The 24-hour withdrawal timer below runs on §6 Holding's sleep-counting clock and
 restarts on a boot-identity change. A
 handing-off device that has not observed a commit (a generation change with minimum 3) within 24 hours of its
@@ -719,7 +725,10 @@ resume delivery; before delivering anything else for that account it runs a full
 with seq in (`head`, its read head] as owed to that account, whatever account the event recorded, deciding each
 against the account's snapshot; events at or below `head` keep their recorded settlement. A withdrawal is dropped
 on `generation_changed`, on `426`, and on `rewrite_in_progress` when the next read shows minimum 3; it is never
-kept (§10). Here `generation` and `head` are the library generation and log seq its final drain read
+kept (§10). A person's connect written as a withdrawal is not dropped with it: it is kept as that person's
+connection and written back (§10) into `set:trackers` with its own stamp, and the same batch writes every
+`<d>.handoff:<provider>` of that provider, and their `set:handoff` rows, `null` (the post-switch connect rule). The
+handing-off device attempts no handoff reconnect while that kept connect is unsent. Here `generation` and `head` are the library generation and log seq its final drain read
 through, `headAt` its own clock (ms) at that read, `readyFrom` the lowest log seq its ready build read (its
 persisted head + 1 when it read none), and `unsettled` the ids of events in [`readyFrom`, `head`] whose commands it
 did not deliver (held, superseded, orphan-retired, or unsent; an event counts as delivered only if it is in the
@@ -979,13 +988,17 @@ any stray `ep` or `tracker-event` row folded through §8.
   form only** (a ready build on a library it has only seen below 3 writes back in v2 form, v2 §2), including **every receipt it holds**,
   intents (`sending`) included (merged per key by settle order, §6), never a `lease`. It converts any `ep` rows, v1 events and kept unsent work it
   holds (including a v2 build's kept journal, once that device updates) through §8 into registers first. Its
-  converted changes are pending targets (§6). Write-back converts a kept tracker-credential change made in v2 form,
-  never writing it to `set:keys`: a kept `set:keys` `simkl` value becomes the Simkl connection in `set:trackers`
-  (non-null: `simkl:<account id>` with the kept write's stamp; null: `null` over the connection the log holds,
-  stamped with the kept write's stamp when that is later than the connection's, else a fresh stamp later than it). A
-  Trakt connect or disconnect a device made locally while its batch was refused, or after the performing device read
-  its tokens for staging, is written to `set:trackers` the same way. All are compare-and-set, and a kept change is
-  never written over a connection stamped later than it.
+  converted changes are pending targets (§6). Write-back converts a tracker-credential change the device itself made
+  in v2 form and kept — a `set:keys` `simkl` setting whose stamp is later than the one the device last read from the
+  log, never a value it only carried over, and never a handoff's `null` (the handoff reconnect, §9, decides that
+  disconnect) — and never writes it to `set:keys`. A kept non-null value becomes `simkl:<account id>` in
+  `set:trackers` with the kept write's stamp. A kept `null` becomes `null` over `simkl:<a>` only when the log's
+  connection names the account `a` that the change disconnected and carries the `connectedAt` the device held for it
+  when it made the change; it is stamped with the later of the kept write's stamp and a fresh stamp later than that
+  connection's. Otherwise the kept change is dropped, and the offering client shows that it was. The same rules apply
+  to a Trakt connect or disconnect a device made locally while its batch was refused, or after the performing device
+  read its tokens for staging. Every such write is a compare-and-set, and a written-back connection creates
+  `set:deliver` with `since` = the connection's stamp when it has none.
 - **No v2 rows in a v3 library.** A v3 client uploads no `ep` or `tracker-event` row on any path — write-back,
   imports, linking a local library, recovery. A v3 reader that finds one folds it through §8 into registers and
   writes those back before any compaction drops it.
