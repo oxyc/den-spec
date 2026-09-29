@@ -253,7 +253,7 @@ deliver for it; one at a time.
   | Target | Change | Command |
   |---|---|---|
   | Episode / film watch | → `watched` | watched (`p`, watched-at) — a rewatch when `p` is greater (below) |
-  | Episode / film watch | → `unwatched`, from any receipt but `u` (or none after `since`) | unwatched |
+  | Episode / film watch | → `unwatched`, from any receipt but `u` (or none, when pending by §6 No receipt or Seeded accounts) | unwatched |
   | Episode / film watch | → `none` | none, and **no receipt is written**: the receipt stays |
   | List | → `in` | list add |
   | List | `in` → `gone` | list removal |
@@ -280,22 +280,28 @@ deliver for it; one at a time.
   other than `n`, `out` or `null`, a timeless value that differs from it, is not a regression and is not `→ none`
   (a change to `none` keeps the receipt), is decided as `baseline` against the snapshot: acknowledged when the remote
   holds it, so the receipt follows an import from that tracker; otherwise sent additively (a watch or list add the
-  remote lacks, or a rating where the remote has no entry). A `baseline` rating acknowledged by a remote value that
-  maps (§6 Ratings; imports map with the same thresholds) to a different reaction settles the receipt as that remote
-  reaction (unchanged when the entry has no value), keeping the built-from value's stamp, so a later change a person
+  remote lacks, or a rating where the remote has no entry). A `baseline` rating built from a timeless value, acknowledged by a
+  remote value that maps (§6 Ratings; imports map with the same thresholds) to a different reaction, settles the
+  receipt as that remote reaction (as the built-from value when the entry has no value), keeping the built-from value's stamp, so a later change a person
   makes is pending against what the tracker holds; a timeless rating is not pending against a receipt whose value
   stamp equals its own. Against a `u` receipt a timeless `watched` is decided by §6 Against a `u` receipt, never
   acknowledged by presence alone. Against `n`, `out` or `null`, or with no
   receipt, it is caught up additively (`baseline`) like any value before `since`. **Known limit**: a watch the person
   deleted on one tracker's site, then imported from another source, is re-added there once (v2's catch-up does the
   same).
-- **Seeded accounts.** den-edge numbers a commit's staged rows `base + 1 … base + N` in staging order; every switch,
-  re-switch and compaction writes `seededThrough` = `base + N` into each seeded account's `set:deliver` row with a
-  fresh stamp (merged by the later stamp; a value above the reader's head is ignored). For such an account, a target
+- **Seeded accounts.** den-edge numbers a commit's staged rows `base + 1 … base + N` in staging order (a key staged
+  twice takes its last position; the client counts N before staging the `set:deliver` row that carries it). A switch
+  and a re-switch write `seededThrough` = `base + N` into each seeded account's `set:deliver` row with a fresh stamp;
+  a compaction stages rows in ascending order of their current seq and writes `seededThrough` = `base` + the number
+  of staged rows whose seq was at or below the old `seededThrough`, so no target changes side. Write-back (§10) never
+  writes it. It merges by the later stamp; a value above the reader's head is ignored. For such an account, a target
   with no receipt whose row has seq above `seededThrough` and whose value stamp is real and not later than `since` is
   pending, not `baseline` (kept or converted work, §10). A list or rating target the switch owes as catch-up carries
-  the explicit entry `["b", <value stamp>, <settle order>]` ("owed as baseline"), decided as `baseline` and replaced
-  by its settle. A deleted title's film-watch and rating targets are seeded with their current values. An account
+  the explicit entry `["b", <value>, <value stamp>, <settle order>]` ("owed as baseline"): decided as `baseline`
+  while the current value equals `<value>`, and replaced by its settle; any other current value is decided against
+  `<value>` as its receipt. A deleted title's film-watch and rating targets are seeded by the same rules as any other
+  (from the earliest unsettled event's `before` when unsettled) and stay undecided while the title is `deleted`. An
+  account
   without `seededThrough` (connected after the switch) keeps additive catch-up.
 - **Unverified receipts.** When any device reads, for one account, receipts at the same settle epoch ≥ 2 from two
   different devices, it adds that epoch to the `set:deliver` setting `unverified` (a list of epochs, merged as a
@@ -374,7 +380,7 @@ deliver for it; one at a time.
   `L`, at second precision, or null when unknown. Trakt lists every play (`GET /sync/history/{type}/{id}`), which
   `decide` gets as the set `H`.
 - **Floor.** A receipt's floor is its watched-at for a `w` receipt and its value stamp's `t` for a `u` receipt, at
-  second precision. A null floor is below every time; a null `W` is never acknowledged by a play time. A covering
+  second precision. An `n` receipt, and no receipt, has a null floor. A null floor is below every time; a null `W` is never acknowledged by a play time. A covering
   reset is **later than a floor** when `⌊R.t / 1000⌋ · 1000` is greater than it (a null floor is below every reset);
   every comparison of a reset with a floor in §6 and §9 uses this. A default
   `n` entry is `["n", 0, null, [0, 0, ""], <settle order>]`. A tracker adapter passes a missing watch time (Simkl's
@@ -411,12 +417,13 @@ deliver for it; one at a time.
 - **Settling.** Sent, or acknowledged (already present) → the receipt is the value the command was built from,
   whether or not the target changed meanwhile (a later change is then pending against it). Superseded → nothing. A
   coordinate the tracker cannot hold (`not_found`, or one that does not map back) → the built-from value, final. Held
-  → nothing; decided again later. Exception: a `baseline` rating acknowledged by a differently mapped remote rating
-  settles as the remote reaction (§6 Timeless values).
+  → nothing; decided again later. Exception: a `baseline` rating built from a timeless value, acknowledged by a
+  differently mapped remote rating, settles as the remote reaction (§6 Timeless values).
 - **Earlier viewings on Trakt.** Against an `n` receipt, or with no receipt and stamped later than `since`, a
   `watched` value in a `p` above the receipt's (0 with no receipt) that §6 Rewatch does not already cover is decided
   on Trakt as a rewatch: one play per visible Den play of a viewing in [receipt `p`, current `p`] above the `cleared`
-  viewing, the current viewing with its watched-at as `W` when it has no play, each first written into `sending`
+  viewing (with no receipt, only plays whose watchedAt is later than `since`; the viewings before are caught up by
+  `decide` with `baseline`, so any remote play acknowledges them), the current viewing with its watched-at as `W` when it has no play, each first written into `sending`
   (§6 Intent) and acknowledged iff `H` holds `⌊S / 1000⌋ · 1000` exactly, with §9's window for a target seeded at the
   switch; `decide`'s any-watch acknowledgement never applies to it.
 - **Remote → Den**: v2's tracker pull, written as imports (§7) — episodes, films, ratings and watchlist — only after
@@ -444,13 +451,16 @@ Every write is a set-to-value; replaying one changes nothing. `register_write` (
 - **Season reset**: block 0's `seasonReset` = a fresh stamp. **Series reset**: `rec.episodesReset` (v2).
 - **Import** (a tracker's watched list, an import file) of episode `(s, e)`, after pulling the log to its head:
   only if the episode has no unhidden `progress`, is not in progress, and has no covering reset later than the
-  import's newest play (with no plays, no covering reset at all). It writes `imported: true` and its plays (§3). It writes no `progress`, so it never
+  import's newest play (with no plays, no covering reset at all). It writes its plays either way (plays are additive and never set watched state), and `imported: true` only under
+  that condition (§3). It writes no `progress`, so it never
   outranks or erases a person's progress, even when a concurrent write merges with it; and it never lands over a Den
   un-watch or reset, even with a newer remote watch time. A film import writes `rec.status` watched with
   `[0, <its latest play ms>, ""]` (timeless, so any real status wins) under the title-import rule below; it writes
   its plays either way (plays are additive). **Known limit**: unlike today's web import, which writes real day stamps,
   a v3 import neither marks an episode already in progress in Den nor changes a watchlisted film's status; the plays
-  are kept, and a person's Mark watched delivers it.
+  are kept, and a person's Mark watched delivers it. **Known limit**: den-core `decide` acknowledges a `baseline` list add by any
+  title watch, so a watchlist add imported from one tracker does not reach another tracker's watchlist for a title
+  that tracker has watched.
 - **Title imports** (a tracker's ratings and watchlist) are timeless, so any real stamp beats them (§4); their
   counter `c` orders imports among themselves by the tracker's own time while `t` stays 0. A field is
   **import-owned** when its stamp is timeless; an absent field (or a title with no `rec` row) counts as
@@ -557,9 +567,7 @@ playing writes none), and:
 - a **list** or **rating** target: its value is `in` or a reaction other than `seen`, it has no unsettled event, its
   field stamp is later than the `at` of every settled event of that field, and its `rec` row seq is above `head` (or,
   when `generation` differs, its field stamp `t` is later than `headAt − 86 400 000`). Such a target is seeded with
-  **no receipt** — the one exception to never seeding "no receipt" — and that account's `since` is the later of
-  `disconnectedAt` and the greatest such field stamp not later than the switch's stamp, so it is decided as
-  `baseline` and any presence acknowledges it; one whose field stamp is later than the switch's stamp is seeded with
+  the owed-as-baseline entry `["b", …]` (§6 Seeded accounts), so any presence acknowledges it; one whose field stamp is later than the switch's stamp is seeded with
   the default (`out`, `null`) instead, and is delivered once it is no longer more than a day ahead.
 
 A qualifying target is seeded unsettled: as `["w", p₀, <that play's watchedAt>, [0, 0, ""], [1, n, <performer>]]`
@@ -573,7 +581,7 @@ covering reset not more than a day ahead of the performing device's clock, or nu
 floor would make any old reset trigger un-watch-then-re-mark); otherwise with the default `n`, so `decide`
 acknowledges the watch if present and sends it if not. Handoffs naming the **same account**: an event is settled if
 any of them settles it; a target qualifies only if it qualifies under every one; `since` is the earliest
-`disconnectedAt`, then the later of that and the list and rating rule's bounded stamp; only the one with the latest `disconnectedAt` reconnects, and the seed's `p₀` bound and the Trakt scrobble window
+`disconnectedAt`; only the one with the latest `disconnectedAt` reconnects, and the seed's `p₀` bound and the Trakt scrobble window
 use that latest `disconnectedAt`. **Known limit**: a viewing finished
 offline before `disconnectedAt` that syncs after `head` is taken as delivered, so Trakt may hold one play fewer (v2
 would not have delivered it either). The current viewing is never seeded as delivered: a finish
@@ -591,8 +599,10 @@ acknowledges the viewing; a viewing whose final stop failed after an earlier ses
 For such a target, a viewing whose play has watchedAt `W` ≤ the bound is also acknowledged on Simkl when `L` is later
 than both the receipt's floor and `⌊W / 1000⌋ · 1000 − 86 400 000` and at or before the bound, since a v2 Simkl
 scrobble carries Simkl's server time, not `W`; a viewing with `W` above the bound is checked by §6 Rewatch alone.
-The switch records every viewing it seeds while in progress at ≥ 0.8 as a `sending` entry `[p, null]`, and the
-Trakt window treats such a viewing as `W` = the bound, since v2's Trakt stop at 80 % may already hold its play. **Known limit**: when a viewing below
+The switch records every viewing it seeds while in progress at ≥ 0.8 as a `sending` entry `[p, null]` in that
+account's Trakt entry only. A `null` there only widens the Trakt window (it is treated as `W` = the bound, since
+v2's Trakt stop at 80 % may already hold its play) and is never sent or matched exactly: the intent write before any
+send replaces it with `[p, ⌊W / 1000⌋ · 1000]` of the finished viewing, and later checks use that. **Known limit**: when a viewing below
 the current one was finished by playing after `disconnectedAt` and a replay then started before the switch, the
 `w` at p − 1 seed marks it delivered, so an abandoned replay leaves it off that account (as v2). **Known limit**: a film finished by playing that reaches the log after
 `head` with a stamp more than a day older than `headAt` is not delivered to that account, and, when `generation`
