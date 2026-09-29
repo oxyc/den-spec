@@ -486,10 +486,15 @@ hold an outbox that still delivers) unless a person removed it, and no device ha
 counts as not ready). It is **performed** only by a device holding the v2 delivery outbox for every connected
 account, after a full reconcile and drain since its last install, so it holds nothing but held commands. A drain
 counts for the switch or a handoff only once every catch-up (baseline) command for that account has been sent to it
-or acknowledged by it. A catch-up completed without that account's acknowledgement (orphan-retired, or completed
-while the account refused its credential) counts as unsent: a ready build does not keep its id as delivered, and
-delivers it again to the account now connected (a catch-up is additive and `baseline`, so any presence acknowledges
-it). A catch-up held as `snapshot_unavailable` or `account_changed` is retried until decided, and a catch-up rating
+or acknowledged by it. A catch-up is the additive command the latest full reconcile derives from a row's current
+state; one that reconcile no longer derives (superseded, or its row changed) is neither owed nor replayed. A
+catch-up that reconcile derives but that was completed without that account's acknowledgement (orphan-retired, or
+completed while the account refused its credential) counts as unsent: a ready build does not keep its id as
+delivered and delivers the re-derived command to the account now connected (a catch-up is additive and `baseline`,
+so any presence acknowledges it). A ready build cannot tell which of a pre-ready build's completed catch-up ids were
+acknowledged, so it keeps none of them: on its first reconcile it drops every catch-up id it inherited from a
+pre-ready build and decides each catch-up that reconcile regenerates against the account's snapshot, sending or
+acknowledging it, before a drain counts. A catch-up held as `snapshot_unavailable` or `account_changed` is retried until decided, and a catch-up rating
 is acknowledged by any remote rating entry, valued or not, so no catch-up holds for good and seeding never turns one
 into a non-baseline command. While a catch-up cannot be delivered (a credential stays refused), the offering client
 shows that as why the switch waits. If connected accounts are delivered by different devices, each other device
@@ -526,9 +531,12 @@ any of them settles it; a target qualifies only if it qualifies under every one;
 use that latest `disconnectedAt`. **Known limit**: a viewing finished
 offline before `disconnectedAt` that syncs after `head` is taken as delivered, so Trakt may hold one play fewer (v2
 would not have delivered it either). The current viewing is never seeded as delivered: a finish
-on another device, or a failed best-effort scrobble, may never have reached the tracker. For a target seeded this
-way, the Trakt rewatch check of a viewing whose play has watchedAt ≤ `disconnectedAt.t` also acknowledges it when
-`H` holds any play in [`⌊W / 1000⌋ · 1000`, `disconnectedAt.t`], since a scrobble records its stop time, not `W`;
+on another device, or a failed best-effort scrobble, may never have reached the tracker. For a target seeded
+under this paragraph — any of the `w` at `p₀`, `u` at the current viewing, or `w` at current − 1 shapes — the Trakt
+rewatch check of a viewing whose play has watchedAt ≤ `disconnectedAt.t` also acknowledges it by a play in `H` later
+than the seeded receipt's floor and at or before `disconnectedAt.t`, each such play acknowledging at most one
+viewing, earliest viewing to earliest play, since a v2 scrobble records its stop time (at 80 % or more, possibly
+before `W`), not `W`;
 Simkl's check already covers a scrobble. **Known limit**: a film finished by playing that reaches the log after
 `head` with a stamp more than a day older than `headAt` is not delivered to that account, and, when `generation`
 differs or `unsettled` is `"all"`, an episode likewise. These qualification and `p₀` rules apply only to a handed-off
@@ -670,7 +678,8 @@ The rules live in den-sync so both clients share them:
 - `register_write`: action + current register + covering resets + clock → the register to write (§7). `import_write`: register + import item
   → the register, or nothing (§7).
 - `pending_targets`: state + receipts + `since` → commands (§6); `decide` gains the `rewatch` input with the
-  remote's play times, the un-watch-then-re-mark order and the `removals` latch; `settle`: outcome + built-from value
+  remote's play times, the un-watch-then-re-mark order and the `removals` latch, and acknowledges a `baseline` rating by any remote
+  rating entry, valued or not (today it needs a value; a ready build needs this den-core change); `settle`: outcome + built-from value
   → the receipt, or nothing; `lease`: row + observation + clocks → take, renew, send, wait, stop or release.
 - `v2_reading`: v2 rows → §8's state; `v3_form`: every row through `base` + settlement state → the switch's rows
   (§9); `write_back`: held state + new log → the v3 rows to write after a generation change (§10).
