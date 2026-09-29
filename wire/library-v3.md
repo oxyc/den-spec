@@ -292,7 +292,8 @@ deliver for it; one at a time.
 - **Seeded accounts.** den-edge numbers a commit's staged rows `base + 1 … base + N` in staging order (a key staged
   twice takes its last position; N is the number of distinct keys staged, counted by the client before staging the `set:deliver` row that carries it). A switch
   and a re-switch write `seededThrough` = `base + N` into each seeded account's `set:deliver` row with a fresh stamp;
-  a compaction stages rows in ascending order of their current seq and writes `seededThrough` = `base` + the number
+  a compaction stages rows in ascending order of their current seq (a folded row takes the greater of its parts'
+  seqs, for both the order and the count) and writes `seededThrough` = `base` + the number
   of staged rows whose seq was at or below the old `seededThrough` (a folded row takes the greater of its parts'
   seqs), so no target changes side. Write-back (§10) never
   writes it. It merges by the later stamp; a value above the reader's head is ignored. For such an account, a target
@@ -439,9 +440,13 @@ deliver for it; one at a time.
   against that receipt. When no viewing below the split has a visible Den play, the intent is written into a new default entry `["n", 0, null, [0, 0, ""], <fresh order>,
   <sending>]`, which selects the same plays. On **Simkl**, the same targets are decided as one play of the current
   viewing, acknowledged iff `L` is known, `L ≥ ⌊W / 1000⌋ · 1000` and `L` is later than the receipt's floor (null for
-  `n` or no receipt), with §9's Simkl window for a target seeded at the switch; with no receipt, only when the current
-  viewing's play is later than `since.t` (this gate applies to §6 Rewatch's Simkl branch too). `decide`'s any-watch
-  acknowledgement never applies to it. When no visible Den play is later than `since.t`, the target is caught up alone
+  `n` or no receipt), with §9's Simkl window for a target seeded at the switch; with no receipt, only when some visible
+  Den play is later than `since.t` (this gate applies to §6 Rewatch's Simkl branch too; otherwise the catch-up below
+  applies). `decide`'s any-watch acknowledgement never applies to it. On Trakt, against an `n` receipt or none, when
+  the register has a visible imported play earlier than `⌊W / 1000⌋ · 1000` of its least visible Den play, that
+  imported watch is first decided alone by `decide` with `baseline` and watched-at = the greatest such imported play,
+  before any Den play is decided; the Den plays follow in a later pass. When no visible Den play is later than
+  `since.t` (never for a target above `seededThrough`, whose plays all count as later), the target is caught up alone
   by `decide` with `baseline` and watched-at (§5), and settles as `w` at the current viewing, on both trackers.
 - **Remote → Den**: v2's tracker pull, written as imports (§7) — episodes, films, ratings and watchlist — only after
   pulling the log to its head.
@@ -667,13 +672,15 @@ client only shows that the switch is offered.
   event whose command was superseded by a later change is **unsettled**, and so is one for which `commands` returns
   an error (for example `invalid_reaction` for `seen`). An outbox skip, an
   id-only receipt or a completed flag from a pre-ready build never counts as settlement. A target whose row changed
-  after the last full reconcile's read head is seeded from the row as that reconcile read it (unsettled). Exception: when such a target has no unsettled
-  event and its current register's `cleared` viewing is at or above the `p` of that reconcile-read value (a replay
-  started at 0, which v2 writes with no event), it is seeded from its current register by the qualifying-target
-  shapes of the handoff paragraph (`u` at the current viewing when `cleared` is `[current − 1, …]`, else `w` at `p₀`
-  or at current − 1), so no un-watch is delivered for it. A reaction changed to `seen` is a rating removal in v3,
-  where v2 never removed one (`invalid_reaction`); such changes since v2 are delivered as removals (held when the
-  remote rating is newer). v3-ready
+  after the last full reconcile's read head is seeded from the row as that reconcile read it (unsettled). Exception: when such a target is not
+  unsettled (no unsettled event and no unsent command for it in the outbox) and its current register's `cleared`
+  viewing is at or above the `p` of that reconcile-read value (a replay started at 0, which v2 writes with no event),
+  it is seeded as `["u", <cleared viewing + 1>, null, <the cleared stamp>, [1, n, <performer>]]`, so no un-watch is
+  delivered for it and every viewing above the `cleared` one is checked by §6 Against a `u` receipt (with §9's
+  window). v2 removed a rating for `seen` only for a TV's own action, never for another device's (`invalid_reaction`
+  in `commands`); such changes since v2 are delivered as removals, acknowledged where already absent, and held while
+  the remote rating is newer (**known limit**: Den then shows `seen` against a tracker rating until the person
+  resolves it). v3-ready
   builds record acknowledgement per account and record orphan retirement separately (an orphan-retired push was
   never delivered, so it is unsettled). Where settlement is unknown, the event is unsettled — `decide` against the
   snapshot makes that safe. A target is **unsettled** if any of its events is, or if any unsent command for it is in
@@ -687,7 +694,8 @@ client only shows that the switch is offered.
   the switch is delivered as a rewatch when it finishes. Unsettled
   removals are subject to `removals` (more than 20 pending → held). Receipts the device already holds from an
   earlier switch are merged in. Seeded receipts carry settle order `[1, n, <performing device id>]`. Each `set:deliver` row gets `since` =
-  the switch's stamp (if it has none) and `lease` = `["", <1 + the greatest settle epoch in the merged receipts>]`.
+  the switch's stamp (if it has none; for a handed-off account, the earliest `disconnectedAt` of its handoffs) and
+  `lease` = `["", <1 + the greatest settle epoch in the merged receipts>]`.
   Seeding also writes each account's credentials (§6).
 
 It holds no `ep` or `set:tracker-event:*` row. §12 pins that it derives §8's state for every coordinate and title.
