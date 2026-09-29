@@ -544,7 +544,8 @@ Every write is a set-to-value; replaying one changes nothing. `register_write` (
   a zone of UTC−10 to −12 or +12 to +14 and re-imported from another zone can consecutive-day viewings be
   matched to the wrong day. The reset comparison above uses
   the play as written (whole seconds). Before matching, the tracker's plays that equal `⌊W / 1000⌋ · 1000` of any Den
-  play in the register, the watched-at of any receipt entry of that account for the register, or a `[-1, …]` element
+  play in the register, `⌊w / 1000⌋ · 1000` of the watched-at `w` of any receipt entry of that account for the
+  register, or a `[-1, …]` element
   of that account's entry, are set aside and none of them is written (the first two are Den plays Den sent, the last
   imported plays Den sent); only the remaining plays take part in the matching below. A play a tracker
   reports is not written when it matches one-to-one, earliest
@@ -555,11 +556,15 @@ Every write is a set-to-value; replaying one changes nothing. `register_write` (
   in that account's entry, whether or not it has a Den play and whatever its `W`, within
   (T − 86 400 000, `seedBound` + 86 400 000]; or a viewing below the current one that has no Den play (a v2 viewing
   finished by playing, §8), within (⌊W′⌋ − 86 400 000, `seedBound` + 86 400 000], `W′` being the greatest Den play of
-  a lower viewing (no lower bound when there is none). The matching reads only the register's plays, `seedBound`, the
-  `[p, null, T]` elements and the tracker's plays, so a play skipped once stays skipped as receipts advance and as
-  Den delivers: it is a
+  a lower viewing (no lower bound when there is none). All three apply only to an account whose `set:deliver` row
+  holds `seedBound`. The matching reads only the register's plays, `seedBound`, the
+  `[p, null, T]` elements and the tracker's plays, so while the register's plays are unchanged a play skipped once
+  stays skipped as receipts advance and as Den delivers (a changed play only moves windows; plays are additive, so a
+  skip lost or gained never removes anything): it is a
   v2 scrobble of that viewing, recorded at the tracker's server time (**known limit**: a tracker
-  play from outside Den within about a day of such a Den play is taken as its v2 scrobble and not written; v2's
+  play from outside Den inside a viewing's window — for a viewing with no Den play, anywhere after the lower
+  viewing's play less a day up to `seedBound` plus a day — is taken as its v2 scrobble and not written; only the play
+  record is lost, since plays never set watched state; v2's
   Simkl stop fires only at ≥ 95 %, so it lands at or after `W`; v2's `W` for a viewing finished by playing is its
   last progress write, which v2 players make at close; a ready build's kept stop lands within 25 hours of its batch.
   **Known limit**: a stop sent more than 25 h after that viewing's highest-value progress write, as after seeking
@@ -655,7 +660,12 @@ own withdrawal. A device with no v2 delivery path (the web) lists none; removing
 and handoffs `null`, and a device excluded from the offer is excluded from this check. The switch is performable
 only if, for every device other than the performer and every account its `<d>.delivers` lists, that same device's
 `<d>.handoff:<provider>` naming that account is stored, and the
-performer re-checks this on the log it reads through `base`. It is **performed** only by a device holding the v2
+performer re-checks this on the log it reads through `base`. It also re-checks there that every account connected
+in the log through `base` (for Simkl, the account of the `set:keys` `simkl` setting at `base`) is either named by a
+stored handoff or is the account its last full reconcile and drain ran against, from that same setting (the same
+stamp). Any other connected account is **undrained**: it is seeded with no receipts and no `seededThrough`, and its
+`set:deliver` row gets `since` = that connection's stamp, so it keeps the additive catch-up of an account connected
+after the switch (§6 No receipt). It is **performed** only by a device holding the v2
 delivery outbox for every connected account it does not see handed off, after a full reconcile and drain since its last install, so it holds nothing but held commands. A drain
 counts for the switch or a handoff only once every catch-up (baseline) command for that account has been sent to it
 or acknowledged by it. A catch-up is the additive command the latest full reconcile derives from a row's current
@@ -682,8 +692,8 @@ final drain read; kept stops are handled below). Before writing a handoff the de
 from the handoff batch on it sends no `stop` for that account, keeping each one it would have sent, and each whose
 batch had not yet succeeded, with its batch under §10's clock and boot-identity rules, the 1-hour and 24-hour
 limits not running while its handoff is stored. On observing the commit it drops them; after a withdrawal
-succeeds it sends each whose batch succeeded less than 24 hours before the send, not counting the time its handoff
-was stored, on §10's clock and under §10's
+succeeds it sends each whose batch succeeded less than 24 hours before the send, the time its handoff was stored
+included, on §10's clock and under §10's
 same-generation, minimum-below-3 read, before its reconcile, and drops the rest (a dropped stop is a
 v2-equivalent failed scrobble; the switch's seeding re-decides a current viewing's rewatch). If that batch is refused as too large (den-edge answers 400 for a value
 over its cap; the device treats a 400 as that only when its own measured row exceeds the cap), the device writes `ratings` as `"all"`, then also `unsettled` as `"all"`, and retries; if it is still
@@ -707,7 +717,8 @@ held as a site edit would be). The device that connects an account of a provider
 connection. A handing-off device attempts its reconnect after observing the commit, retrying a transient failure,
 an unknown outcome or an unrelated compare-and-set conflict, for as long as its own handoff is stored and no other
 connection for that provider is; once its handoff is null it discards its kept tokens. A handoff also carries
-`connectedAt`, the account's connection stamp as the device knew it, and the withdrawal writes it back as the
+`connectedAt`, the account's connection stamp as the device knew it, and the withdrawal — whenever the connected
+account is then the handed-off one, whether it restores the connection or a person reconnected it — writes it back as the
 `set:devices` setting `<d>.connectedAt:<provider>` = `{"string": <JSON {account, stamp}>}`, which §9 reads as that
 account's connection stamp in place of a later `set:keys` stamp, only while it names the connected account id; it
 and every device's `<d>.connectedAt:<provider>` naming that account is written `null` in the batch that disconnects
@@ -820,10 +831,13 @@ disconnected. **After the switch the handing-off device connects the account aga
 connection into `set:trackers` by compare-and-set, after reading the log to its head, from its kept tokens with its
 original connect stamp — the one case a device writes a connection a person did not — but only if `set:trackers`
 holds no non-null connection for that provider, no connection of that account stamped later than
-`disconnectedAt`, no other handoff for that provider has a later `disconnectedAt`, and, for Simkl, the `set:keys`
-`simkl` setting the switch read through `base` is the `null` that handoff wrote (the same stamp). `v3_form` writes
-`null` every Simkl handoff, and its `set:handoff` row, for which it is not, so a person's later v2 disconnect or
-connect is never undone by a reconnect. Every connection write, a
+`disconnectedAt`, and no other handoff for that provider has a later `disconnectedAt` (its handoff still stored in
+the v3 log). For Simkl, `v3_form` checks that the `set:keys` `simkl` setting at `base` is the `null` the handoff
+wrote (the same stamp). When it is not, `v3_form` writes that handoff and its `set:handoff` row `null`, so no device
+reconnects it. If the `set:keys` setting at `base` names the handed-off account, that account is still seeded by
+the handoff (qualification, `p₀`, `since` = the earliest `disconnectedAt`) with the `set:keys` credential; if it
+names another account, that account is seeded as undrained (above) and the handed-off account stays disconnected.
+So a person's later v2 disconnect or connect is never undone by a reconnect. Every connection write, a
 person's included, is a compare-and-set on `set:trackers`; a device that reads two non-null connections for one
 provider uses the later-stamped one and writes the other `null` by compare-and-set, whether or not it holds any
 lease; otherwise, or if it has no tokens (Simkl's was
@@ -874,7 +888,7 @@ client only shows that the switch is offered.
   snapshot makes that safe. A target is **unsettled** if any of its events is, or if any unsent command for it is in
   the outbox, journalled or not. An unsettled target is seeded with the value derived from its earliest unsettled
   event's `before` alone — folded through §8, then read through §5 and §6 — with the title's resets whose `t` is
-  less than that event's `at`; an absent `before` seeds the default (`n`, `out`, `null`). It is never seeded as "no receipt". Every other target is seeded with its current value, except that for an account the performing device
+  less than that event's `at`; an absent `before` seeds the default (`n`, `out`, `null`). It is never seeded as "no receipt", except for an undrained account (§9). Every other target is seeded with its current value, except that for an account the performing device
   holds itself, a `watched` value in p > 0 — current, or as the last full reconcile read it when its viewing is the
   current viewing — whose current viewing has no settled event and whose current viewing's
   play is later than the account's connection stamp (the earliest `set:keys` `simkl` setting stamp the device has
