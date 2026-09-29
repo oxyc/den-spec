@@ -290,7 +290,7 @@ deliver for it; one at a time.
   deleted on one tracker's site, then imported from another source, is re-added there once (v2's catch-up does the
   same).
 - **Seeded accounts.** den-edge numbers a commit's staged rows `base + 1 … base + N` in staging order (a key staged
-  twice takes its last position; the client counts N before staging the `set:deliver` row that carries it). A switch
+  twice takes its last position; N is the number of distinct keys staged, counted by the client before staging the `set:deliver` row that carries it). A switch
   and a re-switch write `seededThrough` = `base + N` into each seeded account's `set:deliver` row with a fresh stamp;
   a compaction stages rows in ascending order of their current seq and writes `seededThrough` = `base` + the number
   of staged rows whose seq was at or below the old `seededThrough`, so no target changes side. Write-back (§10) never
@@ -387,7 +387,8 @@ deliver for it; one at a time.
   epoch sentinel) as `L` = null, never 0.
 - **Rewatch.** `watched` in a `p` greater than a `w` receipt's, with `cleared` viewing below the receipt's `p` and no
   covering reset later than the receipt's floor, is a rewatch. So is a `watched` value, with no receipt and stamped later
-  than `since`, or against an `n` receipt whatever its stamp, whose register has an unhidden `imported` or a visible imported play **and whose current viewing has a
+  than `since`, or against an `n` receipt whatever its stamp, whose register has an unhidden `imported`, or a visible imported play whose watchedAt is earlier than
+  `⌊W / 1000⌋ · 1000` of the current viewing's Den play, **and whose current viewing has a
   Den play** (a non-negative key): its floor is the greatest visible imported play's watchedAt (null if none), and it
   sends only Den plays. A `watched` value derived from `imported` alone, and any value stamped at or before `since`
   with no receipt, is decided by `decide` (with `baseline` when it has no receipt), so any remote watch acknowledges
@@ -395,7 +396,8 @@ deliver for it; one at a time.
   always sends `⌊W / 1000⌋ · 1000` as a play's `watched_at`. On **Trakt**, with `H` read across every page of the
   history endpoint and every play in it taken at second precision (`⌊h / 1000⌋ · 1000`), a rewatch sends **one play
   per visible Den play** whose viewing is in (receipt `p`, current `p`] — against an `n` or `u` receipt, every visible
-  Den play in [receipt `p`, current `p`], and with no receipt in [0, current `p`], in all cases above the `cleared`
+  Den play in [receipt `p`, current `p`], and with no receipt in [0, current `p`] counting only plays whose watchedAt is later than `since` (the
+  viewings before are caught up by `decide` with `baseline`, as §6 Earlier viewings says), in all cases above the `cleared`
   viewing — with the current viewing's watched-at as `W` when it has no play, each acknowledged iff `H` holds a
   play at exactly `⌊S / 1000⌋ · 1000`, `S` being its `sending` entry if one exists for that `p`, else its `W`. On **Simkl** it is one play, acknowledged iff `L` is known, `L ≥ ⌊W / 1000⌋ · 1000` and
   `L` is later than the floor, all at second precision.
@@ -425,7 +427,12 @@ deliver for it; one at a time.
   viewing (with no receipt, only plays whose watchedAt is later than `since`; the viewings before are caught up by
   `decide` with `baseline`, so any remote play acknowledges them), the current viewing with its watched-at as `W` when it has no play, each first written into `sending`
   (§6 Intent) and acknowledged iff `H` holds `⌊S / 1000⌋ · 1000` exactly, with §9's window for a target seeded at the
-  switch; `decide`'s any-watch acknowledgement never applies to it.
+  switch; `decide`'s any-watch acknowledgement never applies to it. With no receipt, the target is decided in two
+  steps: first the viewings whose plays are at or before `since` are caught up alone by `decide` with `baseline` and
+  watched-at = the greatest such play, and settle as `["w", <the greatest such viewing>, <that play>, <value stamp>,
+  <order>]`; the remaining viewings are decided in a later pass as a rewatch against that receipt. When no viewing is
+  at or before `since`, the intent is written into a new default entry `["n", 0, null, [0, 0, ""], <fresh order>,
+  <sending>]`, which selects the same plays.
 - **Remote → Den**: v2's tracker pull, written as imports (§7) — episodes, films, ratings and watchlist — only after
   pulling the log to its head.
 
@@ -452,7 +459,9 @@ Every write is a set-to-value; replaying one changes nothing. `register_write` (
 - **Import** (a tracker's watched list, an import file) of episode `(s, e)`, after pulling the log to its head:
   only if the episode has no unhidden `progress`, is not in progress, and has no covering reset later than the
   import's newest play (with no plays, no covering reset at all). It writes its plays either way (plays are additive and never set watched state), and `imported: true` only under
-  that condition (§3). It writes no `progress`, so it never
+  that condition (§3). A play whose watchedAt, at second precision, equals `⌊W / 1000⌋ · 1000` of a Den play in the
+  same register is not written: it is Den's own delivery reported back. An import writes no series `status` and no
+  `dismissed`; a series' watched state is derived from its episodes. It writes no `progress`, so it never
   outranks or erases a person's progress, even when a concurrent write merges with it; and it never lands over a Den
   un-watch or reset, even with a newer remote watch time. A film import writes `rec.status` watched with
   `[0, <its latest play ms>, ""]` (timeless, so any real status wins) under the title-import rule below; it writes
@@ -562,7 +571,8 @@ playing writes none), and:
   than `headAt − 86 400 000`;
 - a **film**: its row seq is above `head` and its `status` or `resume` stamp is later than the `at` of every
   settled film-watch event of it; or, when `generation` differs, that stamp's `t` is later than `headAt −
-  86 400 000`. So a rating- or list-only edit never qualifies a film, and a file import after `head` does. **Known
+  86 400 000`. A rating- or list-only edit qualifies a film only when no film-watch event of it is settled (the known limit
+  below), and a file import after `head` does. **Known
   limit**: a film watch removed on the tracker's site whose `rec` row changed after `head` is added there again once.
 - a **list** or **rating** target: its value is `in` or a reaction other than `seen`, it has no unsettled event, its
   field stamp is later than the `at` of every settled event of that field, and its `rec` row seq is above `head` (or,
@@ -599,16 +609,17 @@ acknowledges the viewing; a viewing whose final stop failed after an earlier ses
 For such a target, a viewing whose play has watchedAt `W` ≤ the bound is also acknowledged on Simkl when `L` is later
 than both the receipt's floor and `⌊W / 1000⌋ · 1000 − 86 400 000` and at or before the bound, since a v2 Simkl
 scrobble carries Simkl's server time, not `W`; a viewing with `W` above the bound is checked by §6 Rewatch alone.
-The switch records every viewing it seeds while in progress at ≥ 0.8 as a `sending` entry `[p, null]` in that
-account's Trakt entry only. A `null` there only widens the Trakt window (it is treated as `W` = the bound, since
-v2's Trakt stop at 80 % may already hold its play) and is never sent or matched exactly: the intent write before any
+The switch records every viewing it seeds while in progress at ≥ 0.8 as a `sending` entry `[p, null, T]` in that
+account's Trakt entry only, `T` being `⌊t / 1000⌋ · 1000` of that viewing's seeded progress stamp. It only widens the
+Trakt window, to plays later than both the receipt's floor and `T − 86 400 000` and at or before the bound, since
+v2's Trakt stop at 80 % is sent when the player closes, at about `T`; the `null` is never sent or matched exactly: the intent write before any
 send replaces it with `[p, ⌊W / 1000⌋ · 1000]` of the finished viewing, and later checks use that. **Known limit**: when a viewing below
 the current one was finished by playing after `disconnectedAt` and a replay then started before the switch, the
 `w` at p − 1 seed marks it delivered, so an abandoned replay leaves it off that account (as v2). **Known limit**: a film finished by playing that reaches the log after
 `head` with a stamp more than a day older than `headAt` is not delivered to that account, and, when `generation`
 differs, an episode likewise. These qualification and `p₀` rules apply only to a handed-off
 account; when the performing device holds the account itself, its own reconcile head decides (below). Its
-`set:deliver` row gets `since` as above (`disconnectedAt` when no list or rating target qualifies). When the performing device itself has the account connected at
+`set:deliver` row gets `since` as above (`disconnectedAt`). When the performing device itself has the account connected at
 the switch, an event is settled iff it is in the device's own acknowledgements, or it is at or below the handoff's
 `head`, not in its `unsettled`, and the handoff's `generation` equals the switch's. Two handoffs naming different
 accounts of one provider: the one with the later `disconnectedAt` is connected again; the other stays
