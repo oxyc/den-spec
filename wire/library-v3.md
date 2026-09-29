@@ -294,8 +294,7 @@ deliver for it; one at a time.
   and a re-switch write `seededThrough` = `base + N` into each seeded account's `set:deliver` row with a fresh stamp;
   a compaction stages rows in ascending order of their current seq (a folded row takes the greater of its parts'
   seqs, for both the order and the count) and writes `seededThrough` = `base` + the number
-  of staged rows whose seq was at or below the old `seededThrough` (a folded row takes the greater of its parts'
-  seqs), so no target changes side. Write-back (§10) never
+  of staged rows whose seq was at or below the old `seededThrough`, so no target changes side. Write-back (§10) never
   writes it. It merges by the later stamp; a value above the reader's head is ignored. For such an account, a target
   with no receipt whose row has seq above `seededThrough` and whose value stamp is real and not later than `since` is
   pending, not `baseline` (kept or converted work, §10). A list or rating target the switch owes as catch-up carries
@@ -442,10 +441,16 @@ deliver for it; one at a time.
   viewing, acknowledged iff `L` is known, `L ≥ ⌊W / 1000⌋ · 1000` and `L` is later than the receipt's floor (null for
   `n` or no receipt), with §9's Simkl window for a target seeded at the switch; with no receipt, only when some visible
   Den play is later than `since.t` (this gate applies to §6 Rewatch's Simkl branch too; otherwise the catch-up below
-  applies). `decide`'s any-watch acknowledgement never applies to it. On Trakt, against an `n` receipt or none, when
-  the register has a visible imported play earlier than `⌊W / 1000⌋ · 1000` of its least visible Den play, that
-  imported watch is first decided alone by `decide` with `baseline` and watched-at = the greatest such imported play,
-  before any Den play is decided; the Den plays follow in a later pass. When no visible Den play is later than
+  applies). `decide`'s any-watch acknowledgement never applies to it. On Trakt, against an `n` receipt whose watched-at
+  is null, or with no receipt, when the register has a visible imported play earlier than `⌊W / 1000⌋ · 1000` of its
+  least visible Den play, that imported watch is first decided alone by `decide` with `baseline` and watched-at = the
+  greatest such imported play, before any Den play is decided. Sent or acknowledged, it settles as `["n", <the
+  receipt's p, or 0>, <that imported play>, <the receipt's value stamp, or [0, 0, ""]>, <order>]`, keeping any
+  `sending`. On an `n` entry the watched-at only records that this step is done; its floor stays null (§6 Floor). The
+  Den plays follow in a later pass, decided against that entry; for a target that had no receipt they follow the
+  no-receipt rules (the split from `since`, and the catch-up when no visible Den play is later than `since.t`), the
+  entry counting as no receipt except for its settle order, and the split's intent written into this entry. **Known
+  limit**: an imported play later than Den's first play of that episode is not sent to Trakt. When no visible Den play is later than
   `since.t` (never for a target above `seededThrough`, whose plays all count as later), the target is caught up alone
   by `decide` with `baseline` and watched-at (§5), and settles as `w` at the current viewing, on both trackers.
 - **Remote → Den**: v2's tracker pull, written as imports (§7) — episodes, films, ratings and watchlist — only after
@@ -612,7 +617,7 @@ use that latest `disconnectedAt`. **Known limit**: a viewing finished
 offline before `disconnectedAt` that syncs after `head` is taken as delivered, so Trakt may hold one play fewer (v2
 would not have delivered it either). The current viewing is never seeded as delivered: a finish
 on another device, or a failed best-effort scrobble, may never have reached the tracker. For a target seeded
-unsettled at the switch — by a handoff's qualification, from an event's `before`, or from a reconcile read — the
+unsettled at the switch — by a handoff's qualification, from an event's `before`, from a reconcile read, or as `u` by the replay-at-0 exception — the
 Trakt rewatch check of a viewing whose play has watchedAt `W` ≤ the bound (the latest `disconnectedAt.t` for a
 handed-off account, else the performing device's clock at its read of `base`) also acknowledges it by a play in `H`
 later than both the receipt's floor and `⌊W / 1000⌋ · 1000 − 86 400 000`, at or before the bound, and not matched
@@ -622,7 +627,7 @@ window (receipt floor, bound], so no viewing's own scrobble stop is ever credite
 more, which can precede `W`'s write), not `W`. **Known limit**: a Trakt play from outside Den inside that window
 acknowledges the viewing; a viewing whose final stop failed after an earlier session's stop more than a day before
 `W` reached Trakt may be sent again.
-For such a target, a viewing whose play has watchedAt `W` ≤ the bound is also acknowledged on Simkl when `L` is later
+For such a target (the same four seedings), a viewing whose play has watchedAt `W` ≤ the bound is also acknowledged on Simkl when `L` is later
 than both the receipt's floor (the stored receipt's own floor, §6 Floor — null for an `n` entry — never §6 Rewatch's
 imported-play floor) and `⌊W / 1000⌋ · 1000 − 86 400 000` and at or before the bound, since a v2 Simkl
 scrobble carries Simkl's server time, not `W`; a viewing with `W` above the bound is checked by §6 Rewatch alone.
@@ -679,7 +684,7 @@ client only shows that the switch is offered.
   delivered for it and every viewing above the `cleared` one is checked by §6 Against a `u` receipt (with §9's
   window). v2 removed a rating for `seen` only for a TV's own action, never for another device's (`invalid_reaction`
   in `commands`); such changes since v2 are delivered as removals, acknowledged where already absent, and held while
-  the remote rating is newer (**known limit**: Den then shows `seen` against a tracker rating until the person
+  the remote rating is newer or has no rated time, as Simkl's often does (**known limit**: Den then shows `seen` against a tracker rating until the person
   resolves it). v3-ready
   builds record acknowledgement per account and record orphan retirement separately (an orphan-retired push was
   never delivered, so it is unsettled). Where settlement is unknown, the event is unsettled — `decide` against the
