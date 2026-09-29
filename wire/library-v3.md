@@ -281,16 +281,22 @@ deliver for it; one at a time.
   (a change to `none` keeps the receipt), is decided as `baseline` against the snapshot: acknowledged when the remote
   holds it, so the receipt follows an import from that tracker; otherwise sent additively (a watch or list add the
   remote lacks, or a rating where the remote has no entry). A `baseline` rating acknowledged by a remote value that
-  maps (§6 Ratings) to a different reaction settles the receipt as that remote reaction, not the built-from value, so
-  a later change a person makes is pending against what the tracker holds. Against `n`, `out` or `null`, or with no
+  maps (§6 Ratings; imports map with the same thresholds) to a different reaction settles the receipt as that remote
+  reaction (unchanged when the entry has no value), keeping the built-from value's stamp, so a later change a person
+  makes is pending against what the tracker holds; a timeless rating is not pending against a receipt whose value
+  stamp equals its own. Against a `u` receipt a timeless `watched` is decided by §6 Against a `u` receipt, never
+  acknowledged by presence alone. Against `n`, `out` or `null`, or with no
   receipt, it is caught up additively (`baseline`) like any value before `since`. **Known limit**: a watch the person
   deleted on one tracker's site, then imported from another source, is re-added there once (v2's catch-up does the
   same).
-- **Seeded accounts.** The switch writes `seededThrough` (the commit's highest seq) into each seeded account's
-  `set:deliver` row. For such an account, a target with no receipt whose row has seq above `seededThrough`, whose
-  value stamp is real and not later than `since`, and which is not a list or rating target the switch seeded with no
-  receipt, is pending, not `baseline` (kept or converted work, §10). An account without `seededThrough` (connected
-  after the switch) keeps additive catch-up.
+- **Seeded accounts.** den-edge numbers a commit's staged rows `base + 1 … base + N` in staging order; every switch,
+  re-switch and compaction writes `seededThrough` = `base + N` into each seeded account's `set:deliver` row with a
+  fresh stamp (merged by the later stamp; a value above the reader's head is ignored). For such an account, a target
+  with no receipt whose row has seq above `seededThrough` and whose value stamp is real and not later than `since` is
+  pending, not `baseline` (kept or converted work, §10). A list or rating target the switch owes as catch-up carries
+  the explicit entry `["b", <value stamp>, <settle order>]` ("owed as baseline"), decided as `baseline` and replaced
+  by its settle. A deleted title's film-watch and rating targets are seeded with their current values. An account
+  without `seededThrough` (connected after the switch) keeps additive catch-up.
 - **Unverified receipts.** When any device reads, for one account, receipts at the same settle epoch ≥ 2 from two
   different devices, it adds that epoch to the `set:deliver` setting `unverified` (a list of epochs, merged as a
   union), and every entry at a listed epoch is **unverified**. Seed epochs 0 and 1 (§9, §10) are never unverified.
@@ -408,9 +414,11 @@ deliver for it; one at a time.
   → nothing; decided again later. Exception: a `baseline` rating acknowledged by a differently mapped remote rating
   settles as the remote reaction (§6 Timeless values).
 - **Earlier viewings on Trakt.** Against an `n` receipt, or with no receipt and stamped later than `since`, a
-  `watched` value in a `p` above the receipt's (0 with no receipt) sends on Trakt, besides the current viewing decided
-  by `decide`, one play per visible Den play of a viewing in [receipt `p`, current `p`) above the `cleared` viewing,
-  each acknowledged iff `H` holds it exactly.
+  `watched` value in a `p` above the receipt's (0 with no receipt) that §6 Rewatch does not already cover is decided
+  on Trakt as a rewatch: one play per visible Den play of a viewing in [receipt `p`, current `p`] above the `cleared`
+  viewing, the current viewing with its watched-at as `W` when it has no play, each first written into `sending`
+  (§6 Intent) and acknowledged iff `H` holds `⌊S / 1000⌋ · 1000` exactly, with §9's window for a target seeded at the
+  switch; `decide`'s any-watch acknowledgement never applies to it.
 - **Remote → Den**: v2's tracker pull, written as imports (§7) — episodes, films, ratings and watchlist — only after
   pulling the log to its head.
 
@@ -440,7 +448,9 @@ Every write is a set-to-value; replaying one changes nothing. `register_write` (
   outranks or erases a person's progress, even when a concurrent write merges with it; and it never lands over a Den
   un-watch or reset, even with a newer remote watch time. A film import writes `rec.status` watched with
   `[0, <its latest play ms>, ""]` (timeless, so any real status wins) under the title-import rule below; it writes
-  its plays either way (plays are additive).
+  its plays either way (plays are additive). **Known limit**: unlike today's web import, which writes real day stamps,
+  a v3 import neither marks an episode already in progress in Den nor changes a watchlisted film's status; the plays
+  are kept, and a person's Mark watched delivers it.
 - **Title imports** (a tracker's ratings and watchlist) are timeless, so any real stamp beats them (§4); their
   counter `c` orders imports among themselves by the tracker's own time while `t` stays 0. A field is
   **import-owned** when its stamp is timeless; an absent field (or a title with no `rec` row) counts as
@@ -526,9 +536,11 @@ the switch waits. If connected accounts are delivered by different devices, each
 disconnects its accounts first, after draining their outboxes, and writes a **handoff** for each: the setting
 `<d>.handoff:<provider>` in `set:devices` = `{"string": <JSON {account, disconnectedAt, generation, head, headAt,
 readyFrom, unsettled}>}`, where `generation` and `head` are the library generation and log seq its final drain read
-through, `headAt` its own clock (ms) at that read, `readyFrom` the lowest log seq its ready build read, and
-`unsettled` the ids of events in [`readyFrom`, `head`] whose commands it did not deliver (held, superseded,
-orphan-retired, or unsent) — or `"all"` if that list would exceed 2 KiB. The switch counts an event as settled for
+through, `headAt` its own clock (ms) at that read, `readyFrom` the lowest log seq its ready build read (its
+persisted head + 1 when it read none), and `unsettled` the ids of events in [`readyFrom`, `head`] whose commands it
+did not deliver (held, superseded, orphan-retired, or unsent; an event counts as delivered only if it is in the
+device's own per-account acknowledgements — an id-only receipt or completed flag inherited from a pre-ready build
+counts as not delivered) — or `"all"` if that list would exceed 2 KiB. The switch counts an event as settled for
 that account only when `readyFrom` ≤ its seq ≤ `head` and it is not in `unsettled` (every event below `readyFrom`
 is unsettled; the known limit on pre-ready deliveries covers the re-decision; an event whose
 `commands(event, event.after)` is `[]` is never listed); with `"all"`, or when `generation` differs
@@ -538,9 +550,10 @@ playing writes none), and:
 (`"all"` only makes every event unsettled; `head` stays valid in the same generation.)
 - an **episode**: its row seq is above `head`; or, when `generation` differs, its `progress` stamp `t` is later
   than `headAt − 86 400 000`;
-- a **film**: its `status` or `resume` stamp `t` is later than `headAt − 86 400 000` and later than the `at` of
-  every settled film-watch event of it, with a row seq above `head` also required unless `generation` differs. So a rating- or list-only edit never qualifies a film, and a watch removed on the
-  tracker's site is not pushed again.
+- a **film**: its row seq is above `head` and its `status` or `resume` stamp is later than the `at` of every
+  settled film-watch event of it; or, when `generation` differs, that stamp's `t` is later than `headAt −
+  86 400 000`. So a rating- or list-only edit never qualifies a film, and a file import after `head` does. **Known
+  limit**: a film watch removed on the tracker's site whose `rec` row changed after `head` is added there again once.
 - a **list** or **rating** target: its value is `in` or a reaction other than `seen`, it has no unsettled event, its
   field stamp is later than the `at` of every settled event of that field, and its `rec` row seq is above `head` (or,
   when `generation` differs, its field stamp `t` is later than `headAt − 86 400 000`). Such a target is seeded with
@@ -575,8 +588,11 @@ window (receipt floor, bound], so no viewing's own scrobble stop is ever credite
 more, which can precede `W`'s write), not `W`. **Known limit**: a Trakt play from outside Den inside that window
 acknowledges the viewing; a viewing whose final stop failed after an earlier session's stop more than a day before
 `W` reached Trakt may be sent again.
-For such a target Simkl's check acknowledges with `L` later than both the receipt's floor and `⌊W / 1000⌋ · 1000 −
-86 400 000`, since a v2 Simkl scrobble carries Simkl's server time, not `W`. **Known limit**: when a viewing below
+For such a target, a viewing whose play has watchedAt `W` ≤ the bound is also acknowledged on Simkl when `L` is later
+than both the receipt's floor and `⌊W / 1000⌋ · 1000 − 86 400 000` and at or before the bound, since a v2 Simkl
+scrobble carries Simkl's server time, not `W`; a viewing with `W` above the bound is checked by §6 Rewatch alone.
+The switch records every viewing it seeds while in progress at ≥ 0.8 as a `sending` entry `[p, null]`, and the
+Trakt window treats such a viewing as `W` = the bound, since v2's Trakt stop at 80 % may already hold its play. **Known limit**: when a viewing below
 the current one was finished by playing after `disconnectedAt` and a replay then started before the switch, the
 `w` at p − 1 seed marks it delivered, so an abandoned replay leaves it off that account (as v2). **Known limit**: a film finished by playing that reaches the log after
 `head` with a stamp more than a day older than `headAt` is not delivered to that account, and, when `generation`
