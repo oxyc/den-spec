@@ -640,8 +640,8 @@ in `set:devices`, listing each account it delivers for in v2 form; a handoff and
 same batch. A ready build delivers nothing for an account until a batch listing it in `<d>.delivers` has
 succeeded, and nothing (kept stops included) while its latest batch was refused as `rewrite_in_progress`, until a
 later batch succeeds or a read shows the same generation with minimum below 3. It rewrites `<d>.delivers` in the
-batch that connects or disconnects an account and, for Simkl, in its first batch after it reads `set:keys` `simkl`
-as `null` (its own handoff's null excepted); the offering client names every device whose listing blocks the
+batch that connects or disconnects an account and, for Simkl, in a batch it writes as soon as it reads `set:keys`
+`simkl` as `null` (its own handoff's null excepted); the offering client names every device whose listing blocks the
 switch. A ready build whose own
 handoff for an account is stored does not deliver for it, whatever `set:keys` holds, and resumes only through its
 own withdrawal. A device with no v2 delivery path (the web) lists none; removing a device writes its `delivers`
@@ -675,15 +675,17 @@ read). Before writing a handoff the device sends every kept `stop` for that acco
 from the handoff batch on it sends no `stop` for that account, keeping each one it would have sent, and each whose
 batch had not yet succeeded, with its batch under §10's clock and boot-identity rules, the 1-hour and 24-hour
 limits not running while its handoff is stored. On observing the commit it drops them; after a withdrawal
-succeeds it sends each whose batch has succeeded, under §10's same-generation, minimum-below-3 read, before its
-reconcile. If that batch is refused as too large (den-edge answers 400 for a value
+succeeds it sends each whose batch succeeded less than 24 hours before the send, on §10's clock and under §10's
+same-generation, minimum-below-3 read, before its reconcile, and drops the rest (a dropped stop is a
+v2-equivalent failed scrobble; the switch's seeding re-decides a current viewing's rewatch). If that batch is refused as too large (den-edge answers 400 for a value
 over its cap; the device treats a 400 as that only when its own measured row exceeds the cap), the device writes `ratings` as `"all"`, then also `unsettled` as `"all"`, and retries; if it is still
 refused, the account stays connected, no handoff is written, and the offering client shows why the switch waits.
 Both fallbacks only widen re-decision: with `unsettled` `"all"`, the known limit on pre-ready deliveries applies to
 every delivery of that account; with `ratings` `"all"`, see below. A row is measured as den-edge measures it (the
 base64 sealed value as sent); the 2 KiB `unsettled` threshold is measured on its UTF-8 JSON. A handoff is the setting
 `<d>.handoff:<provider>` in `set:devices` = `{"string": <JSON {account, disconnectedAt, generation, head, headAt,
-readyFrom, unsettled}>}`, with `ratings` written in the same batch to its own row
+readyFrom, unsettled, connectedAt}>}` (`v3_form` writes `null` every handoff and `set:handoff` row naming an account
+it seeds as connected), with `ratings` written in the same batch to its own row
 `set:handoff:<provider>:<account id>` (setting `ratings`, `"all"` only when that row would exceed den-edge's cap)
 as `{<rec row name>: <remote rating>}` (the logical name, e.g. `rec:movie:550`, never the keyed one, so it
 survives a key reset) for every rating target of
@@ -695,17 +697,24 @@ held as a site edit would be). The device that connects an account of a provider
 connection. A handing-off device attempts its reconnect after observing the commit, retrying a transient failure,
 an unknown outcome or an unrelated compare-and-set conflict, for as long as its own handoff is stored and no other
 connection for that provider is; once its handoff is null it discards its kept tokens. A handoff also carries
-`connectedAt`, the account's connection stamp as the device knew it, and the withdrawal writes it back as
-`<d>.connectedAt:<provider>`, which §9 reads as that account's connection stamp in place of a later `set:keys`
-stamp. A
+`connectedAt`, the account's connection stamp as the device knew it, and the withdrawal writes it back as the
+`set:devices` setting `<d>.connectedAt:<provider>` = `{"string": <JSON {account, stamp}>}`, which §9 reads as that
+account's connection stamp in place of a later `set:keys` stamp, only while it names the connected account id; it
+is written `null` in the batch that disconnects that provider, and a Trakt local reconnect by withdrawal keeps its
+earlier local connect stamp. The 24-hour withdrawal timer below runs on §6 Holding's sleep-counting clock and
+restarts on a boot-identity change. A
 handing-off device that has not observed a commit (a generation change with minimum 3) within 24 hours of its
 handoff, and whose last batch was not refused as `rewrite_in_progress` within the last 5 minutes, **withdraws** it:
 in one batch it writes its handoff and `set:handoff` row `null`, and — only if the connection is still the `null`
 its handoff wrote (for Simkl, `set:keys` `simkl` with that same stamp) — restores its connection in v2 form with a
 **fresh** stamp later than that `null` (Simkl: `set:keys` `simkl` = its kept token; the account's connection stamp
 in §9 stays the earliest `set:keys` `simkl` stamp the device has seen for that account id) and lists the account
-again in `<d>.delivers`; if a person reconnected meanwhile (for Trakt: another device's `<d>.delivers` lists a
-`trakt:` account), it lists nothing for that provider and discards its kept token. Only after that batch succeeds does it reconnect locally (Trakt) and
+again in `<d>.delivers`; if a person connected that provider meanwhile — on any device, this one included (Simkl:
+`set:keys` `simkl` is not the `null` its handoff wrote; Trakt: this device holds a local Trakt connection made
+after its handoff, or another device's `<d>.delivers` lists a `trakt:` account, in which case it gives up its own
+Trakt delivery) — it lists that person's connection if it is its own, never the handed-off account, and discards
+its kept token. A person's connect of the handed-off provider on the handing-off device is written as its
+withdrawal: the same batch writes its handoff and `set:handoff` row `null`. Only after that batch succeeds does it reconnect locally (Trakt) and
 resume delivery; before delivering anything else for that account it runs a full reconcile and treats every event
 with seq in (`head`, its read head] as owed to that account, whatever account the event recorded, deciding each
 against the account's snapshot; events at or below `head` keep their recorded settlement. A withdrawal is dropped
@@ -970,7 +979,13 @@ any stray `ep` or `tracker-event` row folded through §8.
   form only** (a ready build on a library it has only seen below 3 writes back in v2 form, v2 §2), including **every receipt it holds**,
   intents (`sending`) included (merged per key by settle order, §6), never a `lease`. It converts any `ep` rows, v1 events and kept unsent work it
   holds (including a v2 build's kept journal, once that device updates) through §8 into registers first. Its
-  converted changes are pending targets (§6).
+  converted changes are pending targets (§6). Write-back converts a kept tracker-credential change made in v2 form,
+  never writing it to `set:keys`: a kept `set:keys` `simkl` value becomes the Simkl connection in `set:trackers`
+  (non-null: `simkl:<account id>` with the kept write's stamp; null: `null` over the connection the log holds,
+  stamped with the kept write's stamp when that is later than the connection's, else a fresh stamp later than it). A
+  Trakt connect or disconnect a device made locally while its batch was refused, or after the performing device read
+  its tokens for staging, is written to `set:trackers` the same way. All are compare-and-set, and a kept change is
+  never written over a connection stamped later than it.
 - **No v2 rows in a v3 library.** A v3 client uploads no `ep` or `tracker-event` row on any path — write-back,
   imports, linking a local library, recovery. A v3 reader that finds one folds it through §8 into registers and
   writes those back before any compaction drops it.
