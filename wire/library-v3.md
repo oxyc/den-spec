@@ -751,8 +751,8 @@ held as a site edit would be). The device that connects an account of a provider
 `<d>.handoff:<provider>` of that provider, and their `set:handoff` rows, `null` in the same batch as the
 connection. A handing-off device attempts its reconnect after observing the commit, retrying a transient failure,
 an unknown outcome or an unrelated compare-and-set conflict, for as long as its own handoff is stored and no other
-connection for that provider is; once its handoff is null in a log it read after observing the commit it discards
-its kept tokens. A handoff also carries
+connection for that provider is; it discards its kept tokens only as §10 says (once the account is reconnected or
+superseded). A handoff also carries
 `connectedAt`, the account's connection stamp as the device knew it, and the withdrawal — whenever the connected
 account is then the handed-off one, whether it restores the connection or a person reconnected it — writes it back as the
 `set:devices` setting `<d>.connectedAt:<provider>` = `{"string": <JSON {account, stamp}>}`, which §9 reads as that
@@ -908,11 +908,20 @@ of that provider connected
 after the switch that has no `set:deliver` row adopts them: its connect batch writes, by compare-and-set, a claim in
 the `~next` row and the account's `set:deliver` row with `since` = the connection's stamp, `receiptsFrom` = `~next`
 and `lease` = `["", <the ~next row's lease epoch>]`. **Claims** are one setting per account, `adoptedBy:<account
-id>` = `{"string": <JSON {connectedAt}>}` (the connection's `connectedAt`), merged as a union and never removed. A
-claim is **live** when `set:trackers` holds that account's connection with that `connectedAt`, or a `null` for it
-stamped later than the claim (a disconnected adopter keeps what it adopted); a claim whose connect never landed is
-not live. The **adopter** is the earliest-stamped live claim; every rule that reads "no `adoptedBy`" means no live
-claim. A reader merges `~next`'s entries into that account's receipts by settle order only while that account is
+id>` = `{"string": <JSON {connectedAt}>}` (the connection's `connectedAt`, which a retried connection keeps), merged
+as a union and never removed. A claim is **live** when `set:trackers` (as the log holds it) has that account's
+connection with that `connectedAt`, or holds a `null` for that account stamped later than that `connectedAt` while
+the account's `set:deliver` row or any of its receipts carries an epoch greater than the `~next` row's lease epoch
+(a lease was taken for it, so it may have delivered); a claim whose connect never landed is not live. The
+**adopter** is, among live claims, the one with the earliest `connectedAt` (ties by JCS) whose account a lease was
+taken for, or, when there is none, the one with the earliest `connectedAt`; so at most one live claim with a lease
+exists and it never changes. Every rule that reads "no `adoptedBy`" means no live claim. A connect batch decides "no
+live claim" on the log before its own batch applies. An applied claim is completed, never re-evaluated away: while
+an account is the adopter and its `set:deliver` row lacks `receiptsFrom` = `~next` (a claim that landed without it,
+or a row created or restored without it), the device that wrote the claim, and otherwise that account's lease
+holder before any pass that settles a target with no receipt, writes `receiptsFrom` = `~next` into that row by
+compare-and-set, creating the row with `since` = the connection's stamp and `lease` = `["", <the ~next row's lease
+epoch>]` when it is absent (a `~next` row with no `lease` counts as epoch 1). A reader merges `~next`'s entries into that account's receipts by settle order only while that account is
 the adopter and its `set:deliver` row holds `receiptsFrom` = `~next`,
 and a take, the stop rules and `unverified` read the merged receipts
 as that account's; the lease holder settles them under the account's own key, and a compaction may drop a `~next`
@@ -924,9 +933,8 @@ catch-up. **Known limits**: a removal, un-watch or rating change another device 
 no account of that provider was connected reaches the next account only as additive catch-up; and when a person
 connects two accounts at once, the one that adopts may be displaced by the other, which then gets only catch-up
 (v2 binds at append and at drain time and is equally racy); a push bound to an earlier identity whose same token
-later returns is delivered by v2 but is not kept here; and an account that adopts and is disconnected before any lease pass
-keeps them, where v2 would bind them to the account connected after it; two concurrent connects whose adoption
-moves to the earlier-stamped claim can each deliver them once (v2 delivers to one); and a removal, un-watch
+later returns is delivered by v2 but is not kept here; two concurrent connects whose adoption
+both reach a pass before either lease is visible can each deliver them once (v2 delivers to one); and a removal, un-watch
 or rating change made after the switch while no account of that provider is connected reaches the next account
 only as additive catch-up (v2 delivers it). The lease holder of a connected account that reads a `~next` row of its
 provider with no live claim, while that account's `set:deliver` row has no `receiptsFrom`, adopts it by
@@ -1082,24 +1090,34 @@ any stray `ep` or `tracker-event` row folded through §8.
 - **Batches are not atomic.** den-edge applies a batch row by row: each write whose `base` matches is applied and
   the rest come back as conflicts. "In the same batch" in this spec means sent together, never atomic; a write that
   conflicts is re-derived from the fresh read and sent again until the batch's intent is applied or no longer holds.
-  A conditional write (a withdrawal's restore, an adoption) is re-evaluated, and a `lease` or receipt write follows
-  its own conflict rule (§6). A handing-off device writes its `set:handoff:<provider>:<account id>:<d>` row
-  (`ratings`, `held`, and the handoff's `headAt`) first, and the `<d>.handoff:<provider>` setting and its disconnect
-  only once that write is applied; every reader — the offer, the performer, `v3_form` and the handing-off device
+  A conditional write (a withdrawal's restore, an adoption) is re-evaluated, except that an adoption whose claim was
+  applied is completed (§9), and a `lease` or receipt write follows its own conflict rule (§6). Every setting a batch
+  writes to one row goes in a single write (den-edge refuses a duplicate key), and a phase whose outcome is unknown
+  is re-read before the next phase is sent. A handing-off device persists the handoff before its first write and
+  resumes it after a restart. It writes its `set:handoff:<provider>:<account id>:<d>` row (`ratings`, `held`,
+  `headAt`) first; then the `<d>.handoff:<provider>` setting, with `<d>.delivers` and the `connectedAt` nulls, once
+  that is applied; and its `set:keys` null (Simkl) only once that is applied (the partial state — handoff stored,
+  `set:keys` still the account — is one `v3_form` already seeds through the handoff); every reader — the offer, the performer, `v3_form` and the handing-off device
   itself — treats a handoff whose row does not carry its `headAt` as not stored. A withdrawal writes its
   `set:devices` settings (its handoff `null`, `<d>.delivers` listing the account, `<d>.connectedAt:<provider>`)
   first, and its `set:handoff` row `null` and the `set:keys` restore only once that write is applied, so every
   partial state is a device listing the account with no handoff, which the performer refuses. A device persists a
   withdrawal before its first write and resumes it after a restart until its restore is applied or no longer holds;
   a device that reads its own `<d>.delivers` listing an account whose connection is still the `null` its own handoff
-  wrote, with no stored handoff of its own, completes that withdrawal's restore; and a device discards its kept
-  tokens only once its handoff is `null` in a log it read after observing a commit. A remover writes the removed
+  wrote, with no stored handoff of its own and no handoff of its own in progress, completes that withdrawal's
+  restore; a withdrawing device resumes delivery only once its restore is applied. A handoff reconnect writes its
+  connection first and the handoff nulls only once it is applied, and a device discards its kept tokens only once
+  `set:trackers` holds its reconnection, another non-null connection of that provider, or a connection of that
+  account stamped later than `disconnectedAt`. A remover writes the removed
   device's `set:devices` settings first, and its `set:handoff` rows `null` only once that write is applied. An
   adoption (§9 Kept for the next account) whose connection write conflicts is retried with it; whether a claim is
-  live is defined there. A batch den-edge refuses as a whole (400 `invalid_batch`, 413 `library_full`) applies
-  nothing; a row refused as too large is resent in a batch of its own, never together with other writes. Nulls
-  `v3_form` writes carry a fresh stamp later than every stamp read through `base`, so a later write-back of a held
-  setting cannot bring one back.
+  live is defined there. A batch den-edge refuses as a whole (any 4xx or 5xx: `invalid_batch` — including more than
+  200 writes or a duplicate key — `bad_request`, `payload_too_large`, `library_full`, `forbidden`,
+  `new_libraries_closed`, `library_moved`, `rate_limited`, or a 500) applies nothing and is retried by its own rule.
+  den-edge never refuses a single row; a row the client measures as over the cap is sent in a batch of its own,
+  never together with other writes. Nulls `v3_form` writes carry a fresh stamp later than every stamp read through
+  `base` that is not more than a day ahead of the performer's clock (v2 §4), so a later write-back of a held setting
+  cannot bring one back.
 
 - **Headers.** Every request from a v3-capable client to `/lib/{id}/…` carries `x-den-wire: 3` and
   `x-den-generation` (also before the switch; `0` when creating a library). Every `/lib` response carries
@@ -1191,7 +1209,7 @@ any stray `ep` or `tracker-event` row folded through §8.
   no `set:deliver` row creates it with `since` = the connection's stamp; when a `~next` row of that provider has no
   live claim in the log nor among the claims the device holds, the same batch adopts it exactly as §9 Kept for the
   next account's connect batch does. Write-back also writes back every claim and `receiptsFrom` setting the device
-  holds (claims merge as a union, so this never displaces the adopter).
+  holds (liveness judged against the log's `set:trackers`, §9).
 - **No v2 rows in a v3 library.** A v3 client uploads no `ep` or `tracker-event` row on any path — write-back,
   imports, linking a local library, recovery. A v3 reader that finds one folds it through §8 into registers and
   writes those back before any compaction drops it.
