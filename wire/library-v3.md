@@ -381,9 +381,12 @@ deliver for it; one at a time.
   `p`, and the rewatch rule checks that `W` only then; entries for any other `p` are ignored. The settle that clears it carries a later settle order, and its
   `base` is the seq its own intent write produced. So a watched-at lowered by a merge between send and resend cannot
   add a second play, and a later viewing is never acknowledged by an earlier one's intent. A first watch needs no
-  intent: `decide` acknowledges any remote watch. An intent write replaces only the elements whose `p` ≥ 0; every
-  `[-1, …]` element (an imported play Den sent, §6 Earlier viewings) is kept by every later intent write and by every
-  settle of that target, a `w` or `u` settle included.
+  intent: `decide` acknowledges any remote watch. `sending` holds three kinds of element: `[p, W]` (an intent,
+  `p` ≥ 0, `W` non-null), `[-1, I]` (an imported play Den sent, §6 Earlier viewings) and `[p, null, T]` (a viewing
+  the switch seeded at ≥ 0.8, §9). An intent write replaces only the `[p, W]` elements; every `[-1, …]` element is
+  kept by every later intent write and every settle of that target, a `w` or `u` settle included, and every
+  `[p, null, T]` element by every intent write and every settle except a `w` settle at or above that `p`. `S` for a
+  viewing is the `W` of its `[p, W]` element.
 - **Ratings** are acknowledged when the remote's rating maps to the same reaction (≤ 4 dislike, 5–7 like,
   ≥ 8 love), so a person's tracker rating is never overwritten by its Den equivalent. A known remote time is always
   passed to `decide` as is. A rating receipt entry carries an optional fourth element, the remote rating (1–10) that
@@ -393,6 +396,9 @@ deliver for it; one at a time.
   there is none, the rating Den sends for the receipt's reaction (10, 7 or 2) — the tracker still holds exactly what
   Den last settled — `decide` gets its `at` as 1, so a pending change goes through; any other remote rating whose
   time is unknown is held as `remote_order_unknown_or_newer` (a same-bucket site edit, 6 against 7, is detected).
+  The fourth element is not part of the value: it never makes a target pending and plays no part in a regression. A
+  settle by Send writes none; a re-settle by acknowledgement (an unverified one included) rewrites it from that
+  pass's remote value.
   **Known limit**: a person's Den rating change against a tracker rating edited on its site with no time is held
   until the person resolves it; Den never overwrites a site edit it cannot order.
 - den-core `decide` sends, acknowledges, supersedes or holds each command against the tracker's snapshot with every
@@ -505,9 +511,11 @@ Every write is a set-to-value; replaying one changes nothing. `register_write` (
 - **Rewatch**: progress in current viewing + 1, as v2; earlier plays stay.
 - **Season reset**: block 0's `seasonReset` = a fresh stamp. **Series reset**: `rec.episodesReset` (v2).
 - **Import** (a tracker's watched list, an import file) of episode `(s, e)`, after pulling the log to its head:
-  only if the episode has no unhidden `progress`, is not in progress, and has no covering reset later than the
-  import's newest play (with no plays, no covering reset at all; a play known only to the day, as a file import's
-  is, counts as the end of its day in this comparison, so a same-day reset does not hide a later viewing). It writes its plays either way (plays are additive and never set watched state), and `imported: true` only under
+  only if the episode has no unhidden `progress`, is not in progress, and has no covering reset at or later than
+  the import's newest play (with no plays, no covering reset at all), the same comparison §5 uses to hide it, so an
+  import never writes an `imported` that is hidden on arrival. **Known limit**: a play known only to the day, as a
+  file import's is, is hidden by a reset later on that same day, so a viewing after a same-day reset reads unwatched
+  until marked. It writes its plays either way (plays are additive and never set watched state), and `imported: true` only under
   that condition (§3). A play whose watchedAt, at second precision, equals `⌊W / 1000⌋ · 1000` of a Den play in the
   same register is not written: it is Den's own delivery reported back. A writer skips a play write whose kept selection is unchanged. An import writes no series `status` and no
   `dismissed`; a series' watched state is derived from its episodes (**known limit**: today's web
@@ -731,7 +739,12 @@ client only shows that the switch is offered.
   snapshot makes that safe. A target is **unsettled** if any of its events is, or if any unsent command for it is in
   the outbox, journalled or not. An unsettled target is seeded with the value derived from its earliest unsettled
   event's `before` alone — folded through §8, then read through §5 and §6 — with the title's resets whose `t` is
-  less than that event's `at`; an absent `before` seeds the default (`n`, `out`, `null`). It is never seeded as "no receipt". Every other target is seeded with its current value. A value of class `n` (a
+  less than that event's `at`; an absent `before` seeds the default (`n`, `out`, `null`). It is never seeded as "no receipt". Every other target is seeded with its current value, except that for an account the performing device
+  holds itself, a `watched` value in p > 0 whose current viewing has no settled event is seeded by the
+  qualifying-target shapes below (bound: the performing device's clock at its read of `base`), so a rewatch whose
+  best-effort scrobble failed, or that was finished where nothing delivers, is decided by §6 Rewatch with the
+  windows, and a scrobble that did land acknowledges it; and the performing device sends every kept `stop` whose
+  batch has succeeded before it opens the rewrite. A value of class `n` (a
   film's `none`) in viewing p > 0 — current, or derived from a `before` — is instead seeded by the qualifying-target
   shapes of the handoff paragraph: `w` at p₀ when a lower viewing has a visible Den play (bound: `disconnectedAt.t`
   for a handed-off account, else the performing device's clock at its read of `base`); else `u` at p when `cleared`
@@ -843,7 +856,8 @@ The rules live in den-sync so both clients share them:
 - `pending_targets`: state + receipts + `since` → commands (§6); `decide` gains the `rewatch` input with the
   remote's play times, the un-watch-then-re-mark order and the `removals` latch, and acknowledges a `baseline` rating by any remote
   rating entry, valued or not (today it needs a value; a ready build needs this den-core change), and acknowledges a
-  rating whose remote value maps to the same reaction (§6); `settle`: outcome + built-from value
+  rating whose remote value maps to the same reaction (§6), and takes a rating's remote time as 1 when it is unknown
+  and equals the entry's acknowledged value (§6 Ratings); `settle`: outcome + built-from value
   → the receipt, or nothing; `lease`: row + observation + clocks → take, renew, send, wait, stop or release.
 - `v2_reading`: v2 rows → §8's state; `v3_form`: every row through `base` + settlement state → the switch's rows
   (§9); `write_back`: held state + new log → the v3 rows to write after a generation change (§10).
