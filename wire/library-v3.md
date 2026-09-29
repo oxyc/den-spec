@@ -213,7 +213,7 @@ deliver for it; one at a time.
     unchanged for 10 minutes, measured with the **lesser** of its clocks, or when the row names no device. After a
     generation change, or when the device holds no earlier generation for this library (a fresh browser, cleared
     storage, a new install), it takes only after 10 minutes of observation under the current generation, whatever
-    the row names.
+    the row names; the performing device's own commit counts as a generation change.
   - `removals`: absent, `"held"`, or `{"approved": <stamp>}`. It becomes `"held"` when more than 20 list removals are
     pending for the account, or more than 20 were sent in 120 s, counting only removals whose value stamp is later
     than any `approved`. While held, those removals are not sent. A person approves on a device after seeing the
@@ -408,9 +408,11 @@ deliver for it; one at a time.
   time. A seed-epoch re-read records the remote value even when it equals the rating Den sends. When the receipt's value stamp is timeless (Den sent it with no
   `rated_at`), a remote rating whose value equals the entry's fourth element or, with none, the rating Den sends
   for its reaction, is passed with `at` 1 whatever its time. A rating entry settled at seed epoch 0 or 1 with no
-  fourth element is re-read at the first pass of each lease holder that decides it: a remote rating that maps to
-  the entry's reaction is recorded as its fourth element, by a re-settle under the holder's epoch with the value
-  unchanged, before any command for it is decided.
+  fourth element, whose target is not pending, is re-read at the first pass of each lease holder: a remote rating
+  that maps to the entry's reaction is recorded as its fourth element, by a re-settle under the holder's epoch with
+  the value unchanged. A pending target is never re-read; its remote rating is compared with the rating Den sends
+  for the entry's reaction (the known limit below applies). An owed-as-baseline `["b", …]` entry is not re-read;
+  its settle records the value.
   **Known limit**: a person's Den rating change against a tracker rating edited on its site with no time is held
   until the person resolves it; Den never overwrites a site edit it cannot order.
 - den-core `decide` sends, acknowledges, supersedes or holds each command against the tracker's snapshot with every
@@ -528,11 +530,13 @@ Every write is a set-to-value; replaying one changes nothing. `register_write` (
   import never writes an `imported` a covering reset hides on arrival. A play known only to the day, as a file
   import's is, is written as the start of that day in UTC (whole seconds), so the same viewing imported from any
   device gets one key and never outranks a person's reset made later that day. A day-only play is not written when
-  the register holds a play of either kind whose watchedAt lies in [D − 14 h, D + 38 h), D being 00:00 UTC of its
-  date: that viewing is already recorded (a v2 import wrote it at local noon, §8). The reset comparison above uses
+  the register holds a play whose watchedAt lies in [D − 2 h, D + 24 h] and is a whole multiple of 900 000 ms, D
+  being 00:00 UTC of its date: that is local noon of date D in some zone, as a v2 import wrote it (§8), so that
+  viewing is already recorded; a genuine viewing on a neighbouring day is still written. The reset comparison above uses
   the play as written (whole seconds). A play a tracker reports is not written when it matches one-to-one a Den play
   `W` ≤ that account's `seedBound` within (⌊W⌋, ⌊W⌋ + 86 400 000], by §9's one-play-per-viewing matching: it is a
-  v2 scrobble of that viewing, recorded at the tracker's server time. **Known limit**: a reset later
+  v2 scrobble of that viewing, recorded at the tracker's server time (**known limit**: a tracker play from outside
+  Den within a day after such a Den play is taken as its v2 scrobble and not written). **Known limit**: a reset later
   than 00:00 UTC of the play's date hides it (for a person west of UTC that includes a late-evening reset on the
   previous local day), so such a viewing reads unwatched until marked. It writes its plays either way (plays are additive and never set watched state), and `imported: true` only under
   that condition (§3). A play whose watchedAt, at second precision, equals `⌊W / 1000⌋ · 1000` of a Den play in the
@@ -858,18 +862,23 @@ any stray `ep` or `tracker-event` row folded through §8.
 - **Ready builds and `stop`.** A ready build keeps a scrobble `stop` at ≥ 80 % durably with the batch carrying that
   viewing's progress ≥ 0.8, and sends it once that batch succeeds under the generation it was built for, as one
   request with a total timeout of 60 s that is never retried, and only if a read of the library completed less than
-  60 s before the send shows that same generation and a wire minimum below 3. Since a device takes a lease only after
+  60 s before the send shows that same generation and a wire minimum below 3, both measured on the clock §6 Holding
+  names (one that counts sleep; in a browser the greater of the elapsed `performance.now` and `Date.now`, a backwards
+  `Date.now` counting as expired); the 1-hour and 24-hour limits use the same clock. Since a device takes a lease only after
   10 minutes of observation following a generation change (§6 Taking), every such stop lands before any v3 delivery.
   A stop whose request fails, or that the device has not sent within 1 hour of the batch's success, or whose batch
   has not succeeded within 24 hours, is dropped (and `pause` sent if the player is still open). `rewrite_in_progress` and transient failures of the batch keep it waiting (so an
-  aborted switch still delivers it); it is dropped when that batch is refused with `generation_changed` or `426`. So
+  aborted switch still delivers it); it is dropped on `426`, or on `generation_changed` when a read then shows a wire
+  minimum of 3; after a `generation_changed` that leaves the minimum below 3 (a restore before any switch) it is
+  kept and sent once the written-back batch succeeds under the new generation. So
   any ready build's stop lands within an hour of a batch at or below `base`, inside the window end. The first switch's `seedBound` is the greater of the
   performing device's clock at its read of `base` and the greatest play watchedAt in the log through `base` that is
   not more than a day ahead of that clock, so a batch from a clock running ahead is still inside the window.
 - **Known limit (§7 imports):** a playback write from a device that has not yet seen an import merges as progress
   plus `imported`, so the episode reads in progress, not watched, until it is finished. Clients still converge.
-- **After a switch or a restore** (a changed generation), every client forgets its head and bases, reads from 0, and
-  writes back what it holds that the new log lacks — **in v3 form only**, including **every receipt it holds**,
+- **After a switch or a restore** (a changed generation) on a library whose wire minimum is, or was seen at, 3, every
+  client forgets its head and bases, reads from 0, and writes back what it holds that the new log lacks — **in v3
+  form only** (a ready build on a library it has only seen below 3 writes back in v2 form, v2 §2), including **every receipt it holds**,
   intents (`sending`) included (merged per key by settle order, §6), never a `lease`. It converts any `ep` rows, v1 events and kept unsent work it
   holds (including a v2 build's kept journal, once that device updates) through §8 into registers first. Its
   converted changes are pending targets (§6).
@@ -949,7 +958,10 @@ The rules live in den-sync so both clients share them:
   `rated_at` not holding a later Den change; a fresh browser waiting 10 minutes before taking the seeded lease; a
   rewatch in progress at the last full reconcile, finished with a failed scrobble before the switch, delivered after
   it, and the same with the reconcile reading the finished viewing and a later write in it; a v2 Netflix row
-  re-imported after the switch writing no play; a pulled-back v2 Simkl scrobble writing no play.
+  re-imported after the switch writing no play; a pulled-back v2 Simkl scrobble writing no play; a pending
+  seed-epoch Trakt rating with a timeless receipt and a newer same-bucket site edit held, not sent; consecutive-day
+  imports written in either order both keeping their plays; a Trakt stop at 80–95 % before `W`, written as a play,
+  still acknowledging its viewing.
 - Delivery: pending by value (an older-stamped winner on viewing); a reset delivering an un-watch for real and for
   imported episodes, settling without oscillating; a series watchlist add; commands built from values with `at` and
   `watched_at`; each `decide` outcome's receipt (sent then changed → built-from value); no receipt → additive unless
