@@ -302,8 +302,8 @@ deliver for it; one at a time.
   watchedAt through `base` not more than a day ahead of it (§10 Ready builds and `stop`). A re-switch (§10) keeps the
   `seedBound` of the `set:deliver` versions it merges and writes one only for an account that has none and that the
   restored log shows connected in v2 form (its credential in `set:keys`, or a handoff) or, for Trakt, that the
-  performing device held connected with a local connect stamp earlier than the restored log's greatest stamp, as its own
-  clock at its read of `base`; two values merge to the **lesser**, so a re-switch never widens the windows onto
+  performing device held connected with a local connect stamp earlier than the restored log's greatest stamp, by the
+  same formula as the first switch; two values merge to the **lesser**, so a re-switch never widens the windows onto
   viewings finished by v3 clients, which send no stop. Every device reads the §9 switch windows from it. For such an account, a target
   with no receipt whose row has seq above `seededThrough` and whose value stamp is real and not later than `since` is
   pending, not `baseline` (kept or converted work, §10). A list or rating target the switch owes as catch-up carries
@@ -356,10 +356,11 @@ deliver for it; one at a time.
     unknown fields and invalid keys follow the `wat` rule (§3, 1 KiB).
   - Names use the account id, not a key-derived hash, so a key reset or linking copies receipts intact (they are
     rewritten under the new key's row names like every row).
-- **Size**: a worst-case episode entry is ~160 bytes, so a full block's receipt row is under 6 KiB; ~0.13 KiB
-  charged per episode per account typically. A worst-case title entry is ~175 bytes, so a title shard fits ~140
-  entries (~46 titles) under the value cap; at den-edge's 50 000-row limit a shard averages ~11 titles, and the chance
-  that any of the 4096 shards reaches 46 is about 10⁻¹¹. A shard write refused as too large stops delivery for that
+- **Size**: a worst-case episode entry is ~520 bytes with a full `sending` (8 `[p, W]`, one `[-1, I]`, one
+  `[p, null, T]`), so a full block's receipt row stays under ~17 KiB; ~0.13 KiB charged per episode per account
+  typically. A worst-case title entry is ~180 bytes, so a title shard fits ~135 entries (~34 titles with sending on
+  their film-watch entries) under the value cap; at den-edge's 50 000-row limit a shard averages ~11 titles, and the
+  chance that any of the 4096 shards reaches 34 is about 10⁻⁷. A shard write refused as too large stops delivery for that
   account (above) rather than losing a receipt.
 
 ### Deciding and settling
@@ -398,7 +399,10 @@ deliver for it; one at a time.
   time is unknown is held as `remote_order_unknown_or_newer` (a same-bucket site edit, 6 against 7, is detected).
   The fourth element is not part of the value: it never makes a target pending and plays no part in a regression. A
   settle by Send writes none; a re-settle by acknowledgement (an unverified one included) rewrites it from that
-  pass's remote value.
+  pass's remote value; an acknowledgement by a valueless remote entry writes none, and a valueless remote entry
+  whose time is unknown is passed with `at` 1. Passing a known time as is assumes the tracker stores the `rated_at`
+  Den sends (both adapters send the value stamp); a tracker that records its own server time instead is compared
+  as if its time were unknown.
   **Known limit**: a person's Den rating change against a tracker rating edited on its site with no time is held
   until the person resolves it; Den never overwrites a site edit it cannot order.
 - den-core `decide` sends, acknowledges, supersedes or holds each command against the tracker's snapshot with every
@@ -513,8 +517,10 @@ Every write is a set-to-value; replaying one changes nothing. `register_write` (
 - **Import** (a tracker's watched list, an import file) of episode `(s, e)`, after pulling the log to its head:
   only if the episode has no unhidden `progress`, is not in progress, and has no covering reset at or later than
   the import's newest play (with no plays, no covering reset at all), the same comparison §5 uses to hide it, so an
-  import never writes an `imported` that is hidden on arrival. **Known limit**: a play known only to the day, as a
-  file import's is, is hidden by a reset later on that same day, so a viewing after a same-day reset reads unwatched
+  import never writes an `imported` a covering reset hides on arrival. A play known only to the day, as a file
+  import's is, is written as the start of that day in UTC (whole seconds), so the same viewing imported from any
+  device gets one key and never outranks a person's reset made later that day. **Known limit**: a reset later on
+  that same day therefore hides it, so a viewing after a same-day reset reads unwatched
   until marked. It writes its plays either way (plays are additive and never set watched state), and `imported: true` only under
   that condition (§3). A play whose watchedAt, at second precision, equals `⌊W / 1000⌋ · 1000` of a Den play in the
   same register is not written: it is Den's own delivery reported back. A writer skips a play write whose kept selection is unchanged. An import writes no series `status` and no
@@ -734,13 +740,19 @@ client only shows that the switch is offered.
   the remote rating is not the entry's acknowledged value (§6 Ratings) and its time is unknown or later
   (§6 Ratings) (**known limit**: Den then shows `seen`
   against that tracker rating until the person resolves it). v3-ready
-  builds record acknowledgement per account and record orphan retirement separately (an orphan-retired push was
+  builds record acknowledgement per account — for a rating, with the remote rating value that acknowledged it, at
+  that build's first reconcile or since — and record orphan retirement separately. The switch seeds that recorded
+  value as the rating entry's fourth element (§6 Ratings) whenever it differs from the rating Den sends for the
+  seeded reaction; a rating target with no recorded value is seeded without one, so the first reconcile of a ready
+  build re-reads every rating it catches up against the snapshot to record it (an orphan-retired push was
   never delivered, so it is unsettled). Where settlement is unknown, the event is unsettled — `decide` against the
   snapshot makes that safe. A target is **unsettled** if any of its events is, or if any unsent command for it is in
   the outbox, journalled or not. An unsettled target is seeded with the value derived from its earliest unsettled
   event's `before` alone — folded through §8, then read through §5 and §6 — with the title's resets whose `t` is
   less than that event's `at`; an absent `before` seeds the default (`n`, `out`, `null`). It is never seeded as "no receipt". Every other target is seeded with its current value, except that for an account the performing device
-  holds itself, a `watched` value in p > 0 whose current viewing has no settled event is seeded by the
+  holds itself, a `watched` value in p > 0 whose current viewing has no settled event and whose current viewing's
+  play is later than the account's connection stamp (the `set:keys` `simkl` setting's stamp; for Trakt, the
+  device's local connect stamp) is seeded by the
   qualifying-target shapes below (bound: the performing device's clock at its read of `base`), so a rewatch whose
   best-effort scrobble failed, or that was finished where nothing delivers, is decided by §6 Rewatch with the
   windows, and a scrobble that did land acknowledges it; and the performing device sends every kept `stop` whose
@@ -826,9 +838,11 @@ any stray `ep` or `tracker-event` row folded through §8.
   apart from a genuine rewatch.
 - **Ready builds and `stop`.** A ready build keeps a scrobble `stop` at ≥ 80 % durably with the batch carrying that
   viewing's progress ≥ 0.8, and sends it once that batch succeeds under the generation it was built for, as one
-  request that is never retried, and only while no response the device has read shows another generation. A stop
-  whose request fails, or that the device has not sent within 1 hour of the batch's success, is dropped (and `pause`
-  sent if the player is still open). `rewrite_in_progress` and transient failures of the batch keep it waiting (so an
+  request with a total timeout of 60 s that is never retried, and only if a read of the library completed less than
+  60 s before the send shows that same generation and a wire minimum below 3. Since a device takes a lease only after
+  10 minutes of observation following a generation change (§6 Taking), every such stop lands before any v3 delivery.
+  A stop whose request fails, or that the device has not sent within 1 hour of the batch's success, or whose batch
+  has not succeeded within 24 hours, is dropped (and `pause` sent if the player is still open). `rewrite_in_progress` and transient failures of the batch keep it waiting (so an
   aborted switch still delivers it); it is dropped when that batch is refused with `generation_changed` or `426`. So
   any ready build's stop lands within an hour of a batch at or below `base`, inside the window end. The first switch's `seedBound` is the greater of the
   performing device's clock at its read of `base` and the greatest play watchedAt in the log through `base` that is
@@ -909,7 +923,9 @@ The rules live in den-sync so both clients share them:
   intent write and a `w` settle; an imported-first intent with no receipt written as `n` at −1; a stop kept through
   an aborted switch and sent after; a stop not sent within an hour dropped; an acknowledgement of 8 against `love`
   recorded, then a Den `like` sent; a viewing seeded at 0.85 and finished a week after the switch acknowledged by its
-  pre-switch stop.
+  pre-switch stop; a switch seeding a Simkl-derived rating's recorded value (8 against `love`) so a later Den `like`
+  is sent; a kept stop not sent once a read shows the new generation or after 60 s; a pre-connect rewatch not
+  re-decided at the switch; a day-only import written at UTC midnight and hidden by a later same-day reset.
 - Delivery: pending by value (an older-stamped winner on viewing); a reset delivering an un-watch for real and for
   imported episodes, settling without oscillating; a series watchlist add; commands built from values with `at` and
   `watched_at`; each `decide` outcome's receipt (sent then changed → built-from value); no receipt → additive unless
