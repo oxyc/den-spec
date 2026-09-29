@@ -302,7 +302,8 @@ deliver for it; one at a time.
   `<value>` as its receipt. A deleted title's film-watch and rating targets are seeded by the same rules as any other
   (from the earliest unsettled event's `before` when unsettled) and stay undecided while the title is `deleted`. An
   account
-  without `seededThrough` (connected after the switch) keeps additive catch-up.
+  without `seededThrough` (connected after the switch) keeps additive catch-up. For §6 Rewatch and Earlier viewings,
+  a pending no-receipt target above `seededThrough` counts as stamped later than `since`, and all its plays count.
 - **Unverified receipts.** When any device reads, for one account, receipts at the same settle epoch ≥ 2 from two
   different devices, it adds that epoch to the `set:deliver` setting `unverified` (a list of epochs, merged as a
   union), and every entry at a listed epoch is **unverified**. Seed epochs 0 and 1 (§9, §10) are never unverified.
@@ -396,8 +397,9 @@ deliver for it; one at a time.
   always sends `⌊W / 1000⌋ · 1000` as a play's `watched_at`. On **Trakt**, with `H` read across every page of the
   history endpoint and every play in it taken at second precision (`⌊h / 1000⌋ · 1000`), a rewatch sends **one play
   per visible Den play** whose viewing is in (receipt `p`, current `p`] — against an `n` or `u` receipt, every visible
-  Den play in [receipt `p`, current `p`], and with no receipt in [0, current `p`] counting only plays whose watchedAt is later than `since` (the
-  viewings before are caught up by `decide` with `baseline`, as §6 Earlier viewings says), in all cases above the `cleared`
+  Den play in [receipt `p`, current `p`], and with no receipt decided in the two steps of §6 Earlier viewings (the viewings before the split caught
+  up alone by `decide` with `baseline` and settled as a `w` receipt, the rest decided in a later pass as a rewatch
+  against it, or, when none is before the split, the intent written into a new default `n` entry), in all cases above the `cleared`
   viewing — with the current viewing's watched-at as `W` when it has no play, each acknowledged iff `H` holds a
   play at exactly `⌊S / 1000⌋ · 1000`, `S` being its `sending` entry if one exists for that `p`, else its `W`. On **Simkl** it is one play, acknowledged iff `L` is known, `L ≥ ⌊W / 1000⌋ · 1000` and
   `L` is later than the floor, all at second precision.
@@ -422,17 +424,20 @@ deliver for it; one at a time.
   → nothing; decided again later. Exception: a `baseline` rating built from a timeless value, acknowledged by a
   differently mapped remote rating, settles as the remote reaction (§6 Timeless values).
 - **Earlier viewings on Trakt.** Against an `n` receipt, or with no receipt and stamped later than `since`, a
-  `watched` value in a `p` above the receipt's (0 with no receipt) that §6 Rewatch does not already cover is decided
-  on Trakt as a rewatch: one play per visible Den play of a viewing in [receipt `p`, current `p`] above the `cleared`
-  viewing (with no receipt, only plays whose watchedAt is later than `since`; the viewings before are caught up by
-  `decide` with `baseline`, so any remote play acknowledges them), the current viewing with its watched-at as `W` when it has no play, each first written into `sending`
+  `watched` value in a `p` above the receipt's (0 with no receipt), whether or not §6 Rewatch covers it (the two steps
+  below apply to both), is decided on Trakt as a rewatch: one play per visible Den play of a viewing in [receipt `p`,
+  current `p`] above the `cleared` viewing (with no receipt, only the viewings from the split on), the current viewing with its watched-at as `W` when it has no play, each first written into `sending`
   (§6 Intent) and acknowledged iff `H` holds `⌊S / 1000⌋ · 1000` exactly, with §9's window for a target seeded at the
   switch; `decide`'s any-watch acknowledgement never applies to it. With no receipt, the target is decided in two
-  steps: first the viewings whose plays are at or before `since` are caught up alone by `decide` with `baseline` and
+  steps around the **split**, the least viewing whose visible Den play is later than `since` (viewing order, not play
+  time, since play times need not grow with viewings): first every viewing below the split is caught up alone by `decide` with `baseline` and
   watched-at = the greatest such play, and settle as `["w", <the greatest such viewing>, <that play>, <value stamp>,
   <order>]`; the remaining viewings are decided in a later pass as a rewatch against that receipt. When no viewing is
-  at or before `since`, the intent is written into a new default entry `["n", 0, null, [0, 0, ""], <fresh order>,
-  <sending>]`, which selects the same plays.
+  below the split, the intent is written into a new default entry `["n", 0, null, [0, 0, ""], <fresh order>,
+  <sending>]`, which selects the same plays. On **Simkl**, the same targets are decided as one play of the current
+  viewing, acknowledged iff `L` is known, `L ≥ ⌊W / 1000⌋ · 1000` and `L` is later than the receipt's floor (null for
+  `n` or no receipt), with §9's Simkl window for a target seeded at the switch; with no receipt, only when the current
+  viewing's play is later than `since`. `decide`'s any-watch acknowledgement never applies to it.
 - **Remote → Den**: v2's tracker pull, written as imports (§7) — episodes, films, ratings and watchlist — only after
   pulling the log to its head.
 
@@ -460,8 +465,10 @@ Every write is a set-to-value; replaying one changes nothing. `register_write` (
   only if the episode has no unhidden `progress`, is not in progress, and has no covering reset later than the
   import's newest play (with no plays, no covering reset at all). It writes its plays either way (plays are additive and never set watched state), and `imported: true` only under
   that condition (§3). A play whose watchedAt, at second precision, equals `⌊W / 1000⌋ · 1000` of a Den play in the
-  same register is not written: it is Den's own delivery reported back. An import writes no series `status` and no
-  `dismissed`; a series' watched state is derived from its episodes. It writes no `progress`, so it never
+  same register is not written: it is Den's own delivery reported back. A writer skips a play write whose kept selection is unchanged. An import writes no series `status` and no
+  `dismissed`; a series' watched state is derived from its episodes (**known limit**: today's web
+  import also marks a finished series watched and dismisses a long-stale one from Continue Watching; a v3 import
+  leaves both to the person). It writes no `progress`, so it never
   outranks or erases a person's progress, even when a concurrent write merges with it; and it never lands over a Den
   un-watch or reset, even with a newer remote watch time. A film import writes `rec.status` watched with
   `[0, <its latest play ms>, ""]` (timeless, so any real status wins) under the title-import rule below; it writes
@@ -565,8 +572,7 @@ is unsettled; the known limit on pre-ready deliveries covers the re-decision; an
 `commands(event, event.after)` is `[]` is never listed); with `"all"`, or when `generation` differs
 from the generation the switch reads under, every event for that account is unsettled. An episode or film-watch
 target of that account **qualifies** when its current value is `watched`, it has no unsettled event (a finish by
-playing writes none), and:
-(`"all"` only makes every event unsettled; `head` stays valid in the same generation.)
+playing writes none), and (`"all"` only makes every event unsettled; `head` stays valid in the same generation):
 - an **episode**: its row seq is above `head`; or, when `generation` differs, its `progress` stamp `t` is later
   than `headAt − 86 400 000`;
 - a **film**: its row seq is above `head` and its `status` or `resume` stamp is later than the `at` of every
@@ -607,7 +613,8 @@ more, which can precede `W`'s write), not `W`. **Known limit**: a Trakt play fro
 acknowledges the viewing; a viewing whose final stop failed after an earlier session's stop more than a day before
 `W` reached Trakt may be sent again.
 For such a target, a viewing whose play has watchedAt `W` ≤ the bound is also acknowledged on Simkl when `L` is later
-than both the receipt's floor and `⌊W / 1000⌋ · 1000 − 86 400 000` and at or before the bound, since a v2 Simkl
+than both the receipt's floor (the stored receipt's own floor, §6 Floor — null for an `n` entry — never §6 Rewatch's
+imported-play floor) and `⌊W / 1000⌋ · 1000 − 86 400 000` and at or before the bound, since a v2 Simkl
 scrobble carries Simkl's server time, not `W`; a viewing with `W` above the bound is checked by §6 Rewatch alone.
 The switch records every viewing it seeds while in progress at ≥ 0.8 as a `sending` entry `[p, null, T]` in that
 account's Trakt entry only, `T` being `⌊t / 1000⌋ · 1000` of that viewing's seeded progress stamp. It only widens the
@@ -619,7 +626,7 @@ the current one was finished by playing after `disconnectedAt` and a replay then
 `head` with a stamp more than a day older than `headAt` is not delivered to that account, and, when `generation`
 differs, an episode likewise. These qualification and `p₀` rules apply only to a handed-off
 account; when the performing device holds the account itself, its own reconcile head decides (below). Its
-`set:deliver` row gets `since` as above (`disconnectedAt`). When the performing device itself has the account connected at
+`set:deliver` row gets `since` = `disconnectedAt`; every other account's gets the switch's stamp. When the performing device itself has the account connected at
 the switch, an event is settled iff it is in the device's own acknowledgements, or it is at or below the handoff's
 `head`, not in its `unsettled`, and the handoff's `generation` equals the switch's. Two handoffs naming different
 accounts of one provider: the one with the later `disconnectedAt` is connected again; the other stays
