@@ -537,17 +537,21 @@ Every write is a set-to-value; replaying one changes nothing. `register_write` (
   written when the register holds a Den play (non-negative key) whose watchedAt equals local noon of D in the
   importing device's time zone, as v2's import computed it (§8), or, failing that, a Den play whose watchedAt is a
   whole multiple of 900 000 ms within [D − 2 h, D + 24 h]; exact matches are taken first for every date, then
-  range matches with dates in ascending order, and each Den play excuses at most one day-only play. Imported plays
+  range matches with dates in ascending order, each date taking the earliest Den play in its range not yet taken,
+  and each Den play excuses at most one day-only play. Imported plays
   never do, so consecutive-day viewings are all written in any order. **Known limit**: only for a v2 import made in
   a zone of UTC−10 to −12 or +12 to +14 and re-imported from another zone can consecutive-day viewings be
   matched to the wrong day. The reset comparison above uses
   the play as written (whole seconds). A play a tracker reports is not written when it matches one-to-one, by §9's
-  one-play-per-viewing matching, a viewing that §9's window for that account would acknowledge by it: a viewing
-  with a Den play `W` ≤ `seedBound`, within (⌊W⌋ − 86 400 000, `seedBound` + 86 400 000]; or a viewing with a
-  `[p, null, T]` element in that account's entry — whether or not it has a Den play yet, and whatever its `W` —
-  within (T − 86 400 000, `seedBound` + 86 400 000]: it is a v2 scrobble of that viewing, recorded at the
-  tracker's server time, so delivery and import agree on it (**known limit**: a tracker play from outside Den inside
-  that window is taken as the v2 scrobble and not written). **Known limit**: a reset later
+  one-play-per-viewing matching, a viewing whose ⌊W⌋ the tracker does not hold exactly and that §9's window for that
+  account would take part in: a viewing with a Den play `W` ≤ `seedBound`, within the **viewing window**
+  (⌊W⌋ − 86 400 000, min(⌊W⌋ + 90 000 000, `seedBound` + 86 400 000)]; a play-less viewing §9 matches, within its
+  window there; or a viewing with a `[p, null, T]` element in that account's entry — whether or not it has a Den
+  play yet, and whatever its `W` — within (T − 86 400 000, `seedBound` + 86 400 000]: it is a v2 scrobble of that
+  viewing, recorded at the tracker's server time, so delivery and import agree on it (**known limit**: a tracker
+  play from outside Den within about a day of such a Den play is taken as its v2 scrobble and not written; v2's
+  Simkl stop fires only at ≥ 95 %, so it lands at or after `W`, and a ready build's kept stop lands within 25 hours
+  of it). **Known limit**: a reset later
   than 00:00 UTC of the play's date hides it (for a person west of UTC that includes a late-evening reset on the
   previous local day), so such a viewing reads unwatched until marked. It writes its plays either way (plays are additive and never set watched state), and `imported: true` only under
   that condition (§3). A play whose watchedAt, at second precision, equals `⌊W / 1000⌋ · 1000` of a Den play in the
@@ -646,13 +650,26 @@ into a non-baseline command. While a catch-up cannot be delivered (a credential 
 refusing that command; a `not_found` from any tracker counts as sent), the offering client shows that, with the title, as why
 the switch waits. If connected accounts are delivered by different devices, each other device
 disconnects its accounts only once their handoffs are stored, after draining their outboxes: each **handoff** is
-written in the same batch as its disconnect (for Simkl, the `set:keys` null), and if that batch is refused as too
-large the device writes `ratings` as `"all"`, then also `unsettled` as `"all"`, and retries (both fallbacks are
-always safe). A handoff is the setting
+written in the same batch as its disconnect (for Simkl, the `set:keys` null; for Trakt, whose tokens are local, the
+local disconnect follows the stored batch). If that batch is refused as too large (den-edge answers 400 for a value
+over its cap), the device writes `ratings` as `"all"`, then also `unsettled` as `"all"`, and retries; if it is still
+refused, the account stays connected, no handoff is written, and the offering client shows why the switch waits.
+Both fallbacks only widen re-decision: with `unsettled` `"all"`, the known limit on pre-ready deliveries applies to
+every delivery of that account; with `ratings` `"all"`, see below. Sizes are measured on the UTF-8 JSON before
+escaping. A handoff is the setting
 `<d>.handoff:<provider>` in `set:devices` = `{"string": <JSON {account, disconnectedAt, generation, head, headAt,
-readyFrom, unsettled, ratings}>}`, `ratings` being `{<rec row name>: <remote rating>}` for every rating target of
+readyFrom, unsettled}>}`, with `ratings` written in the same batch to its own row
+`set:handoff:<provider>:<account id>` (setting `ratings`, `"all"` only when that row would exceed den-edge's cap)
+as `{<rec row name>: <remote rating>}` for every rating target of
 that account whose latest settlement on this device was an acknowledgement recording a remote value different from
-the rating Den sends for its reaction (or `"all"` if that exceeds 4 KiB; keys that match no row count as absent), where `generation` and `head` are the library generation and log seq its final drain read
+the rating Den sends for its reaction (keys that match no row count as absent; **known limit**: with `"all"`, a
+person's Den rating change made before the first complete pass against a tracker value Den had acknowledged is
+held as a site edit would be). Once that account is connected in `set:trackers` after the switch, the device that
+connected it writes every `<d>.handoff:<provider>` naming that account, and its `set:handoff` row, `null`. A
+handing-off device that has not observed a commit (a generation change with minimum 3) within 24 hours of its
+handoff, and reads no open rewrite, **withdraws** it: in one batch it writes its handoff and `set:handoff` row
+`null` and restores its connection in v2 form (Simkl: `set:keys` with its original stamp), then resumes its outbox
+from `head`; a withdrawal refused as `rewrite_in_progress` is dropped if the next read shows minimum 3. Here `generation` and `head` are the library generation and log seq its final drain read
 through, `headAt` its own clock (ms) at that read, `readyFrom` the lowest log seq its ready build read (its
 persisted head + 1 when it read none), and `unsettled` the ids of events in [`readyFrom`, `head`] whose commands it
 did not deliver (held, superseded, orphan-retired, or unsent; an event counts as delivered only if it is in the
@@ -698,7 +715,8 @@ order and however that receipt was rewritten since — which covers every target
 handoff's qualification, from an event's `before`, from a reconcile read, or as `u` by the replay-at-0 exception —
 the Trakt rewatch check of a pending viewing whose play has watchedAt `W` ≤ `seedBound` also acknowledges it by a
 play in `H` later than both the receipt's floor and `⌊W / 1000⌋ · 1000 − 86 400 000`, at or before
-the **window end** `seedBound + 86 400 000` (H is server time, `seedBound` a device clock), and not matched exactly
+min(`⌊W / 1000⌋ · 1000 + 90 000 000`, the **window end** `seedBound + 86 400 000`) (H is server time,
+`seedBound` a device clock; the same viewing window as §7), and not matched exactly
 to another viewing, nor to an imported play this target's imported-first step **sent** (a `[-1, …]` element of its
 `sending`, §6 Earlier viewings); an imported play Den did not send — one a tracker reported back, a v2 scrobble
 pulled after the switch included — takes part in the window like any other play. The receipt's own viewing takes part in the matching when `H` holds no play at exactly its
@@ -709,12 +727,14 @@ acknowledges the viewing; a viewing whose final stop failed after an earlier ses
 `W` reached Trakt may be sent again.
 For such a target, a pending viewing whose play has watchedAt `W` ≤ `seedBound` is also acknowledged on Simkl when `L` is later
 than both the receipt's floor (the stored receipt's own floor, §6 Floor — null for an `n` entry — never §6 Rewatch's
-imported-play floor) and `⌊W / 1000⌋ · 1000 − 86 400 000` and at or before `seedBound + 86 400 000`, since a v2
+imported-play floor) and `⌊W / 1000⌋ · 1000 − 86 400 000` and at or before min(`⌊W / 1000⌋ · 1000 +
+90 000 000`, `seedBound + 86 400 000`), since a v2
 Simkl scrobble carries Simkl's server time, not `W`; a viewing with `W` above `seedBound` is checked by §6 Rewatch
 alone. **Known limit** (Simkl only, which reports one latest play): for a viewing at or before `seedBound`, an
 earlier viewing's scrobble within a day acknowledges a later one whose own scrobble failed.
 The switch records every viewing it seeds while in progress at ≥ 0.8 as a `sending` entry `[p, null, T]` in that
-account's Trakt entry only, `T` being `⌊t / 1000⌋ · 1000` of that viewing's seeded progress stamp. For that viewing,
+account's Trakt entry only — and only when the entry holds no `T` element for that `p` and `T − 86 400 000` is
+below `seedBound + 86 400 000`, so a re-switch never adds a second — `T` being `⌊t / 1000⌋ · 1000` of that viewing's seeded progress stamp. For that viewing,
 whatever its `W` and whether or not `W` ≤ `seedBound`, the Trakt check also acknowledges it by a play later than both
 the receipt's floor and `T − 86 400 000` and at or before the window end, not matched exactly to another viewing nor
 to a `[-1, …]` element, under the same one-play-per-viewing matching, since v2's Trakt stop at 80 % is sent when the
@@ -884,13 +904,18 @@ any stray `ep` or `tracker-event` row folded through §8.
   names (one that counts sleep; in a browser the greater of the elapsed `performance.now` and `Date.now`, a backwards
   `Date.now` counting as expired); the 1-hour and 24-hour limits use the same clock, and a stop kept across a restart
   of that clock is dropped (v3 or the window decides that viewing later); a stop is kept with the boot identity it
-  was measured under (on Apple platforms `kern.boottime`), and one whose boot identity differs is that restart. Since a device takes a lease only after
+  was measured under (on Apple platforms `kern.boottime`, on Linux `/proc/sys/kernel/random/boot_id`, in a browser
+  the page load, so nothing survives a reload), and one whose boot identity differs is that restart (a stepped wall
+  clock can shift `kern.boottime`; that only drops a stop). Since a device takes a lease only after
   10 minutes of observation following a generation change (§6 Taking), every such stop lands before any v3 delivery.
   A stop whose request fails, or that the device has not sent within 1 hour of the batch's success, or whose batch
   has not succeeded within 24 hours, is dropped (and `pause` sent if the player is still open). `rewrite_in_progress` and transient failures of the batch keep it waiting (so an
-  aborted switch still delivers it); it is dropped on `426`, or on `generation_changed` when a read then shows a wire
-  minimum of 3; after a `generation_changed` that leaves the minimum below 3 (a restore before any switch) it is
-  kept and sent once the written-back batch succeeds under the new generation. So
+  aborted switch still delivers it); it is dropped on `426` and on any `generation_changed` (a restore to a backup
+  taken before the switch reads the same minimum as one before any switch, so the two cannot be told apart; the
+  dropped stop is a v2-equivalent failed scrobble, and the viewing is delivered by catch-up or v3 later). den-edge
+  also records in its (generation, head) index the highest wire minimum ever committed for each library id and
+  answers `x-den-wire-min` as the greater of it and the stored minimum, and a v3 client that reads minimum 3 on a log
+  holding `ep` or `tracker-event` rows switches again as after a lower minimum (§10). So
   any ready build's stop lands within an hour of a batch at or below `base`, inside the window end. The first switch's `seedBound` is the greater of the
   performing device's clock at its read of `base` and the greatest play watchedAt in the log through `base` that is
   not more than a day ahead of that clock, so a batch from a clock running ahead is still inside the window.
