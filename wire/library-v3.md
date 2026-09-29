@@ -295,7 +295,10 @@ deliver for it; one at a time.
   a compaction stages rows in ascending order of their current seq (a folded row takes the greater of its parts'
   seqs, for both the order and the count) and writes `seededThrough` = `base` + the number
   of staged rows whose seq was at or below the old `seededThrough`, so no target changes side. Write-back (§10) never
-  writes it. It merges by the later stamp; a value above the reader's head is ignored. For such an account, a target
+  writes it. It merges by the later stamp; a value above the reader's head is ignored. Beside it, a switch or
+  re-switch writes `seedBound`, an integer (ms), with a fresh stamp and merged by the later stamp: for a handed-off
+  account the latest `disconnectedAt.t` of its handoffs, otherwise the performing device's clock at its read of
+  `base`. Every device reads the §9 switch windows from it. For such an account, a target
   with no receipt whose row has seq above `seededThrough` and whose value stamp is real and not later than `since` is
   pending, not `baseline` (kept or converted work, §10). A list or rating target the switch owes as catch-up carries
   the explicit entry `["b", <value>, <value stamp>, <settle order>]` ("owed as baseline"): decided as `baseline`
@@ -442,15 +445,17 @@ deliver for it; one at a time.
   `n` or no receipt), with §9's Simkl window for a target seeded at the switch; with no receipt, only when some visible
   Den play is later than `since.t` (this gate applies to §6 Rewatch's Simkl branch too; otherwise the catch-up below
   applies). `decide`'s any-watch acknowledgement never applies to it. On Trakt, against an `n` receipt whose watched-at
-  is null, or with no receipt, when the register has a visible imported play earlier than `⌊W / 1000⌋ · 1000` of its
-  least visible Den play, that imported watch is first decided alone by `decide` with `baseline` and watched-at = the
+  is null, or with no receipt (whatever its stamp), when the register has a visible imported play earlier than
+  `⌊W / 1000⌋ · 1000` of its least-watchedAt visible Den play, that imported watch is first decided alone by `decide` with `baseline` and watched-at = the
   greatest such imported play, before any Den play is decided. Sent or acknowledged, it settles as `["n", <the
-  receipt's p, or 0>, <that imported play>, <the receipt's value stamp, or [0, 0, ""]>, <order>]`, keeping any
+  receipt's p, or −1 when the target had no receipt>, <that imported play>, <the receipt's value stamp, or [0, 0, ""]>, <order>]`, keeping any
   `sending`. On an `n` entry the watched-at only records that this step is done; its floor stays null (§6 Floor). The
   Den plays follow in a later pass, decided against that entry; for a target that had no receipt they follow the
-  no-receipt rules (the split from `since`, and the catch-up when no visible Den play is later than `since.t`), the
-  entry counting as no receipt except for its settle order, and the split's intent written into this entry. **Known
-  limit**: an imported play later than Den's first play of that episode is not sent to Trakt. When no visible Den play is later than
+  no-receipt rules (the split from `since`, and the catch-up when no visible Den play is later than `since.t`), an `n`
+  entry with `p` −1 counting as no receipt for every rule except its settle order (its `p` reads as 0 wherever a
+  viewing is compared; −1 is allowed for `n` entries only), and the split's intent written into this entry. **Known
+  limit**: an imported play is sent to Trakt only by this step (an `n` receipt with null watched-at, or no receipt,
+  and earlier than Den's least visible play); any other imported play is not sent to Trakt. When no visible Den play is later than
   `since.t` (never for a target above `seededThrough`, whose plays all count as later), the target is caught up alone
   by `decide` with `baseline` and watched-at (§5), and settles as `w` at the current viewing, on both trackers.
 - **Remote → Den**: v2's tracker pull, written as imports (§7) — episodes, films, ratings and watchlist — only after
@@ -616,24 +621,26 @@ any of them settles it; a target qualifies only if it qualifies under every one;
 use that latest `disconnectedAt`. **Known limit**: a viewing finished
 offline before `disconnectedAt` that syncs after `head` is taken as delivered, so Trakt may hold one play fewer (v2
 would not have delivered it either). The current viewing is never seeded as delivered: a finish
-on another device, or a failed best-effort scrobble, may never have reached the tracker. For a target seeded
-unsettled at the switch — by a handoff's qualification, from an event's `before`, from a reconcile read, or as `u` by the replay-at-0 exception — the
-Trakt rewatch check of a viewing whose play has watchedAt `W` ≤ the bound (the latest `disconnectedAt.t` for a
-handed-off account, else the performing device's clock at its read of `base`) also acknowledges it by a play in `H`
-later than both the receipt's floor and `⌊W / 1000⌋ · 1000 − 86 400 000`, at or before the bound, and not matched
+on another device, or a failed best-effort scrobble, may never have reached the tracker. For every
+target of an account whose `set:deliver` row holds `seedBound` (§6 Seeded accounts), whatever its receipt's settle
+order and however that receipt was rewritten since — which covers every target seeded unsettled at the switch, by a
+handoff's qualification, from an event's `before`, from a reconcile read, or as `u` by the replay-at-0 exception —
+the Trakt rewatch check of a pending viewing whose play has watchedAt `W` ≤ `seedBound` also acknowledges it by a
+play in `H` later than both the receipt's floor and `⌊W / 1000⌋ · 1000 − 86 400 000`, at or before `seedBound`, and
+not matched
 exactly to another viewing. The receipt's own viewing takes part in the matching when `H` holds no play at exactly its
 `⌊W⌋`, and every viewing at or above the receipt's, below the current one, that has no play takes part with the
-window (receipt floor, bound], so no viewing's own scrobble stop is ever credited to a later viewing; each play acknowledges at most one viewing, earliest viewing to earliest play, since a v2 scrobble records its stop time (sent when the player closes at 80 % or
+window (receipt floor, `seedBound`], so no viewing's own scrobble stop is ever credited to a later viewing; each play acknowledges at most one viewing, earliest viewing to earliest play, since a v2 scrobble records its stop time (sent when the player closes at 80 % or
 more, which can precede `W`'s write), not `W`. **Known limit**: a Trakt play from outside Den inside that window
 acknowledges the viewing; a viewing whose final stop failed after an earlier session's stop more than a day before
 `W` reached Trakt may be sent again.
-For such a target (the same four seedings), a viewing whose play has watchedAt `W` ≤ the bound is also acknowledged on Simkl when `L` is later
+For such a target, a pending viewing whose play has watchedAt `W` ≤ `seedBound` is also acknowledged on Simkl when `L` is later
 than both the receipt's floor (the stored receipt's own floor, §6 Floor — null for an `n` entry — never §6 Rewatch's
-imported-play floor) and `⌊W / 1000⌋ · 1000 − 86 400 000` and at or before the bound, since a v2 Simkl
-scrobble carries Simkl's server time, not `W`; a viewing with `W` above the bound is checked by §6 Rewatch alone.
+imported-play floor) and `⌊W / 1000⌋ · 1000 − 86 400 000` and at or before `seedBound`, since a v2 Simkl
+scrobble carries Simkl's server time, not `W`; a viewing with `W` above `seedBound` is checked by §6 Rewatch alone.
 The switch records every viewing it seeds while in progress at ≥ 0.8 as a `sending` entry `[p, null, T]` in that
 account's Trakt entry only, `T` being `⌊t / 1000⌋ · 1000` of that viewing's seeded progress stamp. It only widens the
-Trakt window, to plays later than both the receipt's floor and `T − 86 400 000` and at or before the bound, since
+Trakt window, to plays later than both the receipt's floor and `T − 86 400 000` and at or before `seedBound`, since
 v2's Trakt stop at 80 % is sent when the player closes, at about `T`; the `null` is never sent or matched exactly: the intent write before any
 send replaces it with `[p, ⌊W / 1000⌋ · 1000]` of the finished viewing, and later checks use that. **Known limit**: when a viewing below
 the current one was finished by playing after `disconnectedAt` and a replay then started before the switch, the
