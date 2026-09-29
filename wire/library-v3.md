@@ -293,7 +293,8 @@ deliver for it; one at a time.
   twice takes its last position; N is the number of distinct keys staged, counted by the client before staging the `set:deliver` row that carries it). A switch
   and a re-switch write `seededThrough` = `base + N` into each seeded account's `set:deliver` row with a fresh stamp;
   a compaction stages rows in ascending order of their current seq and writes `seededThrough` = `base` + the number
-  of staged rows whose seq was at or below the old `seededThrough`, so no target changes side. Write-back (§10) never
+  of staged rows whose seq was at or below the old `seededThrough` (a folded row takes the greater of its parts'
+  seqs), so no target changes side. Write-back (§10) never
   writes it. It merges by the later stamp; a value above the reader's head is ignored. For such an account, a target
   with no receipt whose row has seq above `seededThrough` and whose value stamp is real and not later than `since` is
   pending, not `baseline` (kept or converted work, §10). A list or rating target the switch owes as catch-up carries
@@ -424,20 +425,24 @@ deliver for it; one at a time.
   → nothing; decided again later. Exception: a `baseline` rating built from a timeless value, acknowledged by a
   differently mapped remote rating, settles as the remote reaction (§6 Timeless values).
 - **Earlier viewings on Trakt.** Against an `n` receipt, or with no receipt and stamped later than `since`, a
-  `watched` value in a `p` above the receipt's (0 with no receipt), whether or not §6 Rewatch covers it (the two steps
+  `watched` value in a `p` above the receipt's (with no receipt: at or above 0 when §6 Rewatch covers it, else above
+  0), whether or not §6 Rewatch covers it (the two steps
   below apply to both), is decided on Trakt as a rewatch: one play per visible Den play of a viewing in [receipt `p`,
   current `p`] above the `cleared` viewing (with no receipt, only the viewings from the split on), the current viewing with its watched-at as `W` when it has no play, each first written into `sending`
   (§6 Intent) and acknowledged iff `H` holds `⌊S / 1000⌋ · 1000` exactly, with §9's window for a target seeded at the
   switch; `decide`'s any-watch acknowledgement never applies to it. With no receipt, the target is decided in two
-  steps around the **split**, the least viewing whose visible Den play is later than `since` (viewing order, not play
-  time, since play times need not grow with viewings): first every viewing below the split is caught up alone by `decide` with `baseline` and
-  watched-at = the greatest such play, and settle as `["w", <the greatest such viewing>, <that play>, <value stamp>,
-  <order>]`; the remaining viewings are decided in a later pass as a rewatch against that receipt. When no viewing is
-  below the split, the intent is written into a new default entry `["n", 0, null, [0, 0, ""], <fresh order>,
+  steps around the **split**, the least viewing whose visible Den play is later than `since.t` (viewing order, not play
+  time, since play times need not grow with viewings): first the viewings below the split that have a visible Den
+  play (a viewing with none — hidden by `cleared` or a reset, or known only from an import — takes no part) are caught
+  up alone by `decide` with `baseline` and watched-at = the play of the greatest of them, and settle as `["w", <that
+  viewing>, <its play>, <value stamp>, <order>]`; the remaining viewings are decided in a later pass as a rewatch
+  against that receipt. When no viewing below the split has a visible Den play, the intent is written into a new default entry `["n", 0, null, [0, 0, ""], <fresh order>,
   <sending>]`, which selects the same plays. On **Simkl**, the same targets are decided as one play of the current
   viewing, acknowledged iff `L` is known, `L ≥ ⌊W / 1000⌋ · 1000` and `L` is later than the receipt's floor (null for
   `n` or no receipt), with §9's Simkl window for a target seeded at the switch; with no receipt, only when the current
-  viewing's play is later than `since`. `decide`'s any-watch acknowledgement never applies to it.
+  viewing's play is later than `since.t` (this gate applies to §6 Rewatch's Simkl branch too). `decide`'s any-watch
+  acknowledgement never applies to it. When no visible Den play is later than `since.t`, the target is caught up alone
+  by `decide` with `baseline` and watched-at (§5), and settles as `w` at the current viewing, on both trackers.
 - **Remote → Den**: v2's tracker pull, written as imports (§7) — episodes, films, ratings and watchlist — only after
   pulling the log to its head.
 
@@ -626,7 +631,7 @@ the current one was finished by playing after `disconnectedAt` and a replay then
 `head` with a stamp more than a day older than `headAt` is not delivered to that account, and, when `generation`
 differs, an episode likewise. These qualification and `p₀` rules apply only to a handed-off
 account; when the performing device holds the account itself, its own reconcile head decides (below). Its
-`set:deliver` row gets `since` = `disconnectedAt`; every other account's gets the switch's stamp. When the performing device itself has the account connected at
+`set:deliver` row gets `since` = the earliest `disconnectedAt` of its handoffs; every other account's gets the switch's stamp. When the performing device itself has the account connected at
 the switch, an event is settled iff it is in the device's own acknowledgements, or it is at or below the handoff's
 `head`, not in its `unsettled`, and the handoff's `generation` equals the switch's. Two handoffs naming different
 accounts of one provider: the one with the later `disconnectedAt` is connected again; the other stays
@@ -662,7 +667,13 @@ client only shows that the switch is offered.
   event whose command was superseded by a later change is **unsettled**, and so is one for which `commands` returns
   an error (for example `invalid_reaction` for `seen`). An outbox skip, an
   id-only receipt or a completed flag from a pre-ready build never counts as settlement. A target whose row changed
-  after the last full reconcile's read head is seeded from the row as that reconcile read it (unsettled). v3-ready
+  after the last full reconcile's read head is seeded from the row as that reconcile read it (unsettled). Exception: when such a target has no unsettled
+  event and its current register's `cleared` viewing is at or above the `p` of that reconcile-read value (a replay
+  started at 0, which v2 writes with no event), it is seeded from its current register by the qualifying-target
+  shapes of the handoff paragraph (`u` at the current viewing when `cleared` is `[current − 1, …]`, else `w` at `p₀`
+  or at current − 1), so no un-watch is delivered for it. A reaction changed to `seen` is a rating removal in v3,
+  where v2 never removed one (`invalid_reaction`); such changes since v2 are delivered as removals (held when the
+  remote rating is newer). v3-ready
   builds record acknowledgement per account and record orphan retirement separately (an orphan-retired push was
   never delivered, so it is unsettled). Where settlement is unknown, the event is unsettled — `decide` against the
   snapshot makes that safe. A target is **unsettled** if any of its events is, or if any unsent command for it is in
