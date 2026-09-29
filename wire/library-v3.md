@@ -282,9 +282,12 @@ deliver for it; one at a time.
   it is decided against the snapshot instead of being taken as settled: a `w` with `p` > 0 by the rewatch rule's play
   check (Trakt: `H` holds `⌊S / 1000⌋ · 1000`; Simkl: `L ≥ ⌊W / 1000⌋ · 1000`), any other value by `decide`;
   acknowledged if present, sent if not. The holder re-settles every unverified entry under its own epoch in the pass
-  that finds it, with its receipt value unchanged when the target decides to no command (`→ none` included) or its
-  decision is held, superseded, or skipped because the title is `deleted`; and it removes an epoch from `unverified`
-  once no entry at it remains (an epoch re-added by a stale merge with no entries is dropped on the next pass).
+  that finds it, with its receipt value unchanged when the target decides to no command (`→ none` included). An
+  entry whose decision is held, or that is skipped because the title is `deleted`, stays unverified and its epoch
+  stays listed until the entry is decided; an epoch is removed from `unverified` once no entry at it remains (an
+  epoch re-added by a stale merge with no entries is dropped on the next pass). **Known limit**: for an unverified
+  `w` in `p` > 0, only its own viewing is re-checked (with each viewing in its `sending` list, if any), so a Trakt
+  play of an earlier viewing lost in the restore stays missing.
 - **Only the lease holder writes receipts** — the one exception is write-back after a generation change (§10), which
   only merges receipts that were already settled — and only by a batch whose `base` is the receipt row's seq it read
   before deciding the command, checking the lease immediately before the write. On a conflict or a lapsed lease the
@@ -348,12 +351,16 @@ deliver for it; one at a time.
   second precision. A null floor is below every time; a null `W` is never acknowledged by a play time.
 - **Rewatch.** `watched` in a `p` greater than a `w` receipt's, with `cleared` viewing below the receipt's `p` and no
   covering reset later than the receipt's floor, is a rewatch. So is a `watched` value with no receipt, or against an
-  `n` receipt, whose register has an unhidden `imported` or a visible imported play: its floor is the greatest visible
-  imported play's watchedAt (null if none). Den always sends `⌊W / 1000⌋ · 1000` as a play's `watched_at`. On
-  **Trakt**, with `H` read across every page of the history endpoint, a rewatch sends **one play per visible Den
-  play** whose viewing is in (receipt `p`, current `p`] (the current viewing's watched-at as `W` when it has no play),
-  each acknowledged iff `H` holds a play at exactly `⌊S / 1000⌋ · 1000`, `S` being its `sending` entry if one exists
-  for that `p`, else its `W`. On **Simkl** it is one play, acknowledged iff `L` is known, `L ≥ ⌊W / 1000⌋ · 1000` and
+  `n` receipt, whose register has an unhidden `imported` or a visible imported play **and whose current viewing has a
+  Den play** (a non-negative key): its floor is the greatest visible imported play's watchedAt (null if none), and it
+  sends only Den plays. A `watched` value derived from `imported` alone is decided by `decide` (with `baseline` when
+  it has no receipt), so any remote watch acknowledges it — an imported watch is never sent back as a new play. Den
+  always sends `⌊W / 1000⌋ · 1000` as a play's `watched_at`. On **Trakt**, with `H` read across every page of the
+  history endpoint and every play in it taken at second precision (`⌊h / 1000⌋ · 1000`), a rewatch sends **one play
+  per visible Den play** whose viewing is in (receipt `p`, current `p`] — with no receipt or against an `n` receipt,
+  every visible Den play in [0, current `p`] above the `cleared` viewing (a default `n` receipt has `p` = 0 and is no
+  lower bound) — with the current viewing's watched-at as `W` when it has no play, each acknowledged iff `H` holds a
+  play at exactly `⌊S / 1000⌋ · 1000`, `S` being its `sending` entry if one exists for that `p`, else its `W`. On **Simkl** it is one play, acknowledged iff `L` is known, `L ≥ ⌊W / 1000⌋ · 1000` and
   `L` is later than the floor, all at second precision.
   Otherwise it is sent, even when the remote holds other watches. A resend after a crash or a lapsed lease therefore
   finds the play it already made and adds none; a tracker play from elsewhere that predates this rewatch does not
@@ -404,7 +411,8 @@ Every write is a set-to-value; replaying one changes nothing. `register_write` (
   its plays either way (plays are additive).
 - **Title imports** (a tracker's ratings and watchlist) are timeless, so any real stamp beats them (§4); their
   counter `c` orders imports among themselves by the tracker's own time while `t` stays 0. A field is
-  **import-owned** when its stamp is timeless. **Every title import writes only where the field is import-owned and
+  **import-owned** when its stamp is timeless; an absent field (or a title with no `rec` row) counts as
+  `[0, 0, ""]`. **Every title import writes only where the field is import-owned and
   its current stamp is earlier than the import's stamp under §4**, so a sequential write and a merge agree whatever
   the order. A missing tracker time (Simkl's epoch sentinel) is `c` = 1, the lowest import time, and an import never
   rewrites a field already holding the same value from an import. **Known limit**: a rating or watchlist entry a
@@ -464,23 +472,32 @@ hold an outbox that still delivers) unless a person removed it, and no device ha
 counts as not ready). It is **performed** only by a device holding the v2 delivery outbox for every connected
 account, after a full reconcile and drain since its last install, so it holds nothing but held commands. If connected accounts are delivered by different devices, each other device
 disconnects its accounts first, after draining their outboxes, and writes a **handoff** for each: the setting
-`<d>.handoff:<provider>` in `set:devices` = `{"string": <JSON {account, disconnectedAt, generation, head,
+`<d>.handoff:<provider>` in `set:devices` = `{"string": <JSON {account, disconnectedAt, generation, head, headAt,
 unsettled}>}`, where `generation` and `head` are the library generation and log seq its final drain read through,
+`headAt` its own clock (ms) at that read,
 and `unsettled` the ids of events at or below `head` whose commands it did not deliver (held, superseded,
 orphan-retired, or unsent) — or `"all"` if the list would exceed 2 KiB. The switch counts an event as settled for
 that account only when its seq ≤ `head` and it is not in `unsettled`; with `"all"`, or when `generation` differs
-from the generation the switch reads under, every event for that account is unsettled. Every episode or film-watch
-target of that account whose current value is `watched`, whose row's seq is above `head` (every such target, when
-`generation` differs or `unsettled` is `"all"`), and that has no unsettled event — a finish by playing writes none —
-is seeded with the default `n`, unsettled, so the watch is delivered (`decide` acknowledges it if present). Its
+from the generation the switch reads under, every event for that account is unsettled. An episode or film-watch
+target of that account **qualifies** when its current value is `watched`, it has no unsettled event (a finish by
+playing writes none), and the stamp `t` of the field that made it watched — the episode's `progress`, the film's
+`status` or `resume` — is later than `headAt − 86 400 000`; with a row seq above `head` also required unless
+`generation` differs or `unsettled` is `"all"`. A qualifying target is seeded unsettled: as `["w", p₀, <that
+play's watchedAt>, [0, 0, ""], [1, n, <performer>]]` when some visible Den play of a viewing below the current one
+has watchedAt ≤ `disconnectedAt.t` (`p₀` the greatest such viewing — that one was already delivered or scrobbled
+there), so later viewings go through the rewatch rule; otherwise with the default `n`, so `decide` acknowledges the
+watch if present. A rating- or list-only edit never qualifies a film, so a watch removed on the tracker's site is
+not pushed again. Its
 `set:deliver` row gets `since` = `disconnectedAt`. When the performing device itself has the account connected at
 the switch, an event is settled iff it is in the device's own acknowledgements, or it is at or below the handoff's
 `head`, not in its `unsettled`, and the handoff's `generation` equals the switch's. Two handoffs naming different
 accounts of one provider: the one with the later `disconnectedAt` is connected again; the other stays
 disconnected. **After the switch the handing-off device connects the account again itself**, writing the
-connection into `set:trackers` from its kept tokens with its original connect stamp — the one case a device writes
-a connection a person did not — but only if `set:trackers` holds no non-null connection for that provider and no
-connection of that account stamped later than `disconnectedAt`; otherwise, or if it has no tokens (Simkl's was
+connection into `set:trackers` by compare-and-set, after reading the log to its head, from its kept tokens with its
+original connect stamp — the one case a device writes a connection a person did not — but only if `set:trackers`
+holds no non-null connection for that provider, no connection of that account stamped later than
+`disconnectedAt`, and no other handoff for that provider has a later `disconnectedAt`. A reader that finds two
+non-null connections for one provider uses the later-stamped one, and its lease holder writes the other `null`; otherwise, or if it has no tokens (Simkl's was
 nulled in v2's `set:keys`), the account stays disconnected, other clients show it as awaiting a person's reconnect,
 and delivery for it waits until then. Every change made in between is delivered. Any other
 client only shows that the switch is offered.
@@ -583,10 +600,13 @@ any stray `ep` or `tracker-event` row folded through §8.
   anything more from it, and converts its entries through §8, where they become pending targets decided by §6.
 - **Known exception to Guarantee 7**: a v2 TV that scrobbled a play after the switch, then updates and writes that
   viewing back, has it delivered again with Den's watched-at, which is not the scrobble's time, so Trakt can show it
-  twice.
+  twice. Accepted because the shipped v2 journal does not record scrobble-stop times, so nothing can tell that play
+  apart from a genuine rewatch.
+- **Known limit (§7 imports):** a playback write from a device that has not yet seen an import merges as progress
+  plus `imported`, so the episode reads in progress, not watched, until it is finished. Clients still converge.
 - **After a switch or a restore** (a changed generation), every client forgets its head and bases, reads from 0, and
-  writes back what it holds that the new log lacks — **in v3 form only**, including **every receipt it holds**
-  (merged per key by settle order, §6), never a `lease`. It converts any `ep` rows, v1 events and kept unsent work it
+  writes back what it holds that the new log lacks — **in v3 form only**, including **every receipt it holds**,
+  intents (`sending`) included (merged per key by settle order, §6), never a `lease`. It converts any `ep` rows, v1 events and kept unsent work it
   holds (including a v2 build's kept journal, once that device updates) through §8 into registers first. Its
   converted changes are pending targets (§6).
 - **No v2 rows in a v3 library.** A v3 client uploads no `ep` or `tracker-event` row on any path — write-back,
@@ -632,6 +652,10 @@ The rules live in den-sync so both clients share them:
   per Den viewing; an imported episode or film rewatched in Den delivered; an unverified list add re-settled and its
   epoch removed; a handoff with a mismatched `generation`, with `"all"`, and with a playback-finished watch after
   `head`; a reconnect refused when the provider already has another account.
+- Rev-14 rules: a Simkl import then catch-up sends nothing; one watch imported from both trackers at different
+  seconds sends nothing; a Trakt play with non-zero milliseconds is acknowledged; a handoff seeding `w` at `p₀` so a
+  post-`head` rewatch is sent; a rating-only edit not qualifying a film; a held unverified entry staying unverified;
+  two handoffs reconnecting one provider.
 - Delivery: pending by value (an older-stamped winner on viewing); a reset delivering an un-watch for real and for
   imported episodes, settling without oscillating; a series watchlist add; commands built from values with `at` and
   `watched_at`; each `decide` outcome's receipt (sent then changed → built-from value); no receipt → additive unless
