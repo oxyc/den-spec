@@ -276,9 +276,12 @@ deliver for it; one at a time.
   settles within that epoch, and the settling device. Entries merge per key by settle order (then JCS, §4), never by
   clock, so a settle made under a later lease always wins, whatever any device's clock says.
 - A target is pending only on its class, `p` or field value; watched-at alone never makes it pending.
-- **Timeless values.** A target whose current value's stamp is timeless (an import) is never pending against a
-  receipt other than `n`, `out` or `null`; against those, or with no receipt, it is caught up additively
-  (`baseline`) like any value before `since`.
+- **Timeless values.** A target whose current value's stamp is timeless (an import) is never sent against a
+  receipt other than `n`, `out` or `null`. When it differs from such a receipt and is not a regression, the holder
+  settles it silently: the receipt becomes that value and its timeless stamp. So a receipt follows what an import
+  learned, and a later change a person makes is pending against it. Against `n`, `out` or `null`, or with no
+  receipt, it is caught up additively (`baseline`) like any value before `since`. A target changed by kept or
+  converted work (§10) and holding no receipt is pending, not `baseline`, whatever its stamp.
 - **Unverified receipts.** When any device reads, for one account, receipts at the same settle epoch ≥ 2 from two
   different devices, it adds that epoch to the `set:deliver` setting `unverified` (a list of epochs, merged as a
   union), and every entry at a listed epoch is **unverified**. Seed epochs 0 and 1 (§9, §10) are never unverified.
@@ -332,8 +335,9 @@ deliver for it; one at a time.
 - `pending_targets` builds each command from the table above — never from v2 `commands`. Each carries `at` (the
   value stamp's `t`, for ordering) and `watched_at` (§5, sent to the tracker). It fills `decide`'s command as:
   `current` = true; `baseline` = the target has no receipt and its value's stamp is not later than `since`, or its value's stamp is
-  timeless and its receipt is `n`, `out` or `null`; a command built from a timeless value sends the import's `c` as
-  `rated_at`, or omits it when `c` = 1; `episode`
+  timeless and its receipt is `n`, `out` or `null`; a rating command built from a timeless value sends `c` as
+  `rated_at` when `c` > 1 and omits it otherwise; list and watch commands built from one send no import time beyond
+  `watched_at` (§5); `episode`
   for an episode target; `added` = true for a list add, false for a removal; `rating` = 10 / 7 / 2 for love / like /
   dislike, null for a removal. The `Remote` side is filled from the tracker snapshot as v2 does, and
   `episodes_complete` MUST be true only when the snapshot lists every watched episode of the show (both shipped
@@ -503,16 +507,16 @@ tracker's own site while Den still holds it is added again (as a v2 reinstall do
 tracker's site since is held as `remote_order_unknown_or_newer`, not overwritten. A catch-up held as `snapshot_unavailable` or `account_changed` is retried until decided, and a catch-up rating
 is acknowledged by any remote rating entry, valued or not, so no catch-up holds for good and seeding never turns one
 into a non-baseline command. While a catch-up cannot be delivered (a credential stays refused, or the tracker keeps
-refusing that command), the offering client shows that, with the title, as why the switch waits. If connected accounts are delivered by different devices, each other device
+refusing that command; a Simkl `not_found` counts as sent), the offering client shows that, with the title, as why
+the switch waits. If connected accounts are delivered by different devices, each other device
 disconnects its accounts first, after draining their outboxes, and writes a **handoff** for each: the setting
 `<d>.handoff:<provider>` in `set:devices` = `{"string": <JSON {account, disconnectedAt, generation, head, headAt,
-unsettled}>}`, where `generation` and `head` are the library generation and log seq its final drain read through,
-`headAt` its own clock (ms) at that read,
-and `unsettled` the ids of events at or below `head` whose commands it did not deliver (held, superseded,
-orphan-retired, or unsent; an event counts as delivered only if it is in the device's own per-account
-acknowledgements, and an id-only receipt or completed flag inherited from a pre-ready build counts as not
-delivered) — or
-`"all"` if the list would exceed 2 KiB. The switch counts an event as settled for
+readyFrom, unsettled}>}`, where `generation` and `head` are the library generation and log seq its final drain read
+through, `headAt` its own clock (ms) at that read, `readyFrom` the lowest log seq its ready build read, and
+`unsettled` the ids of events in [`readyFrom`, `head`] whose commands it did not deliver (held, superseded,
+orphan-retired, or unsent) — or `"all"` if that list would exceed 2 KiB. Every event with seq below `readyFrom` is
+unsettled for that account unless it is in the device's own per-account acknowledgements (an id-only receipt or
+completed flag inherited from a pre-ready build never counts). The switch counts an event as settled for
 that account only when its seq ≤ `head` and it is not in `unsettled`; with `"all"`, or when `generation` differs
 from the generation the switch reads under, every event for that account is unsettled. An episode or film-watch
 target of that account **qualifies** when its current value is `watched`, it has no unsettled event (a finish by
@@ -542,7 +546,7 @@ covering reset not more than a day ahead of the performing device's clock, or nu
 floor would make any old reset trigger un-watch-then-re-mark); otherwise with the default `n`, so `decide`
 acknowledges the watch if present and sends it if not. Handoffs naming the **same account**: an event is settled if
 any of them settles it; a target qualifies only if it qualifies under every one; `since` is the earliest
-`disconnectedAt`, then combined with the list and rating rule's bounded stamp; only the one with the latest `disconnectedAt` reconnects, and the seed's `p₀` bound and the Trakt scrobble window
+`disconnectedAt`, then the later of that and the list and rating rule's bounded stamp; only the one with the latest `disconnectedAt` reconnects, and the seed's `p₀` bound and the Trakt scrobble window
 use that latest `disconnectedAt`. **Known limit**: a viewing finished
 offline before `disconnectedAt` that syncs after `head` is taken as delivered, so Trakt may hold one play fewer (v2
 would not have delivered it either). The current viewing is never seeded as delivered: a finish
@@ -551,9 +555,9 @@ unsettled at the switch — by a handoff's qualification, from an event's `befor
 Trakt rewatch check of a viewing whose play has watchedAt `W` ≤ the bound (the latest `disconnectedAt.t` for a
 handed-off account, else the performing device's clock at its read of `base`) also acknowledges it by a play in `H`
 later than both the receipt's floor and `⌊W / 1000⌋ · 1000 − 86 400 000`, at or before the bound, and not matched
-exactly to another viewing. The receipt's own viewing (and, for the `w` at current − 1 shape, viewing current − 1)
-takes part in the matching when `H` holds no play at exactly its `⌊W⌋`, so its own scrobble stop is never credited
-to a later viewing; each play acknowledges at most one viewing, earliest viewing to earliest play, since a v2 scrobble records its stop time (sent when the player closes at 80 % or
+exactly to another viewing. The receipt's own viewing takes part in the matching when `H` holds no play at exactly its
+`⌊W⌋`, and every viewing at or above the receipt's, below the current one, that has no play takes part with the
+window (receipt floor, bound], so no viewing's own scrobble stop is ever credited to a later viewing; each play acknowledges at most one viewing, earliest viewing to earliest play, since a v2 scrobble records its stop time (sent when the player closes at 80 % or
 more, which can precede `W`'s write), not `W`. **Known limit**: a Trakt play from outside Den inside that window
 acknowledges the viewing; a viewing whose final stop failed after an earlier session's stop more than a day before
 `W` reached Trakt may be sent again.
@@ -603,7 +607,12 @@ client only shows that the switch is offered.
   snapshot makes that safe. A target is **unsettled** if any of its events is, or if any unsent command for it is in
   the outbox, journalled or not. An unsettled target is seeded with the value derived from its earliest unsettled
   event's `before` alone — folded through §8, then read through §5 and §6 — with the title's resets whose `t` is
-  less than that event's `at`; an absent `before` seeds the default (`n`, `out`, `null`). It is never seeded as "no receipt". Every other target is seeded with its current value. Unsettled
+  less than that event's `at`; an absent `before` seeds the default (`n`, `out`, `null`). It is never seeded as "no receipt". Every other target is seeded with its current value. A value of class `n` (a
+  film's `none`) in viewing p > 0 — current, or derived from a `before` — is instead seeded by the qualifying-target
+  shapes of the handoff paragraph: `w` at p₀ when a lower viewing has a visible Den play (bound: `disconnectedAt.t`
+  for a handed-off account, else the performing device's clock at its read of `base`); else `u` at p when `cleared`
+  is `[p − 1, …]`; else `w` at p − 1 with the covering-reset floor; `n` only when p = 0. So a replay in progress at
+  the switch is delivered as a rewatch when it finishes. Unsettled
   removals are subject to `removals` (more than 20 pending → held). Receipts the device already holds from an
   earlier switch are merged in. Seeded receipts carry settle order `[1, n, <performing device id>]`. Each `set:deliver` row gets `since` =
   the switch's stamp (if it has none) and `lease` = `["", <1 + the greatest settle epoch in the merged receipts>]`.
