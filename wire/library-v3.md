@@ -544,8 +544,9 @@ Every write is a set-to-value; replaying one changes nothing. `register_write` (
   a zone of UTC−10 to −12 or +12 to +14 and re-imported from another zone can consecutive-day viewings be
   matched to the wrong day. The reset comparison above uses
   the play as written (whole seconds). A play a tracker reports is not written when it matches one-to-one, by §9's
-  one-play-per-viewing matching, a viewing whose ⌊W⌋ the tracker does not hold exactly and that §9's window for that
-  account would take part in: a viewing with a Den play `W` ≤ `seedBound`, within the **viewing window**
+  one-play-per-viewing matching, a viewing whose `⌊W / 1000⌋ · 1000` the tracker does not hold exactly (for Simkl,
+  `L` ≠ it) and that §9's window for that account would take part in, the play being later than the receipt's floor
+  as there: a viewing with a Den play `W` ≤ `seedBound`, within the **viewing window**
   (⌊W⌋ − 86 400 000, min(⌊W⌋ + 90 000 000, `seedBound` + 86 400 000)]; a play-less viewing §9 matches, within its
   window there; or a viewing with a `[p, null, T]` element in that account's entry — whether or not it has a Den
   play yet, and whatever its `W` — within (T − 86 400 000, `seedBound` + 86 400 000]: it is a v2 scrobble of that
@@ -635,7 +636,12 @@ atomically.
 hold an outbox that still delivers) unless a person removed it, and no device has entries but no `seen` (unknown
 counts as not ready). Every ready build also writes `<d>.delivers` = `{"strings": ["<provider>:<account id>", …]}`
 in `set:devices`, listing each account it delivers for in v2 form; a handoff and its withdrawal rewrite it in the
-same batch. The switch is performable only if every account another device lists has a stored handoff, and the
+same batch. A ready build delivers nothing for an account until a batch listing it in `<d>.delivers` has
+succeeded, and nothing while any of its batches is refused as `rewrite_in_progress`; a ready build whose own
+handoff for an account is stored does not deliver for it, whatever `set:keys` holds, and resumes only through its
+own withdrawal. A device with no v2 delivery path (the web) lists none; removing a device writes its `delivers`
+and handoffs `null`, and a device excluded from the offer is excluded from this check. The switch is performable
+only if every account another device lists has a stored handoff, and the
 performer re-checks this on the log it reads through `base`. It is **performed** only by a device holding the v2
 delivery outbox for every connected account it does not see handed off, after a full reconcile and drain since its last install, so it holds nothing but held commands. A drain
 counts for the switch or a handoff only once every catch-up (baseline) command for that account has been sent to it
@@ -658,12 +664,15 @@ refusing that command; a `not_found` from any tracker counts as sent), the offer
 the switch waits. If connected accounts are delivered by different devices, each other device
 disconnects its accounts only once their handoffs are stored, after draining their outboxes: each **handoff** is
 written in the same batch as its disconnect (for Simkl, the `set:keys` null; for Trakt, whose tokens are local, the
-local disconnect follows the stored batch). If that batch is refused as too large (den-edge answers 400 for a value
+local disconnect follows the stored batch, and the device stops delivering for that account before its final drain
+read). Before writing a handoff the device sends every kept `stop` for that account whose batch has succeeded and
+drops the rest; from the handoff batch on it keeps no `stop` for that account and sends none until a withdrawal
+succeeds. If that batch is refused as too large (den-edge answers 400 for a value
 over its cap; the device treats a 400 as that only when its own measured row exceeds the cap), the device writes `ratings` as `"all"`, then also `unsettled` as `"all"`, and retries; if it is still
 refused, the account stays connected, no handoff is written, and the offering client shows why the switch waits.
 Both fallbacks only widen re-decision: with `unsettled` `"all"`, the known limit on pre-ready deliveries applies to
-every delivery of that account; with `ratings` `"all"`, see below. Sizes are measured on the UTF-8 JSON before
-escaping. A handoff is the setting
+every delivery of that account; with `ratings` `"all"`, see below. A row is measured as den-edge measures it (the
+base64 sealed value as sent); the 2 KiB `unsettled` threshold is measured on its UTF-8 JSON. A handoff is the setting
 `<d>.handoff:<provider>` in `set:devices` = `{"string": <JSON {account, disconnectedAt, generation, head, headAt,
 readyFrom, unsettled}>}`, with `ratings` written in the same batch to its own row
 `set:handoff:<provider>:<account id>` (setting `ratings`, `"all"` only when that row would exceed den-edge's cap)
@@ -672,14 +681,18 @@ survives a key reset) for every rating target of
 that account whose latest settlement on this device was an acknowledgement recording a remote value different from
 the rating Den sends for its reaction (keys that match no row count as absent; **known limit**: with `"all"`, a
 person's Den rating change made before the first complete pass against a tracker value Den had acknowledged is
-held as a site edit would be). Once that account is connected in `set:trackers` after the switch, the device that
-connected it writes every `<d>.handoff:<provider>` naming that account, and its `set:handoff` row, `null`. A
+held as a site edit would be). The device that connects an account of a provider after the switch writes every
+`<d>.handoff:<provider>` of that provider, and their `set:handoff` rows, `null` in the same batch as the
+connection. A handing-off device attempts its reconnect once, at its first read after observing the commit and only
+while its own handoff is stored; if it does not reconnect then, it discards its kept tokens. A
 handing-off device that has not observed a commit (a generation change with minimum 3) within 24 hours of its
 handoff, and whose last batch was not refused as `rewrite_in_progress` within the last 5 minutes, **withdraws** it:
-in one batch it writes its handoff and `set:handoff` row `null`, restores its connection in v2 form with a
-**fresh** stamp later than the handoff's `null` (Simkl: `set:keys` `simkl` = its kept token; the account's
-connection stamp in §9 stays the earliest `set:keys` `simkl` stamp the device has seen for that account id), and
-lists the account again in `<d>.delivers`. Only after that batch succeeds does it reconnect locally (Trakt) and
+in one batch it writes its handoff and `set:handoff` row `null`, and — only if the connection is still the `null`
+its handoff wrote (for Simkl, `set:keys` `simkl` with that same stamp) — restores its connection in v2 form with a
+**fresh** stamp later than that `null` (Simkl: `set:keys` `simkl` = its kept token; the account's connection stamp
+in §9 stays the earliest `set:keys` `simkl` stamp the device has seen for that account id) and lists the account
+again in `<d>.delivers`; if a person reconnected meanwhile, it lists nothing for that provider and discards its
+kept token. Only after that batch succeeds does it reconnect locally (Trakt) and
 resume delivery; before delivering anything else for that account it runs a full reconcile and treats every event
 with seq in (`head`, its read head] as owed to that account, whatever account the event recorded, deciding each
 against the account's snapshot; events at or below `head` keep their recorded settlement. A withdrawal is dropped
@@ -930,9 +943,10 @@ any stray `ep` or `tracker-event` row folded through §8.
   dropped stop is a v2-equivalent failed scrobble, and the viewing is delivered by catch-up or v3 later). den-edge
   also records in its (generation, head) index the highest wire minimum ever committed for each library id and
   answers `x-den-wire-min` as the greater of it and the stored minimum, and applies §10 Refusal against that same
-  value; a v3 client that reads minimum 3 on a log holding `ep` or `tracker-event` rows switches again when that
-  read follows a generation change it did not observe committing with minimum 3, and otherwise folds them (§10 No
-  v2 rows). So
+  value; a v3 client that reads minimum 3 on a log holding `ep` or `tracker-event` rows switches again unless it
+  observed a commit with minimum 3 under the current generation (a device holding no generation for this library
+  switches again), and otherwise folds them (§10 No v2 rows); `v3_form` merges every `wat` and `snt` row in the log
+  through `base` with the fold (§3 merge). So
   any ready build's stop lands within an hour of a batch at or below `base`, inside the window end. The first switch's `seedBound` is the greater of the
   performing device's clock at its read of `base` and the greatest play watchedAt in the log through `base` that is
   not more than a day ahead of that clock, so a batch from a clock running ahead is still inside the window.
