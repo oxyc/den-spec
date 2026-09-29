@@ -352,7 +352,7 @@ deliver for it; one at a time.
 - **No receipt**: a target with no receipt whose value's stamp is later than the account's `since` is pending. One
   from before `since` is caught up additively only — watched, a list add, a rating — as v2's catch-up; any other
   value settles silently. Connecting an account for the first time never removes anything there (except what §9
-  Kept for the next account carries to the account that adopts a `~next` row), and a change after
+  Kept for the next account carries to the one account that adopts a `~next` row), and a change after
   `since` is always delivered. Catch-up never re-verifies settled targets, except once at a ready build's first reconcile and once at the switch (§9): an edit made on the tracker's own site otherwise stands.
 - **Rows**, `schema: 3`:
   - Episodes: `snt:<provider>:<account id>:<watch row name>`, one per watch row with a receipt:
@@ -669,10 +669,14 @@ handoff for an account is stored does not deliver for it, whatever `set:keys` ho
 own withdrawal. A device with no v2 delivery path (the web) lists none. Removing a device writes **every**
 `<d>.…` setting of it `null` — `name`, `kind`, `seen`, `pending`, `format`, `facade`, `delivers`, each
 `connectedAt:<provider>` and `handoff:<provider>` — and each `set:handoff:<provider>:<account id>:<d>` row of it
-`null`; "entries" in the offer rule means non-null settings. A ready build that reads its own `format`, `facade` or
-`delivers` as `null`, or as other than what it would write, rewrites all three in its next batch (this is how a
-removed device lists itself again), and until that batch succeeds it delivers nothing and sends no kept `stop`. A
-device excluded from the offer is excluded from this check and from the facade check. The switch is performable
+`null` (a remover finds those rows by their decrypted identity, not by name); "entries" in the offer rule means
+non-null settings. A ready build that reads its own `format`, `facade` or `delivers` as `null`, or as other than what
+it would write, rewrites `name`, `kind`, `seen`, `format`, `facade`, `delivers` and any `connectedAt:<provider>` it
+wrote in its next batch (this is how a removed device lists itself again, at once, not at its next launch), and
+until that batch succeeds it delivers nothing and sends no kept `stop`. A ready build whose own handoff was written
+`null` by another device before it observed a commit withdraws at once (restoring its connection only if
+`set:keys` still holds its handoff's `null`, as a withdrawal does). A removed device that never lists itself again
+counts for neither this check nor the facade check. The switch is performable
 only if, for every device other than the performer and every account its `<d>.delivers` lists, that same device's
 `<d>.handoff:<provider>` naming that account is stored, and the
 performer re-checks this on the log it reads through `base`. It also re-checks there that every connected account
@@ -730,7 +734,8 @@ every delivery of that account; with `ratings` `"all"`, see below. A row is meas
 base64 sealed value as sent); the 2 KiB `unsettled` threshold is measured on its UTF-8 JSON. A handoff is the setting
 `<d>.handoff:<provider>` in `set:devices` = `{"string": <JSON {account, disconnectedAt, generation, head, headAt,
 readyFrom, unsettled, connectedAt}>}` (`v3_form` writes `null` every handoff and `set:handoff` row naming an account
-it seeds as connected; when the performing device holds another account of a handed-off provider, it writes that
+it seeds as connected, every `<d>.handoff:<provider>` setting that is not stored (§10: its row does not carry its
+`headAt`), and every `set:handoff` row with no matching setting; when the performing device holds another account of a handed-off provider, it writes that
 provider's handoffs and `set:handoff` rows `null` and the handed-off account stays disconnected — **known limit**:
 one account per provider), with `ratings` written in the same batch to its own row
 `set:handoff:<provider>:<account id>:<d>` (one per handing-off device; setting `ratings`, `"all"` only when that row would exceed den-edge's cap)
@@ -917,7 +922,8 @@ moves by `adoptedBy`'s earlier-stamp merge can each deliver them once (v2 delive
 or rating change made after the switch while no account of that provider is connected reaches the next account
 only as additive catch-up (v2 delivers it). The lease holder of a connected account that reads a `~next` row of its
 provider with no `adoptedBy`, while that account's `set:deliver` row has no `receiptsFrom`, adopts it by
-compare-and-set (`adoptedBy` and `receiptsFrom` in one retry loop) before its first pass.
+compare-and-set (`adoptedBy` and `receiptsFrom` in one retry loop) before any pass that settles a target with no
+receipt. A later connect of another account adopts only when `adoptedBy` is absent (§10).
 When a handed-off account is also connected on the performing device at the switch, an event is settled for it iff
 the v3 form's rule for an account the performer holds settles it (its own acknowledgements, `commands(event,
 event.after)` = `[]`, or its own connection-stamp rule against its own last full reconcile's read head), or the
@@ -927,7 +933,9 @@ the handoff's `held`. An account the performer holds that no handoff names is se
 accounts of one provider: the one with the later `disconnectedAt` is connected again; the other stays
 disconnected. **After the switch the handing-off device connects the account again itself**, writing the
 connection into `set:trackers` by compare-and-set, after reading the log to its head, from its kept tokens with its
-original connect stamp — the one case a device writes a connection a person did not — but only if `set:trackers`
+original connect stamp — the one case a device writes a connection a person did not — but only if its handoff is
+stored in the §10 sense in the v3 log, the account's `set:deliver` row holds `seedBound` (the switch seeded it), and
+`set:trackers`
 holds no non-null connection for that provider, no connection of that account stamped later than
 `disconnectedAt`, and no other handoff for that provider has a later `disconnectedAt` (its handoff still stored in
 the v3 log). For Simkl, `v3_form` checks that the `set:keys` `simkl` setting at `base` is the `null` the handoff
@@ -1063,13 +1071,19 @@ any stray `ep` or `tracker-event` row folded through §8.
 ## 10. Clients around the switch
 
 - **Batches are not atomic.** den-edge applies a batch row by row: each write whose `base` matches is applied and
-  the rest come back as conflicts. "In the same batch" in this spec means sent together and retried until every
-  write in it is applied — never atomic. A handing-off device therefore writes its
-  `set:handoff:<provider>:<account id>:<d>` row (`ratings`, `held`, and the handoff's `headAt`) first, and the
-  `<d>.handoff:<provider>` setting and its disconnect only once that write is applied; the offer and the performer
-  treat a handoff whose row does not carry its `headAt` as not stored. An adoption (§9 Kept for the next account)
-  whose connection write conflicts is retried with it; an `adoptedBy` naming an account whose connection is not in
-  `set:trackers` is taken as absent.
+  the rest come back as conflicts. "In the same batch" in this spec means sent together, never atomic; a write that
+  conflicts is re-derived from the fresh read and sent again until the batch's intent is applied or no longer holds.
+  A conditional write (a withdrawal's restore, an adoption) is re-evaluated, and a `lease` or receipt write follows
+  its own conflict rule (§6). A handing-off device writes its `set:handoff:<provider>:<account id>:<d>` row
+  (`ratings`, `held`, and the handoff's `headAt`) first, and the `<d>.handoff:<provider>` setting and its disconnect
+  only once that write is applied; every reader — the offer, the performer, `v3_form` and the handing-off device
+  itself — treats a handoff whose row does not carry its `headAt` as not stored. A withdrawal writes its
+  `set:devices` settings (its handoff `null`, `<d>.delivers` listing the account, `<d>.connectedAt:<provider>`)
+  first, and its `set:handoff` row `null` and the `set:keys` restore only once that write is applied, so every
+  partial state is a device listing the account with no handoff, which the performer refuses. An adoption (§9 Kept
+  for the next account) whose connection write conflicts is retried with it. An `adoptedBy` naming an account for
+  which `set:trackers` holds no setting at all (neither a connection nor a `null`: its connect never landed) is taken
+  as absent; one naming an account whose connection is `null` is not absent, and that account keeps what it adopted.
 
 - **Headers.** Every request from a v3-capable client to `/lib/{id}/…` carries `x-den-wire: 3` and
   `x-den-generation` (also before the switch; `0` when creating a library). Every `/lib` response carries
@@ -1101,7 +1115,9 @@ any stray `ep` or `tracker-event` row folded through §8.
   `set:deliver` rows it holds (`since` to the earlier), with settle order epoch `0` for what it seeds; a client that
   holds no receipts for an account seeds that account's targets as unsettled, with default values (`n`, `out`,
   `null`) — never "no receipt" — except that an episode or film-watch target whose current value is `unwatched` is
-  seeded with its current value (an un-watch is never sent on unknown settlement), and except for an account whose merged `set:deliver` row has `since` but no
+  seeded with its current value (an un-watch is never sent on unknown settlement; **known limit**: an un-watch
+  pending at the restore whose settlement a re-switch cannot know is not delivered, an exception to Guarantee 7),
+  and except for an account whose merged `set:deliver` row has `since` but no
   `seededThrough` (connected after the switch), whose targets without a receipt stay without one. A v3 client that follows a key reset or link away from a library it has seen at
   minimum 3 treats a lower minimum on the new library the same way, as a restore.
 - **The v2 outbox stops.** On the switch's generation change, a v3 client stops its v2 outbox without sending
