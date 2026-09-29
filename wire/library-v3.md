@@ -28,7 +28,8 @@ There is **no mixed period**: no library is ever written in both formats at once
 ## 2. Guarantees
 
 1. **Convergence.** Clients that have read the same rows derive the same state for every episode and title, in any
-   arrival order.
+   arrival order — given clocks within a day of each other (a stamp more than a day ahead of a reader is read as
+   timeless until it is not, §4).
 2. **No lost update.** Changes to different episodes or fields never overwrite each other; changes to the same one
    resolve by v2's rule for that field (v2 §5).
 3. **No lost state at the switch.** The v3 form derives, for every coordinate and title, the state v2's reference
@@ -142,8 +143,8 @@ series' `episodesReset` and the season's `seasonReset`:
 
 A film's status, resume and reaction are v2's (`rec`). Its visible plays are the `"0"` register's plays with key >
 `cleared` viewing, not more than a day ahead. Status `none` or `watchlist` shows no play (a rewatch in progress
-keeps them). Watched-at is the play of `rec.resume.viewing`, or else the greatest visible play, or else
-`rec.status.at.t`.
+keeps them). Watched-at is the play of `rec.resume.viewing`; else `rec.status.at.t` when that stamp is real; else the
+greatest visible play; else null.
 
 ## 6. Tracker delivery
 
@@ -153,7 +154,10 @@ deliver for it; one at a time.
 ### Accounts
 
 - **Account id** is the provider's stable user id (Simkl's and Trakt's user id), fetched from its API when the
-  account is connected and at the switch — never a token fingerprint, so a new token is the same account.
+  account is connected and at the switch — never a token fingerprint, so a new token is the same account. At most
+  one account per provider is connected at a time; connecting another first disconnects the current one.
+- **One channel.** A v3 client sends no tracker write outside `pending_targets`. Scrobble start and pause may be sent
+  for "now watching"; a scrobble stop never adds history.
 - **Credentials** live in `set:trackers` (sealed like every row; den-edge never sees them), as two settings per
   account:
   - `<provider>:<account id>` — the **connection**, written only by a person: `{"string": <JSON with the tokens and
@@ -168,7 +172,10 @@ deliver for it; one at a time.
   generation change. So a refresh never resurrects a disconnected
   account and a reconnect always wins. **Only the lease holder refreshes**: it persists the refreshed token locally
   first, then writes `.token` by compare-and-set; on conflict it re-reads and retries if the account's settings are
-  unchanged, and discards its token only if they changed. A write whose outcome is unknown is retried with the same
+  unchanged, and discards its token only if they changed. A device holding a refreshed token that is not yet in the
+  log writes it the same way whether or not it still holds the lease (the `connectedAt` match guards it). A holder
+  whose refresh is refused re-reads `set:trackers` and waits one lease period for a newer `.token` before showing
+  that the account needs reconnecting. A write whose outcome is unknown is retried with the same
   value until known. The switch writes every connected account's tokens here — Simkl's from v2's `set:keys`,
   Trakt's from the performing device's own store (v2 keeps Trakt out of the library) — and writes v2's `simkl` key
   in `set:keys` as `null` with a fresh stamp. From then `set:trackers` is the only copy, and v3 clients ignore any
@@ -183,8 +190,11 @@ deliver for it; one at a time.
     write. A **take** writes its own id and epoch = 1 + the greatest of: the row's epoch, every settle epoch in this
     account's receipts it has read, and the greatest epoch it has held or seen for the account (kept locally) — so
     an epoch is never reused, even after a restore rolls the row back. A **renewal** is sent only if the row it read
-    names this device and keeps the epoch; a **release** writes an empty id and keeps the epoch. A holder stops
-    delivering at once when it reads a receipt of the account whose settle epoch is **greater** than its own, on any
+    names this device and keeps the epoch; a **release** writes an empty id and keeps the epoch. `lease` merges by
+    epoch, then JCS (§4); its stamp is ignored. A write to `set:deliver` that is not a take, renewal or release
+    copies `lease` exactly as in the row version it is based on. A holder stops delivering at once when it reads a
+    receipt of the account whose settle epoch is **greater** than its own, or **equal** to its own but settled by
+    another device (its next take then exceeds that epoch), on any
     `generation_changed`, and on any response whose `x-den-generation` differs from the one it took the lease under:
     a lease holds only within the generation it was taken in. Write-back (§10) never writes `lease`.
   - **Holding.** A device holds the lease only while its own take or renewal succeeded less than 2 minutes ago,
@@ -192,8 +202,8 @@ deliver for it; one at a time.
     `CLOCK_BOOTTIME` on Linux; in a browser, the **greater** of the elapsed `performance.now` and `Date.now`, and
     `Date.now` going backwards counts as expiry. The holder renews every 60 s, checks the 2 minutes immediately
     before every tracker request, gives every tracker request a total timeout of 60 s, and decides each command
-    against a tracker snapshot taken after its last successful renewal; after a request whose outcome is unknown, it
-    reads the target's snapshot again before deciding it again.
+    against a tracker snapshot taken since its take of the current epoch, held continuously since; after a request
+    whose outcome is unknown, it reads the target's snapshot again before deciding it again.
   - **Taking.** A device takes only after reading the log to its head, and only after it has seen the row's seq
     unchanged for 10 minutes, measured with the **lesser** of its clocks, or when the row names no device. After a
     generation change it takes only after 10 minutes of observation, whatever the row names.
@@ -225,7 +235,14 @@ deliver for it; one at a time.
     not an explicit un-watch) is `none`.
   - **Rating**: `reaction`.
   - While a title is `deleted`, its film-watch and rating targets are not evaluated: no command, no receipt written.
+- **An un-watch survives playback.** Against a `w` receipt, a current value that is not `watched` is `unwatched`
+  when the register's `cleared` viewing is ≥ the receipt's `p`, or a covering reset's `t` is later than the receipt's
+  floor — whether the current progress is 0 or a new viewing in progress. Its stamp is that `cleared` or reset stamp
+  and `p` the current viewing. A film applies the same rule with `resume.viewing` and its `cleared`. So playing an
+  episode or film again before an un-watch is delivered never swallows the un-watch.
+- A film's `unwatched` value has `p` = `resume.viewing`.
 - **Order values.** For the regression order, a class counts as `u` = 0, `n` = 0.5, `w` = 1.
+- A `status` change touches two targets, list and film watch; each is decided on its own.
 - A value whose stamp is more than a day ahead of the deliverer's clock is not pending until it no longer is.
 - **Commands per value** (from the receipt's value to the current one):
 
@@ -251,15 +268,19 @@ deliver for it; one at a time.
 ### Receipts
 
 - A **receipt** records, per account and target, the value a command was **built from**, that value's stamp, and
-  its **settle order** `[epoch, n]`: the lease epoch it was settled under, and the holder's persisted count of
-  settles within that epoch. Entries merge per key by settle order (then JCS, §4), never by clock, so a settle made
-  under a later lease always wins, whatever any device's clock says.
+  its **settle order** `[epoch, n, device id]`: the lease epoch it was settled under, the holder's persisted count of
+  settles within that epoch, and the settling device. Entries merge per key by settle order (then JCS, §4), never by
+  clock, so a settle made under a later lease always wins, whatever any device's clock says.
+- A target is pending only on its class, `p` or field value; watched-at alone never makes it pending.
+- **Timeless values.** A target whose current value's stamp is timeless (an import) is never pending against a
+  receipt; it is caught up only when there is no receipt. So one tracker's state is never pushed to another.
 - **Only the lease holder writes receipts** — the one exception is write-back after a generation change (§10), which
   only merges receipts that were already settled — and only by a batch whose `base` is the receipt row's seq it read
   before deciding the command, checking the lease immediately before the write. On a conflict or a lapsed lease the
   settle is discarded and the target decided again later. Kept refused writes (§10) never include a receipt or a
   `lease`.
-- **Every settled value has an entry**, defaults included (`n`, `out`, `null`); absence means no receipt.
+- **Every settled value has an entry**, defaults included (`n`, `out`, `null`, with value stamp `[0, 0, ""]` when
+  seeded); absence means no receipt.
 - A target is **pending** when its current value differs from its receipt (class, viewing, or field value) and is
   not a regression. Values, not stamps: v2's merge lets an older-stamped version win on viewing.
 - **No receipt**: a target with no receipt whose value's stamp is later than the account's `since` is pending. One
@@ -292,31 +313,35 @@ deliver for it; one at a time.
 - `pending_targets` builds each command from the table above — never from v2 `commands`. Each carries `at` (the
   value stamp's `t`, for ordering) and `watched_at` (§5, sent to the tracker). It fills `decide`'s command as:
   `current` = true; `baseline` = the target has no receipt and its value's stamp is not later than `since`; `episode`
-  for an episode target; `rating` = 10 / 7 / 2 for love / like / dislike, null for a removal.
+  for an episode target; `added` = true for a list add, false for a removal; `rating` = 10 / 7 / 2 for love / like /
+  dislike, null for a removal. The `Remote` side is filled from the tracker snapshot as v2 does, and
+  `episodes_complete` MUST be true only when the snapshot lists every watched episode of the show (both shipped
+  trackers' full syncs do), or episode un-watches hold.
 - A resend sends the same `watched_at` it sent before whenever the command's watched-at is unchanged.
 - **Ratings** are acknowledged when the remote's rating maps to the same reaction (≤ 4 dislike, 5–7 like,
   ≥ 8 love), so a person's tracker rating is never overwritten by its Den equivalent.
 - den-core `decide` sends, acknowledges, supersedes or holds each command against the tracker's snapshot with every
   v2 hold reason — remote order unknown or newer (v2's comparison), incomplete coverage, account mismatch,
   independent state (a removal that would drop a list entry or rating) — plus `removals` held (above).
-- **Latest remote play.** Trackers report only their **latest** play per episode or film (Trakt
-  `last_watched_at`, Simkl `watched_at`). `decide` gets it as `L`, at second precision, or null when unknown.
+- **Remote plays.** Simkl reports only the **latest** play per episode or film (`watched_at`); `decide` gets it as
+  `L`, at second precision, or null when unknown. Trakt lists every play (`GET /sync/history/{type}/{id}`), which
+  `decide` gets as the set `H`.
 - **Floor.** A receipt's floor is its watched-at for a `w` receipt and its value stamp's `t` for a `u` receipt, at
-  second precision.
+  second precision. A null floor is below every time; a null `W` is never acknowledged by a play time.
 - **Rewatch.** `watched` in a `p` greater than a `w` receipt's, with `cleared` viewing below the receipt's `p` and no
-  covering reset later than the receipt's floor, is a rewatch. It is acknowledged iff `L` is known,
-  `L ≥ ⌊W / 1000⌋ · 1000` (`W` = the command's watched-at) and `L` is later than the floor, all at second precision;
-  otherwise it is sent, even when the remote holds other watches. A resend after a crash or a lapsed lease therefore
+  covering reset later than the receipt's floor, is a rewatch. With `W` = the command's watched-at (Den always sends
+  `W` as the play's time): on **Trakt** it is acknowledged iff `H` holds a play at exactly `⌊W / 1000⌋ · 1000`; on
+  **Simkl** iff `L` is known, `L ≥ ⌊W / 1000⌋ · 1000` and `L` is later than the floor, all at second precision.
+  Otherwise it is sent, even when the remote holds other watches. A resend after a crash or a lapsed lease therefore
   finds the play it already made and adds none; a tracker play from elsewhere that predates this rewatch does not
-  swallow it. **Known limit**: a play from outside Den later than `W` acknowledges an unsent Den rewatch, so the
-  tracker's play count can be one short — unavoidable while trackers report only the latest play.
+  swallow it. **Known limit (Simkl only)**: a play from outside Den later than `W` acknowledges an unsent Den
+  rewatch, so Simkl's play count can be one short — unavoidable while Simkl reports only the latest play.
 - **Un-watch then re-mark.** `watched` in a `p` greater than a `w` receipt's, with `cleared` viewing at or above the
   receipt's `p` **or a covering reset later than the receipt's floor**, is two steps. First the un-watch alone, `at`
   = the `cleared` (or reset) stamp's `t`: sent and settled, it writes the receipt `["u", <p>, null, <its stamp>,
   <order>]` — `p` being the un-watch's progress viewing, or the receipt's `p` for a reset — whatever the current
-  value is. The re-mark is decided only in a later pass. If the un-watch step is held because the remote's latest
-  play is later than the un-watch, it is skipped, and the re-mark is decided in the same pass by the rewatch rule
-  against the `w` receipt.
+  value is. The re-mark is decided only in a later pass. If the un-watch step is held for any reason, it is
+  skipped, and the re-mark is decided in the same pass by the rewatch rule against the `w` receipt.
 - **Against a `u` receipt**, `watched` is acknowledged by the same rule as a rewatch, and sent otherwise — so a
   snapshot that still shows the old watch does not acknowledge a re-mark.
 - **Settling.** Sent, or acknowledged (already present) → the receipt is the value the command was built from,
@@ -345,15 +370,18 @@ Every write is a set-to-value; replaying one changes nothing. `register_write` (
 - **Season reset**: block 0's `seasonReset` = a fresh stamp. **Series reset**: `rec.episodesReset` (v2).
 - **Import** (a tracker's watched list, an import file) of episode `(s, e)`, after pulling the log to its head:
   only if the episode has no unhidden `progress`, is not in progress, and has no covering reset later than the
-  import's newest play. It writes `imported: true` and its plays (§3). It writes no `progress`, so it never
+  import's newest play (with no plays, no covering reset at all). It writes `imported: true` and its plays (§3). It writes no `progress`, so it never
   outranks or erases a person's progress, even when a concurrent write merges with it; and it never lands over a Den
   un-watch or reset, even with a newer remote watch time. A film import writes `rec.status` watched with the stamp
-  `[0, 1, ""]` (timeless, so any real status wins) only if the film has no real status stamp, and its plays.
-- **Title imports** (a tracker's ratings and watchlist) write `reaction` or `status` watchlist with the stamp
-  `[0, 1, ""]`, and only where that field has no real stamp — so they count as before `since` and are caught up
-  additively only, never echoed back as a change.
+  `[0, 1, ""]` (timeless, so any real status wins) only if the film has no real status stamp; it writes its plays
+  either way (plays are additive).
+- **Title imports** (a tracker's ratings and watchlist) write `reaction`, or `status` watchlist only where status is
+  `none`, with the stamp `[0, 1, ""]`, and only where that field has no real stamp. A tracker **watchlist removal**
+  writes `deleted` true with `[0, 1, ""]`, only where status has no real stamp. Being timeless, none of them is ever
+  pending against a receipt (§6), so no tracker's state reaches another.
 - **Films**: status, resume and reaction stay in `rec` (v2). Finishing or marking a film watched also writes the
-  play for `resume.viewing`. Un-watching sets `cleared` to `[resume.viewing, stamp]` **before** v2 bumps it.
+  play for `resume.viewing`, **in the same batch** as the `rec` change. Un-watching sets `cleared` to
+  `[resume.viewing, stamp]` **before** v2 bumps it, in the same batch too.
 
 ## 8. v2's reference reading
 
@@ -372,8 +400,8 @@ The v3 form (§9) folds v2 rows by what v2 web derives, which is den-core's read
   `viewing − 1` over claims of `value == 0` **with viewing ≥ 1**, with that claim's stamp; null if none.
 - **Titles**: each `rec` row merged with every title event's `after` (v2 merge), as a v2 TV repairs an interrupted
   projection.
-- **Film plays**: for a film whose merged `rec` has status `watched`, the play `resume.viewing → status.at.t` in a
-  `wat:movie:<id>:0:0` row.
+- **Film plays**: for a film whose merged `rec` has status `watched` with `status.at.t > 0`, the play
+  `resume.viewing → status.at.t` in a `wat:movie:<id>:0:0` row.
 - **Film cleared**: for a film whose merged `rec` has status `none`, `resume.viewing ≥ 1` and `resume.at ==
   status.at` (the v2 un-watch shape both clients write), `cleared = [resume.viewing − 1, status.at]`.
 - Known shipped behaviour the fold keeps as it is: a replay that starts at fraction 0 writes value 0 in viewing + 1,
@@ -392,9 +420,12 @@ atomically.
 hold an outbox that still delivers) unless a person removed it, and no device has entries but no `seen` (unknown
 counts as not ready). It is **performed** only by a device holding the v2 delivery outbox for every connected
 account, after a full reconcile and drain since its last install, so it holds nothing but held commands. If connected accounts are delivered by different devices, each other device
-disconnects its accounts first (their outboxes drained), and they are connected again after the switch; the switch
-writes a `set:deliver` row for each with `since` = its disconnect's stamp, so changes made in between are still
-delivered. Any other
+disconnects its accounts first, after draining their outboxes, and writes a **handoff** for each: the setting
+`<d>.handoff:<provider>` in `set:devices` = `{"string": <JSON with the account id and the disconnect's stamp>}`.
+The switch seeds a handed-off account's receipts by the seeding rule below, counting every event whose `at` is at
+or before the disconnect stamp as settled (that outbox was drained) and every later one as unsettled, and writes its
+`set:deliver` row with `since` = the disconnect stamp. The account is connected again after the switch, and every
+change made in between is delivered. Any other
 client only shows that the switch is offered.
 
 **Sequence.**
@@ -407,19 +438,23 @@ client only shows that the switch is offered.
 - a `wat` row per block with a claim (§8 fold);
 - every `rec` row merged with its title events;
 - every row it does not rewrite — `set` rows other than `set:tracker-event:*`, and rows of any kind it does not
-  know — **staged with `k` and `v` unchanged**, except tracker tokens moved from `set:keys` to `set:trackers`;
+  know — **staged with `k` and `v` unchanged**, except tracker tokens moved from `set:keys` to `set:trackers`. Each
+  connection is written with the stamp of the setting it came from (`set:keys`), or the device's local connect
+  stamp for Trakt, never a fresh one; a re-switch (§10) takes credentials only from `set:trackers` versions it holds
+  and ignores `set:keys`;
 - receipts (§6), seeded per account from the performing device's settlement state. A `tracker-event` in the log
   through `base` is **settled** for an account only if its id is among this device's per-account acknowledgements
   for that account, or den-core `commands(event, event.after)` returns `[]` (the change never needed a command). An
-  event whose command was superseded by a later change is **unsettled**. An outbox skip, an
+  event whose command was superseded by a later change is **unsettled**, and so is one for which `commands` returns
+  an error (for example `invalid_reaction` for `seen`). An outbox skip, an
   id-only receipt or a completed flag from a pre-ready build never counts as settlement. A target whose row changed
   after the last full reconcile's read head is seeded from the row as that reconcile read it (unsettled). v3-ready
   builds record acknowledgement per account and record orphan retirement separately (an orphan-retired push was
   never delivered, so it is unsettled). Where settlement is unknown, the event is unsettled — `decide` against the
   snapshot makes that safe. A target is **unsettled** if any of its events is, or if any unsent command for it is in
-  the outbox, journalled or not. An unsettled target is seeded with the value derived (§5) from its earliest
-  unsettled event's `before`, with the title's resets whose `t` is less than that event's `at`; an absent `before`
-  seeds `none`. It is never seeded as "no receipt". Every other target is seeded with its current value. Unsettled
+  the outbox, journalled or not. An unsettled target is seeded with the value derived from its earliest unsettled
+  event's `before` alone — folded through §8, then read through §5 and §6 — with the title's resets whose `t` is
+  less than that event's `at`; an absent `before` seeds the default (`n`, `out`, `null`). It is never seeded as "no receipt". Every other target is seeded with its current value. Unsettled
   removals are subject to `removals` (more than 20 pending → held). Receipts the device already holds from an
   earlier switch are merged in. Seeded receipts carry settle order `[1, n]`. Each `set:deliver` row gets `since` =
   the switch's stamp (if it has none) and `lease` = `["", <1 + the greatest settle epoch in the merged receipts>]`.
@@ -438,7 +473,8 @@ exist has generation `0`, returned on its 404. It adds:
    every write without this rewrite id — batches, `PUT member`, `DELETE` — gets `409 {"error":
    "rewrite_in_progress"}` with `Retry-After`, until commit, abort, or 5 minutes without a staging request.
 2. `POST /lib/{id}/rewrite/{r}/rows {writes: [{k, v}]}`: stages rows under the usual count limit and the 2 MiB body
-   limit (the client chunks by bytes), counted against a separate allowance equal to the library's cap, so a full
+   limit (the client chunks by bytes), counted against a separate allowance equal to den-edge's stored-library cap
+  (32 MiB, not the 8 MiB in-memory cap of a legacy log), so a full
    library can still switch.
 3. `POST /lib/{id}/rewrite/{r}/commit {base, wireMin}`: in one transaction, only if the head is still `base`,
    replaces the rows with the staged ones, keeps the library's token and member hashes, raises the wire minimum to
@@ -482,6 +518,8 @@ any stray `ep` or `tracker-event` row folded through §8.
   holds no receipts for an account seeds that account's targets as unsettled, with default values (`n`, `out`,
   `null`) — never "no receipt". A v3 client that follows a key reset or link away from a library it has seen at
   minimum 3 treats a lower minimum on the new library the same way, as a restore.
+- **The v2 outbox stops.** On the switch's generation change, a v3 client stops its v2 outbox without sending
+  anything more from it, and converts its entries through §8, where they become pending targets decided by §6.
 - **After a switch or a restore** (a changed generation), every client forgets its head and bases, reads from 0, and
   writes back what it holds that the new log lacks — **in v3 form only**, including **every receipt it holds**
   (merged per key by settle order, §6), never a `lease`. It converts any `ep` rows, v1 events and kept unsent work it
