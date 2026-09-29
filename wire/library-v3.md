@@ -306,8 +306,7 @@ deliver for it; one at a time.
 - **No receipt**: a target with no receipt whose value's stamp is later than the account's `since` is pending. One
   from before `since` is caught up additively only — watched, a list add, a rating — as v2's catch-up; any other
   value settles silently. Connecting an account for the first time never removes anything there, and a change after
-  `since` is always delivered. Catch-up never re-verifies settled targets, except once at a ready build's first
-  reconcile (§9): an edit made on the tracker's own site otherwise stands.
+  `since` is always delivered. Catch-up never re-verifies settled targets, except once at a ready build's first reconcile and once at the switch (§9): an edit made on the tracker's own site otherwise stands.
 - **Rows**, `schema: 3`:
   - Episodes: `snt:<provider>:<account id>:<watch row name>`, one per watch row with a receipt:
     `{"kind": "snt", "schema": 3, "provider", "account", "target": "<watch row name>", "entries": {"2": ["w", 1,
@@ -332,7 +331,9 @@ deliver for it; one at a time.
 
 - `pending_targets` builds each command from the table above — never from v2 `commands`. Each carries `at` (the
   value stamp's `t`, for ordering) and `watched_at` (§5, sent to the tracker). It fills `decide`'s command as:
-  `current` = true; `baseline` = the target has no receipt and its value's stamp is not later than `since`; `episode`
+  `current` = true; `baseline` = the target has no receipt and its value's stamp is not later than `since`, or its value's stamp is
+  timeless and its receipt is `n`, `out` or `null`; a command built from a timeless value sends the import's `c` as
+  `rated_at`, or omits it when `c` = 1; `episode`
   for an episode target; `added` = true for a list add, false for a removal; `rating` = 10 / 7 / 2 for love / like /
   dislike, null for a removal. The `Remote` side is filled from the tracker snapshot as v2 does, and
   `episodes_complete` MUST be true only when the snapshot lists every watched episode of the show (both shipped
@@ -495,12 +496,14 @@ delivered and delivers the re-derived command to the account now connected (a ca
 so any presence acknowledges it). A ready build cannot tell which of a pre-ready build's completed catch-up ids were
 acknowledged, so it keeps none of them: on its first reconcile it drops every catch-up id it inherited from a
 pre-ready build and decides each catch-up that reconcile regenerates against the account's snapshot, sending or
-acknowledging it, before a drain counts. **Known limit**: re-deciding inherited catch-ups re-adds a watch,
-watchlist entry or rating that was delivered and then removed on the tracker's own site while the row still holds it
-(as a v2 reinstall does); the ids cannot tell that apart from a catch-up that never arrived. A catch-up held as `snapshot_unavailable` or `account_changed` is retried until decided, and a catch-up rating
+acknowledging it, before a drain counts. **Known limit**: a pre-ready build keeps only event and catch-up
+ids, never which account took them, so at its first reconcile and at the switch every command a pre-ready build
+delivered is decided again against the snapshot: a watch, watchlist entry or rating delivered and then removed on the
+tracker's own site while Den still holds it is added again (as a v2 reinstall does). A rating changed on the
+tracker's site since is held as `remote_order_unknown_or_newer`, not overwritten. A catch-up held as `snapshot_unavailable` or `account_changed` is retried until decided, and a catch-up rating
 is acknowledged by any remote rating entry, valued or not, so no catch-up holds for good and seeding never turns one
-into a non-baseline command. While a catch-up cannot be delivered (a credential stays refused), the offering client
-shows that as why the switch waits. If connected accounts are delivered by different devices, each other device
+into a non-baseline command. While a catch-up cannot be delivered (a credential stays refused, or the tracker keeps
+refusing that command), the offering client shows that, with the title, as why the switch waits. If connected accounts are delivered by different devices, each other device
 disconnects its accounts first, after draining their outboxes, and writes a **handoff** for each: the setting
 `<d>.handoff:<provider>` in `set:devices` = `{"string": <JSON {account, disconnectedAt, generation, head, headAt,
 unsettled}>}`, where `generation` and `head` are the library generation and log seq its final drain read through,
@@ -514,17 +517,19 @@ that account only when its seq ≤ `head` and it is not in `unsettled`; with `"a
 from the generation the switch reads under, every event for that account is unsettled. An episode or film-watch
 target of that account **qualifies** when its current value is `watched`, it has no unsettled event (a finish by
 playing writes none), and:
-- an **episode**: its row seq is above `head`; or, when `generation` differs or `unsettled` is `"all"`, its
-  `progress` stamp `t` is later than `headAt − 86 400 000`;
+(`"all"` only makes every event unsettled; `head` stays valid in the same generation.)
+- an **episode**: its row seq is above `head`; or, when `generation` differs, its `progress` stamp `t` is later
+  than `headAt − 86 400 000`;
 - a **film**: its `status` or `resume` stamp `t` is later than `headAt − 86 400 000` and later than the `at` of
-  every settled film-watch event of it, with a row seq above `head` also required unless `generation` differs or
-  `unsettled` is `"all"`. So a rating- or list-only edit never qualifies a film, and a watch removed on the
+  every settled film-watch event of it, with a row seq above `head` also required unless `generation` differs. So a rating- or list-only edit never qualifies a film, and a watch removed on the
   tracker's site is not pushed again.
-- a **list** or **rating** target: its value is `in` or a reaction other than `seen`, it has no event, and its `rec`
-  row seq is above `head` (or, when `generation` differs or `unsettled` is `"all"`, its field stamp `t` is later than
-  `headAt − 86 400 000`). Such a target is seeded with **no receipt** — the one exception to never seeding "no
-  receipt" — and that account's `since` is the later of `disconnectedAt` and the greatest such field stamp, so it is
-  decided as `baseline` and any presence acknowledges it.
+- a **list** or **rating** target: its value is `in` or a reaction other than `seen`, it has no unsettled event, its
+  field stamp is later than the `at` of every settled event of that field, and its `rec` row seq is above `head` (or,
+  when `generation` differs, its field stamp `t` is later than `headAt − 86 400 000`). Such a target is seeded with
+  **no receipt** — the one exception to never seeding "no receipt" — and that account's `since` is the later of
+  `disconnectedAt` and the greatest such field stamp not later than the switch's stamp, so it is decided as
+  `baseline` and any presence acknowledges it; one whose field stamp is later than the switch's stamp is seeded with
+  the default (`out`, `null`) instead, and is delivered once it is no longer more than a day ahead.
 
 A qualifying target is seeded unsettled: as `["w", p₀, <that play's watchedAt>, [0, 0, ""], [1, n, <performer>]]`
 when some viewing **below** the current one has a visible Den play with watchedAt ≤ `disconnectedAt.t` (`p₀` the
@@ -537,24 +542,26 @@ covering reset not more than a day ahead of the performing device's clock, or nu
 floor would make any old reset trigger un-watch-then-re-mark); otherwise with the default `n`, so `decide`
 acknowledges the watch if present and sends it if not. Handoffs naming the **same account**: an event is settled if
 any of them settles it; a target qualifies only if it qualifies under every one; `since` is the earliest
-`disconnectedAt`; only the one with the latest `disconnectedAt` reconnects, and the seed's `p₀` bound and the Trakt scrobble window
+`disconnectedAt`, then combined with the list and rating rule's bounded stamp; only the one with the latest `disconnectedAt` reconnects, and the seed's `p₀` bound and the Trakt scrobble window
 use that latest `disconnectedAt`. **Known limit**: a viewing finished
 offline before `disconnectedAt` that syncs after `head` is taken as delivered, so Trakt may hold one play fewer (v2
 would not have delivered it either). The current viewing is never seeded as delivered: a finish
 on another device, or a failed best-effort scrobble, may never have reached the tracker. For a target seeded
-under this paragraph — any of the `w` at `p₀`, `u` at the current viewing, or `w` at current − 1 shapes — the Trakt
-rewatch check of a viewing whose play has watchedAt `W` ≤ `disconnectedAt.t` also acknowledges it by a play in `H`
-that is later than both the seeded receipt's floor and `⌊W / 1000⌋ · 1000 − 86 400 000`, at or before
-`disconnectedAt.t`, and not matched exactly to another viewing, each such play acknowledging at most one viewing,
-earliest viewing to earliest play, since a v2 scrobble records its stop time (sent when the player closes at 80 % or
+unsettled at the switch — by a handoff's qualification, from an event's `before`, or from a reconcile read — the
+Trakt rewatch check of a viewing whose play has watchedAt `W` ≤ the bound (the latest `disconnectedAt.t` for a
+handed-off account, else the performing device's clock at its read of `base`) also acknowledges it by a play in `H`
+later than both the receipt's floor and `⌊W / 1000⌋ · 1000 − 86 400 000`, at or before the bound, and not matched
+exactly to another viewing. The receipt's own viewing (and, for the `w` at current − 1 shape, viewing current − 1)
+takes part in the matching when `H` holds no play at exactly its `⌊W⌋`, so its own scrobble stop is never credited
+to a later viewing; each play acknowledges at most one viewing, earliest viewing to earliest play, since a v2 scrobble records its stop time (sent when the player closes at 80 % or
 more, which can precede `W`'s write), not `W`. **Known limit**: a Trakt play from outside Den inside that window
 acknowledges the viewing; a viewing whose final stop failed after an earlier session's stop more than a day before
 `W` reached Trakt may be sent again.
 Simkl's check already covers a scrobble. **Known limit**: a film finished by playing that reaches the log after
 `head` with a stamp more than a day older than `headAt` is not delivered to that account, and, when `generation`
-differs or `unsettled` is `"all"`, an episode likewise. These qualification and `p₀` rules apply only to a handed-off
+differs, an episode likewise. These qualification and `p₀` rules apply only to a handed-off
 account; when the performing device holds the account itself, its own reconcile head decides (below). Its
-`set:deliver` row gets `since` = `disconnectedAt`. When the performing device itself has the account connected at
+`set:deliver` row gets `since` as above (`disconnectedAt` when no list or rating target qualifies). When the performing device itself has the account connected at
 the switch, an event is settled iff it is in the device's own acknowledgements, or it is at or below the handoff's
 `head`, not in its `unsettled`, and the handoff's `generation` equals the switch's. Two handoffs naming different
 accounts of one provider: the one with the later `disconnectedAt` is connected again; the other stays
@@ -692,7 +699,8 @@ The rules live in den-sync so both clients share them:
   → the register, or nothing (§7).
 - `pending_targets`: state + receipts + `since` → commands (§6); `decide` gains the `rewatch` input with the
   remote's play times, the un-watch-then-re-mark order and the `removals` latch, and acknowledges a `baseline` rating by any remote
-  rating entry, valued or not (today it needs a value; a ready build needs this den-core change); `settle`: outcome + built-from value
+  rating entry, valued or not (today it needs a value; a ready build needs this den-core change), and acknowledges a
+  rating whose remote value maps to the same reaction (§6); `settle`: outcome + built-from value
   → the receipt, or nothing; `lease`: row + observation + clocks → take, renew, send, wait, stop or release.
 - `v2_reading`: v2 rows → §8's state; `v3_form`: every row through `base` + settlement state → the switch's rows
   (§9); `write_back`: held state + new log → the v3 rows to write after a generation change (§10).
