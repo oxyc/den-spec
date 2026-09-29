@@ -386,10 +386,15 @@ deliver for it; one at a time.
   settle of that target, a `w` or `u` settle included.
 - **Ratings** are acknowledged when the remote's rating maps to the same reaction (≤ 4 dislike, 5–7 like,
   ≥ 8 love), so a person's tracker rating is never overwritten by its Den equivalent. A known remote time is always
-  passed to `decide` as is. When the remote rating's time is unknown and its value **equals** the rating Den sends
-  for the receipt's reaction (10, 7 or 2 — the tracker still holds exactly what Den last settled), `decide` gets its
-  `at` as 1, so a pending change goes through; any other remote rating whose time is unknown is held as
-  `remote_order_unknown_or_newer` (a same-bucket site edit, 6 against 7, is detected).
+  passed to `decide` as is. A rating receipt entry carries an optional fourth element, the remote rating (1–10) that
+  acknowledged it: `[<reaction>, <value stamp>, <settle order>, <remote rating>?]`, written when the entry settles
+  by an acknowledgement whose remote value differs from the rating Den sends for its reaction (§6 Timeless values
+  included). When the remote rating's time is unknown and its value **equals** the entry's fourth element or, when
+  there is none, the rating Den sends for the receipt's reaction (10, 7 or 2) — the tracker still holds exactly what
+  Den last settled — `decide` gets its `at` as 1, so a pending change goes through; any other remote rating whose
+  time is unknown is held as `remote_order_unknown_or_newer` (a same-bucket site edit, 6 against 7, is detected).
+  **Known limit**: a person's Den rating change against a tracker rating edited on its site with no time is held
+  until the person resolves it; Den never overwrites a site edit it cannot order.
 - den-core `decide` sends, acknowledges, supersedes or holds each command against the tracker's snapshot with every
   v2 hold reason — remote order unknown or newer (v2's comparison), incomplete coverage, account mismatch,
   independent state (a removal that would drop a list entry or rating) — plus `removals` held (above).
@@ -460,8 +465,8 @@ deliver for it; one at a time.
   `watched`, against an `n` receipt whose watched-at is null, or with no receipt (whatever its stamp), when the
   register has a visible imported play earlier than
   `⌊W / 1000⌋ · 1000` of its least-watchedAt visible Den play, that imported watch is first decided alone by `decide` with `baseline` and watched-at = the
-  greatest such imported play, before any Den play is decided. Before a send it writes `[-1, ⌊I / 1000⌋ · 1000]`
-  into `sending` by §6 Intent (`I` the imported play) — with no receipt, as a new entry
+  greatest such imported play, before any Den play is decided. Before a send it adds `[-1, ⌊I / 1000⌋ · 1000]`
+  to `sending` by §6 Intent (`I` the imported play), keeping every other element — with no receipt, as a new entry
   `["n", −1, null, [0, 0, ""], <fresh order>, [[-1, ⌊I / 1000⌋ · 1000]]]`, which counts as no receipt (its null
   watched-at leaves the step not yet done) — and settling keeps that element, so it records that Den sent
   that play. Sent or acknowledged, it settles as `["n", <the
@@ -501,7 +506,8 @@ Every write is a set-to-value; replaying one changes nothing. `register_write` (
 - **Season reset**: block 0's `seasonReset` = a fresh stamp. **Series reset**: `rec.episodesReset` (v2).
 - **Import** (a tracker's watched list, an import file) of episode `(s, e)`, after pulling the log to its head:
   only if the episode has no unhidden `progress`, is not in progress, and has no covering reset later than the
-  import's newest play (with no plays, no covering reset at all). It writes its plays either way (plays are additive and never set watched state), and `imported: true` only under
+  import's newest play (with no plays, no covering reset at all; a play known only to the day, as a file import's
+  is, counts as the end of its day in this comparison, so a same-day reset does not hide a later viewing). It writes its plays either way (plays are additive and never set watched state), and `imported: true` only under
   that condition (§3). A play whose watchedAt, at second precision, equals `⌊W / 1000⌋ · 1000` of a Den play in the
   same register is not written: it is Den's own delivery reported back. A writer skips a play write whose kept selection is unchanged. An import writes no series `status` and no
   `dismissed`; a series' watched state is derived from its episodes (**known limit**: today's web
@@ -661,10 +667,14 @@ Simkl scrobble carries Simkl's server time, not `W`; a viewing with `W` above `s
 alone. **Known limit** (Simkl only, which reports one latest play): for a viewing at or before `seedBound`, an
 earlier viewing's scrobble within a day acknowledges a later one whose own scrobble failed.
 The switch records every viewing it seeds while in progress at ≥ 0.8 as a `sending` entry `[p, null, T]` in that
-account's Trakt entry only, `T` being `⌊t / 1000⌋ · 1000` of that viewing's seeded progress stamp. It only widens the
-Trakt window, to plays later than both the receipt's floor and `T − 86 400 000` and at or before the window end, since
-v2's Trakt stop at 80 % is sent when the player closes, at about `T`; the `null` is never sent or matched exactly: the intent write before any
-send replaces it with `[p, ⌊W / 1000⌋ · 1000]` of the finished viewing, and later checks use that. **Known limit**: when a viewing below
+account's Trakt entry only, `T` being `⌊t / 1000⌋ · 1000` of that viewing's seeded progress stamp. For that viewing,
+whatever its `W` and whether or not `W` ≤ `seedBound`, the Trakt check also acknowledges it by a play later than both
+the receipt's floor and `T − 86 400 000` and at or before the window end, not matched exactly to another viewing nor
+to a `[-1, …]` element, under the same one-play-per-viewing matching, since v2's Trakt stop at 80 % is sent when the
+player closes, at about `T`; the `null` is never sent or matched exactly. The intent write before any send adds
+`[p, ⌊W / 1000⌋ · 1000]` of the finished viewing beside it, and that viewing keeps the `T` window as well.
+**Known limit**: device clocks more than a day off the tracker's put a v2 stop outside every window, and it is sent
+again. **Known limit**: when a viewing below
 the current one was finished by playing after `disconnectedAt` and a replay then started before the switch, the
 `w` at p − 1 seed marks it delivered, so an abandoned replay leaves it off that account (as v2). **Known limit**: a film finished by playing that reaches the log after
 `head` with a stamp more than a day older than `headAt` is not delivered to that account, and, when `generation`
@@ -713,7 +723,7 @@ client only shows that the switch is offered.
   delivered for it and every viewing above the `cleared` one is checked by §6 Against a `u` receipt (with §9's
   window). v2 removed a rating for `seen` only for a TV's own action, never for another device's (`invalid_reaction`
   in `commands`); such changes since v2 are delivered as removals, acknowledged where already absent, and held while
-  the remote rating is not the value Den last sent for the receipt's reaction and its time is unknown or later
+  the remote rating is not the entry's acknowledged value (§6 Ratings) and its time is unknown or later
   (§6 Ratings) (**known limit**: Den then shows `seen`
   against that tracker rating until the person resolves it). v3-ready
   builds record acknowledgement per account and record orphan retirement separately (an orphan-retired push was
@@ -802,10 +812,12 @@ any stray `ep` or `tracker-event` row folded through §8.
   twice. Accepted because the shipped v2 journal does not record scrobble-stop times, so nothing can tell that play
   apart from a genuine rewatch.
 - **Ready builds and `stop`.** A ready build keeps a scrobble `stop` at ≥ 80 % durably with the batch carrying that
-  viewing's progress ≥ 0.8, and sends it once that batch succeeds under the generation it was built for.
-  `rewrite_in_progress` and transient failures keep it waiting (so an aborted switch still delivers it); it is
-  dropped (and `pause` sent if the player is still open) only when that batch is refused with `generation_changed`
-  or `426`, so no ready build's stop lands after the switch. The first switch's `seedBound` is the greater of the
+  viewing's progress ≥ 0.8, and sends it once that batch succeeds under the generation it was built for, as one
+  request that is never retried, and only while no response the device has read shows another generation. A stop
+  whose request fails, or that the device has not sent within 1 hour of the batch's success, is dropped (and `pause`
+  sent if the player is still open). `rewrite_in_progress` and transient failures of the batch keep it waiting (so an
+  aborted switch still delivers it); it is dropped when that batch is refused with `generation_changed` or `426`. So
+  any ready build's stop lands within an hour of a batch at or below `base`, inside the window end. The first switch's `seedBound` is the greater of the
   performing device's clock at its read of `base` and the greatest play watchedAt in the log through `base` that is
   not more than a day ahead of that clock, so a batch from a clock running ahead is still inside the window.
 - **Known limit (§7 imports):** a playback write from a device that has not yet seen an import merges as progress
@@ -881,7 +893,9 @@ The rules live in den-sync so both clients share them:
   `base` acknowledged by the window end; a Simkl rating with no rated time that still maps to the receipt letting a
   Den change through, and a same-bucket site edit (6 against 7) held; a `[-1, …]` intent element surviving a later
   intent write and a `w` settle; an imported-first intent with no receipt written as `n` at −1; a stop kept through
-  an aborted switch and sent after.
+  an aborted switch and sent after; a stop not sent within an hour dropped; an acknowledgement of 8 against `love`
+  recorded, then a Den `like` sent; a viewing seeded at 0.85 and finished a week after the switch acknowledged by its
+  pre-switch stop.
 - Delivery: pending by value (an older-stamped winner on viewing); a reset delivering an un-watch for real and for
   imported episodes, settling without oscillating; a series watchlist add; commands built from values with `at` and
   `watched_at`; each `decide` outcome's receipt (sent then changed → built-from value); no receipt → additive unless
