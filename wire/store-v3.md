@@ -491,8 +491,9 @@ holds is simply unused.
 den-dataset precomputes them for You Might Also Like (oxyc/den-atlas#121). For each title a model is told
 the title, its year, whether it is a film or a series and the lead of its Wikipedia article, and names up to
 20 films or series a fan would also love, in any genre, era or country. Each name is matched to a row by the
-store's own Wikidata names (the English and original labels and the aliases), the same type and a year
-within one; a name that matches no row or more than one is dropped. The title itself, its curated
+store's own Wikidata names (the English and original labels and the aliases) and the same type: the one row
+with a year within one, else within two, else the one row of that name when the store has no year for it; a
+name that matches no row or more than one is dropped. The title itself, its curated
 franchise, its other versions and its sequel links are dropped too, and so is a repeat. The order is the
 model's.
 
