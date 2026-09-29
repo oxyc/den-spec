@@ -240,8 +240,8 @@ deliver for it; one at a time.
   - **Rating**: `reaction`.
   - While a title is `deleted`, its film-watch and rating targets are not evaluated: no command, no receipt written.
 - **An un-watch survives playback.** Against a `w` receipt, a current value that is not `watched` is `unwatched`
-  when the register's `cleared` viewing is ≥ the receipt's `p`, or a covering reset's `⌊t / 1000⌋ · 1000` is later than the
-  receipt's floor (a null floor counts as below it) — whether the current progress is 0 or a new viewing in progress. Its stamp is that `cleared` or reset stamp
+  when the register's `cleared` viewing is ≥ the receipt's `p`, or a covering reset is later than the receipt's floor (§6
+  Floor) — whether the current progress is 0 or a new viewing in progress. Its stamp is that `cleared` or reset stamp
   and `p` the current viewing. A film applies the same rule with `resume.viewing` and its `cleared`. So playing an
   episode or film again before an un-watch is delivered never swallows the un-watch.
 - A film's `unwatched` value has `p` = `resume.viewing`.
@@ -353,7 +353,9 @@ deliver for it; one at a time.
   `L`, at second precision, or null when unknown. Trakt lists every play (`GET /sync/history/{type}/{id}`), which
   `decide` gets as the set `H`.
 - **Floor.** A receipt's floor is its watched-at for a `w` receipt and its value stamp's `t` for a `u` receipt, at
-  second precision. A null floor is below every time; a null `W` is never acknowledged by a play time. A default
+  second precision. A null floor is below every time; a null `W` is never acknowledged by a play time. A covering
+  reset is **later than a floor** when `⌊R.t / 1000⌋ · 1000` is greater than it (a null floor is below every reset);
+  every comparison of a reset with a floor in §6 and §9 uses this. A default
   `n` entry is `["n", 0, null, [0, 0, ""], <settle order>]`. A tracker adapter passes a missing watch time (Simkl's
   epoch sentinel) as `L` = null, never 0.
 - **Rewatch.** `watched` in a `p` greater than a `w` receipt's, with `cleared` viewing below the receipt's `p` and no
@@ -483,9 +485,14 @@ atomically.
 hold an outbox that still delivers) unless a person removed it, and no device has entries but no `seen` (unknown
 counts as not ready). It is **performed** only by a device holding the v2 delivery outbox for every connected
 account, after a full reconcile and drain since its last install, so it holds nothing but held commands. A drain
-counts for the switch or a handoff only once no catch-up (baseline) command is held or unsent; a catch-up held as
-`snapshot_unavailable` or `account_changed` is retried until decided (a baseline command otherwise never holds), so
-no catch-up is ever turned into a non-baseline command by seeding. If connected accounts are delivered by different devices, each other device
+counts for the switch or a handoff only once every catch-up (baseline) command for that account has been sent to it
+or acknowledged by it. A catch-up completed without that account's acknowledgement (orphan-retired, or completed
+while the account refused its credential) counts as unsent: a ready build does not keep its id as delivered, and
+delivers it again to the account now connected (a catch-up is additive and `baseline`, so any presence acknowledges
+it). A catch-up held as `snapshot_unavailable` or `account_changed` is retried until decided, and a catch-up rating
+is acknowledged by any remote rating entry, valued or not, so no catch-up holds for good and seeding never turns one
+into a non-baseline command. While a catch-up cannot be delivered (a credential stays refused), the offering client
+shows that as why the switch waits. If connected accounts are delivered by different devices, each other device
 disconnects its accounts first, after draining their outboxes, and writes a **handoff** for each: the setting
 `<d>.handoff:<provider>` in `set:devices` = `{"string": <JSON {account, disconnectedAt, generation, head, headAt,
 unsettled}>}`, where `generation` and `head` are the library generation and log seq its final drain read through,
@@ -507,12 +514,16 @@ playing writes none), and:
 A qualifying target is seeded unsettled: as `["w", p₀, <that play's watchedAt>, [0, 0, ""], [1, n, <performer>]]`
 when some viewing **below** the current one has a visible Den play with watchedAt ≤ `disconnectedAt.t` (`p₀` the
 greatest such viewing), so later viewings go through the rewatch rule; otherwise, when the current viewing (a
-film's `resume.viewing`) is above 0, as `["w", <current − 1>, <⌊R.t / 1000⌋ · 1000 of the latest covering reset,
-or null>, [0, 0, ""], [1, n, <performer>]]`, since v2 keeps no play for a viewing finished by playing (a bare null
+film's `resume.viewing`) is above 0: if the register's `cleared` viewing is current − 1 (its un-watch was settled,
+since the target has no unsettled event), as `["u", <current>, null, <the cleared stamp>, [1, n, <performer>]]`, so
+the watch is decided against a `u` receipt; else as `["w", <current − 1>, <⌊R.t / 1000⌋ · 1000 of the latest
+covering reset not more than a day ahead of the performing device's clock, or null>, [0, 0, ""], [1, n,
+<performer>]]`, since v2 keeps no play for a viewing finished by playing (a bare null
 floor would make any old reset trigger un-watch-then-re-mark); otherwise with the default `n`, so `decide`
 acknowledges the watch if present and sends it if not. Handoffs naming the **same account**: an event is settled if
 any of them settles it; a target qualifies only if it qualifies under every one; `since` is the earliest
-`disconnectedAt`; only the one with the latest `disconnectedAt` reconnects. **Known limit**: a viewing finished
+`disconnectedAt`; only the one with the latest `disconnectedAt` reconnects, and the seed's `p₀` bound and the Trakt scrobble window
+use that latest `disconnectedAt`. **Known limit**: a viewing finished
 offline before `disconnectedAt` that syncs after `head` is taken as delivered, so Trakt may hold one play fewer (v2
 would not have delivered it either). The current viewing is never seeded as delivered: a finish
 on another device, or a failed best-effort scrobble, may never have reached the tracker. For a target seeded this
