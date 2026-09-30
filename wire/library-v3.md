@@ -743,7 +743,8 @@ title, and any one, a catch-up included, can be discarded (a person's explicit c
 account; a discarded catch-up counts as sent for the drain). A command discarded for an account that is connected
 is recorded in the device's per-account settlement as discarded, together with every other event of that target,
 at any seq, that account never acknowledged and whose `at` is not later than the discarded event's `at`, whatever
-superseded its command; the v3 form and a handoff both count its event as
+superseded its command (a catch-up's `at` is its value stamp's `t`; "later" compares `at`), and completes every
+uncompleted command of the events it records; the v3 form and a handoff both count its event as
 settled for that account, and a handoff lists no discarded event in `unsettled`; a target whose catch-up was
 discarded for that account is seeded with its current value (not as owed-as-baseline `["b", …]`) unless one of its
 events later than the discarded one is unsettled, which wins. A ready build orphan-retires, as v2 does, every push bound to an identity of a
@@ -831,15 +832,15 @@ replaced by `"all"`; `held` is written in the handoff batch to the handoff's `se
 row as the setting `held`, beside `ratings`, and a `held` too large for that row keeps the account connected, as
 for `unsettled`, and the offering client shows it (**known limit**: long-lived holds, such as a rating held until
 a person resolves it, can keep such a handoff from being written until they are resolved), and `discarded` the ids
-of events at any seq ≤ `head` this device recorded as discarded for that account or its provider and that its own
-connection-stamp rule does not settle, written in the handoff batch to the same row beside `held` (too large: the
-account stays connected, as for `held`, and the offering client shows it with the way on: remove the device). With
-several handoffs naming one account, the connection-stamp rule here uses the earliest `connectedAt` any of them
-carries. The switch
+of events at any seq ≤ `head` this device recorded as discarded for that account or its provider, written in the
+handoff batch to the same row beside `held` (too large: it first omits every id in [`readyFrom`, `head`], which
+absence from `unsettled` already settles; if still too large, the account stays connected and the offering client
+shows it with the way on: disconnect that tracker on this device, after which its commands follow the waiting rule
+on the performer, where a discard ends them). The switch
 counts an event as settled for that account only when `readyFrom` ≤ its seq ≤ `head` and it is not in
 `unsettled`, or the handoff's row lists it in `discarded` (at any seq, whatever `unsettled` or `generation` is), or
 by the connection-stamp rule (§9 v3 form), and never an event listed in its `held` (every event below `readyFrom`
-is unsettled unless the connection-stamp rule settles it; the known limit on pre-ready deliveries covers the re-decision; an event whose
+is unsettled unless the connection-stamp rule settles it or the handoff's row lists it in `discarded`; the known limit on pre-ready deliveries covers the re-decision; an event whose
 `commands(event, event.after)` is `[]` is never listed); with `"all"`, or when `generation` differs
 from the generation the switch reads under, every event for that account that the connection-stamp rule does not
 settle is unsettled (a `discarded` listing still settles it). An episode or film-watch
@@ -932,8 +933,10 @@ handoff this switch seeds has no waiting commands (the handoff's seeding covers 
 device reporting format 3
 with no `<d>.facade` counts as not ready. The first switch (not §10's re-switch) is performable only by a device
 with a v2 delivery path whose own facade includes every provider any other device's `<d>.facade` lists, or, when
-every device's facade is `[]` (no device delivers, as in a web-only library), by any ready device; otherwise the
-offering client shows why. In such a library no device holds a v2 outbox: the drain, the re-check that each
+every device's facade is `[]` (no device delivers, as in a web-only library) and, while a tracker is connected, no
+`<d>.facade` setting is a `null` a removal wrote (a removed TV may still hold an outbox), by any ready device;
+otherwise the offering client shows why, and for a removed device that the ways on are to start Den on it or to
+disconnect the tracker. In such a library no device holds a v2 outbox: the drain, the re-check that each
 connected account is the one the performer drained, and the outbox condition on who performs do not apply.
 `v3_form` writes each connected account's credentials (§6), seeds no receipts, `seededThrough` or `seedBound` for
 it, and writes its `set:deliver` row with `since` = the switch's stamp and `lease` = `["", 1]`, so it is caught up
@@ -972,7 +975,8 @@ offering client names every device whose count is non-zero, and a handoff lists 
 **known limit**: when a tracker is connected before the switch, a device that did not discard delivers its copies,
 as v2 does, so the offering client calls the changes discarded only once every device with a non-zero count has).
 The switch drops no waiting command; watches, list adds and catch-ups for a disconnected provider are dropped and
-re-derived by §6 No receipt, and a handed-off provider's commands are covered by the handoff's seeding. A discard is total only for un-watches, removals and rating
+re-derived by §6 No receipt, and the commands of a provider with a handoff this switch seeds are covered by its
+seeding. A discard is total only for un-watches, removals and rating
 changes: a discarded rating add, or a catch-up discarded on a handing-off device (handoffs carry event ids only),
 returns after the switch as catch-up when the account lacks it, and the
 offering client says so. **Known limit**: a rewatch for a disconnected provider is dropped at the switch, and §6 No
@@ -1086,8 +1090,9 @@ client only shows that the switch is offered.
   snapshot makes that safe. A target is **unsettled** if any of its events is, or if any unsent command for it for that
   account is in the outbox, journalled or not. An unsettled target is seeded with the value derived from its earliest unsettled
   event's `before` alone — folded through §8, then read through §5 and §6 — with the title's resets whose `t` is
-  less than that event's `at`; an absent `before` seeds the default (`n`, `out`, `null`); a target unsettled only by an outbox command is seeded
-from the `before` of the earliest event whose command is in the outbox, or the default when it has none. It is
+  less than that event's `at`; an absent `before` seeds the default (`n`, `out`, `null`); a target unsettled only by a journalled outbox command is
+seeded from the `before` of the earliest event whose command is in the outbox; one with only a catch-up in the
+outbox is seeded by the rule for a row changed after the last full reconcile's read head (below). It is
 never seeded as "no receipt". Every other target is seeded with its current value, except that for an account the performing device
   holds itself, a `watched` value in p > 0 — current, or as the last full reconcile read it when its viewing is the
   current viewing — whose current viewing has no settled event and whose current viewing's
@@ -1214,7 +1219,7 @@ any stray `ep` or `tracker-event` row folded through §8.
   exception to Guarantee 7),
   and except for an account whose merged `set:deliver` row has `since` but no
   `seededThrough` (connected after the switch), whose targets without a receipt stay without one, and except for an
-  account no device holds receipts or a `set:deliver` row for (as after a web-only library's switch), which is
+  account the re-switching client holds no receipts for and the restored log has no `set:deliver` row for (as after a web-only library's switch), which is
   seeded as the web-only path seeds it (no receipts, `since` = the re-switch's stamp, catch-up only). A v3 client that follows a key reset or link away from a library it has seen at
   minimum 3 treats a lower minimum on the new library the same way, as a restore.
 - **The v2 outbox stops.** On the switch's generation change, a v3 client stops its v2 outbox without sending
