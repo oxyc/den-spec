@@ -198,12 +198,14 @@ deliver for it; one at a time.
   - A device writes an account's `set:deliver` row, when it has none, only for a connection it has read, applied
     and non-null, in the log. The device that writes a connection — a person's connect, a handoff reconnect, or a
     written-back one (§10) — writes the row only once that connection write is applied (write order, §10), and only
-    while a fresh read still shows that connection; any device that reads a non-null connection it would deliver for
-(the later-stamped of two for one provider) with no
-    `set:deliver` row writes it, by compare-and-set, before taking a lease. In both cases `since` = that
-    connection's `connectedAt` as read, and `lease` = `["", <1 + the greatest epoch the device has held or seen for
-    the account, or 1>]`. A connect that is abandoned, superseded or never applied writes no `set:deliver` row. No
-    device takes a lease for, or delivers to, an account with no `since`.
+    while a fresh read still shows that connection; any device that reads a non-null connection it would deliver
+    for (the later-stamped of two for one provider) with no `set:deliver` row writes it, by compare-and-set, before
+    taking a lease. In both cases `since` = that connection's `connectedAt` as read, and `lease` = `["", <1 + the
+    greatest epoch the device has held or seen for the account, or 1>]`. A connect that is abandoned, superseded or
+    never applied writes no `set:deliver` row. Write-back (§10) writes back a held `set:deliver` row (`since`,
+    `seedBound`, `seededThrough`, `connectedFrom`) only for an account the new log already has a row for, or under
+    this rule. `v3_form` and a re-switch are exempt: they seed rows for the accounts §9 and §10 name, connected or
+    not. No device takes a lease for, or delivers to, an account with no `since`.
   - `lease`: `{"strings": ["<device id or empty>", "<epoch>"]}`. A device takes, renews or releases it **only** by a
     batch whose `base` is this row's current seq; on conflict it re-reads and re-evaluates, and never merges a lease
     write. A **take** writes its own id and epoch = 1 + the greatest of: the row's epoch, every settle epoch in this
@@ -707,7 +709,7 @@ seeds has been drained by the performer or, for a handed-off one, by the device 
 performer resolves the account id of the `set:keys` `simkl` credential it last read before it opens the rewrite and
 passes it to `v3_form` (§11); if the setting it reads through `base` differs from the one it resolved (a different
 stamp), the switch aborts and starts over, and while the id cannot be resolved the offering client shows why the
-switch waits. It is **performed** only by a device
+switch waits and that the ways on are to reconnect or disconnect that tracker. It is **performed** only by a device
 holding the v2 delivery outbox for every connected account it does not see handed off, after a full reconcile and
 drain since its last install, so that, for every account connected at `base`, it holds nothing but held commands.
 Commands for a provider with no account connected at `base` neither block a drain nor count as held: a catch-up
@@ -731,14 +733,15 @@ tracker's own site while Den still holds it is added again (as a v2 reinstall do
 tracker's site since is held as `remote_order_unknown_or_newer`, not overwritten. A catch-up held as `snapshot_unavailable` or `account_changed` is retried until decided, and a catch-up rating
 is acknowledged by any remote rating entry, valued or not, so no catch-up holds for good and seeding never turns one
 into a non-baseline command. While any command cannot be delivered (a credential stays refused, the tracker keeps
-refusing that command, or it is bound to an identity of a connected provider other than the current one; a
-`not_found` from any tracker counts as sent), the offering client shows that, with the
+refusing that command; a `not_found` from any tracker counts as sent), the offering client shows that, with the
 title, and any one, a catch-up included, can be discarded (a person's explicit choice, never sticky for a connected
 account; a discarded catch-up counts as sent for the drain). A command discarded for an account that is connected
 is recorded in the device's per-account settlement as discarded; the v3 form and a handoff both count its event as
 settled for that account, and a handoff lists no discarded event in `unsettled`; a target whose catch-up was
-discarded for that account is seeded with its current value (not as owed-as-baseline `["b", …]`). The offering
-client shows these as why
+discarded for that account is seeded with its current value (not as owed-as-baseline `["b", …]`) unless one of its
+events is unsettled, which wins. A ready build orphan-retires, as v2 does, every push bound to an identity of a
+provider whose connected identity differs; an orphan-retired non-catch-up event is unsettled (v3 form), so the
+switch's seeding delivers it when the connected account is the same account id. The offering client shows these as why
 the switch waits. If connected accounts are delivered by different devices, each other device
 disconnects its accounts only once their handoffs are stored, after draining their outboxes: each **handoff** is
 written in the same batch as its disconnect (write order: §10) (for Simkl, the `set:keys` null; for Trakt, whose tokens are local, the
@@ -926,8 +929,13 @@ after its last full reconcile is included. **While the performer holds any waiti
 performed**: it aborts (or does not open the rewrite), and the offering client shows, with titles, that changes are
 waiting for a disconnected tracker, with two ways on — connect an account of that provider (the ready build then
 delivers them as v2 does, and the switch proceeds after that drain), or, on the device that holds them, **discard**
-them (a person's explicit choice: those pushes are completed without delivery for that provider, and the device
-shows how many it discarded). A discard also applies to every waiting command for that provider the device appends
+them (a person's explicit choice: P is marked delivered on those pushes without delivery, which completes them
+only when no other tracker still owes them, and the device shows how many it discarded). A discard applies only to
+commands that are still waiting on a read of the log to its head made after the person's choice; if that read shows
+a connection of the provider, the discard is not applied and the device says so. The device records each event it
+discards as **discarded for provider P**; the v3 form and a handoff count it as settled for every account of P,
+exactly as a command discarded for a connected account, and a sticky discard records every event it applies to the
+same way. A discard also applies to every waiting command for that provider the device appends
 later, until an account of that provider is connected (a person can revoke it; a revoke never brings back commands
 already completed), so a household that does not use that tracker discards once. A discard applies to a command
 appended later only when the device appends it after reading the log to its head and that read shows no connection
@@ -942,8 +950,9 @@ offering client names every device whose count is non-zero, and a handoff lists 
 as v2 does, so the offering client calls the changes discarded only once every device with a non-zero count has).
 The switch drops no un-watch, list removal or rating command; watches, list adds and catch-ups for a disconnected
 provider are dropped and re-derived by §6 No receipt. A discard is total only for un-watches, removals and rating
-changes: a discarded watch, list add or rating add returns after the switch as catch-up when the next account lacks
-it, and the offering client says so. After observing the commit, a v3 client writes its own `waiting:<provider>`
+changes: a discarded rating add returns after the switch as catch-up when the next account lacks it, and the
+offering client says so. **Known limit**: a rewatch for a disconnected provider is dropped at the switch, and §6 No
+receipt re-derives only a baseline watch, so the extra play never reaches the next account (v2 delivers it). After observing the commit, a v3 client writes its own `waiting:<provider>`
 settings `null` in its first batch. **Known limits**: a removal, un-watch or rating change made after the switch
 while no account of that provider is connected — or made before it on a device whose write reaches the log only
 after the switch (offline, or kept while refused as `rewrite_in_progress`) — reaches the next account only as
@@ -996,7 +1005,7 @@ client only shows that the switch is offered.
   and ignores `set:keys`;
 - receipts (§6), seeded per account from the performing device's settlement state. A `tracker-event` in the log
   through `base` is **settled** for an account only if its id is among this device's per-account acknowledgements
-  for that account, or den-core `commands(event, event.after)` returns `[]` (the change never needed a command), or
+  for that account, or it is recorded as discarded for that account or for its provider, or den-core `commands(event, event.after)` returns `[]` (the change never needed a command), or
   its `at` is earlier than the account's **connection stamp**, no unsent or held command for it is in the
   outbox, and its seq is at or below the read head of the last full reconcile that ran against that account (for a
   handed-off account, the handoff's `head`; not checked when `generation` differs). For a handed-off account this
@@ -1245,7 +1254,8 @@ The rules live in den-sync so both clients share them:
 - `v2_reading`: v2 rows → §8's state; `v3_form`: every row through `base` + settlement state + the account id of each
   `set:keys` `simkl` credential at `base` + each account's connection stamp → the switch's rows
   (§9); `write_back`: held state + new log → the v3 rows to write after a generation change (§10).
-- `switch_ready`: devices row (with every `<d>.facade`, `<d>.waiting` and handoff) + `set:keys` + outbox summary (including its commands waiting for a
+- `switch_ready`: devices row (with every `<d>.facade`, `<d>.waiting` and handoff) + the `set:handoff` rows +
+  `set:keys` + outbox summary (including its commands waiting for a
   disconnected tracker) → offered, performable, or neither, with the reason it waits (§9).
 
 ## 12. Vectors the implementation MUST pin
@@ -1280,7 +1290,8 @@ The rules live in den-sync so both clients share them:
   post-`head` rewatch is sent; a rating-only edit not qualifying a film; a held unverified entry staying unverified;
   two handoffs reconnecting one provider.
 - Waiting commands: a watch or list add queued while Simkl is disconnected dropped at the switch and re-derived as
-  catch-up; a sticky discard not applying to an event read after a connect; `<d>.waiting` nulled on removal; a
+  catch-up; a sticky discard not applying to an event read after a connect; a removal discarded while Simkl is
+  disconnected, then the same account reconnected before the switch, seeded as settled and not sent; `<d>.waiting` nulled on removal; a
   `set:deliver` row never written for a connect that did not land; a watchlist removal queued while Simkl is disconnected holding the switch back until Simkl is
   connected (then delivered) or discarded; a catch-up never counted as waiting; a provider with a seeded handoff
   having none; the facade gate refusing a web performer and ignoring a removed device; per-device handoff rows with
