@@ -1411,6 +1411,25 @@ The rules live in den-sync so both clients share them:
   `x-den-wire-min` and `x-den-generation` with CORS and `no-store`, the 426 and its one exemption,
   `generation_changed`, generation `0` on a 404, and the fenced rewrite (§9, §10).
 
+## 14. Open items (not normative)
+
+Audits 72 and 74 found no blocker. These findings remain, and none is reachable with one delivering device; they
+are to be settled before a second delivering device (a second TV, or Trakt switched on) ships:
+
+- **Discard on a handing-off device.** A command still held for an account whose handoff is stored or in progress
+  can be discarded, but `held` beats `discarded` and the row rewrite can be refused, so the discard may not settle.
+  Proposed: apply such a discard only by one applied write to the handoff row that moves the ids from `held` to
+  `discarded`, under the handoff's generation; until then mark nothing delivered.
+- **Late event with an earlier `at` after a handoff.** A handoff lists discarded ids only, so an older event of the
+  same target that reaches the log above `head` is unsettled. Proposed: persist the covered `at` per target and
+  record later-read events against it; otherwise state a known limit.
+- **A removed device that reaches the tracker but not den-edge** keeps sending its v2 outbox after the switch (as
+  v2 does). Proposed: gate v2 outbox sends on a recent read showing the held generation and minimum below 3.
+- Minor: complete a v2-shaped device removal (`name`/`kind`/`seen` only, as the shipped web does) by nulling the
+  rest; reword "no device holds a v2 outbox" in the web-only path; a discard does not apply to a push whose request
+  is in flight; stop offering "reconnect" as the way on for a too-large `discarded`; §12 vectors for revisions
+  73–74.
+
 ## Appendix A — v1 tracker events (as shipped)
 
 A v1 event is a settings row `set:tracker-event:<id>`, `schema` 2, whose `values.event` is
