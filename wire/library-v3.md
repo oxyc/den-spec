@@ -377,7 +377,10 @@ deliver for it; one at a time.
     shards): `{"kind": "snt", "schema": 3, "provider", "account", "shard", "entries": {"rec:movie:550#watch": ["w",
     0, 1789000000000, <value stamp>, [<epoch>, <n>, "<device id>"]], "rec:movie:550#list": ["out", <value stamp>,
     [<epoch>, <n>, "<device id>"]], "rec:movie:550#rating": ["love", <value stamp>, [<epoch>, <n>, "<device id>"]],
-    …}}`. Film watch receipts carry watched-at (and `sending`) like an episode's.
+    …}}`. Film watch receipts carry watched-at (and `sending`) like an episode's. Both shipped clients write a
+    title row instead as `{"kind": "snt", "schema": 3, "provider", "account", "target": "rec:movie:550",
+    "entries": {"watch": …, "list": …, "rating": …}}` under the same `t<shard>` name, and read its entries as
+    `<target>#<key>`; library v4 §10 converts both forms.
   - Identity is `provider`, `account` and `target` or `shard`; a reader rebuilds the name and checks the HMAC. Row
     unknown fields and invalid keys follow the `wat` rule (§3, 1 KiB).
   - Names use the account id, not a key-derived hash, so a key reset or linking copies receipts intact (they are
