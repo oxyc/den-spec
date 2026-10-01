@@ -460,8 +460,11 @@ restore, §11).
    *Un-watch then re-mark*) show as differences that are not real; it is a log, not a verification of v4's target
    rules (the §15 delivery vectors are). Check the row count, stored bytes and every document's cap. Where the log already holds a
    document, its coordinates and targets are the §6/§9 merge of the converted rows and that document, which v3 never
-   saw: they are checked for the round trip and caps only.
-3. A **derived-state** difference, a round-trip or cap failure, or a `v4_form` failure aborts: write nothing, log the
+   saw: they are checked for the round trip and caps only. **Receipts and rows**: every receipt entry the form
+   carries (below) must decode in its delivery document as stored — or, for an `n` at −1, as seeding stores it — and
+   every v3 row that v3 itself keeps must be placed; anything else is a `receipt_dropped` or `row_dropped` abort
+   naming the row or the document and key. The only rows the form drops are the ones it says it drops.
+3. A **derived-state** difference, a dropped receipt or row, a round-trip or cap failure, or a `v4_form` failure aborts: write nothing, log the
    diff (titles and coordinates) to the device log, and show "Library update failed" with the reason. The device
    keeps the library read-only and retries on its next launch and every hour while the app runs. A
    **pending-command** difference does not abort: it is logged with its titles and counted, since after the commit
@@ -505,7 +508,11 @@ command may be sent twice. A watch play is covered by its intent.
   register-level unknown members; `seasonReset` from block 0 (v3 ignores it on other blocks).
 - **Delivery documents.** Every v3 receipt carried as stored, settle order and all: an episode's entry into its
   season delivery document; a `t<shard>` row's `rec:<type>:<id>#watch|list|rating` entries into that title's
-  delivery document.
+  delivery document. Both shipped v3 clients write a title's receipts instead as a row with `target`
+  `rec:<type>:<id>` and entries keyed `watch` (films), `list` and `rating`, stored under the same `t<shard>` name;
+  those entries go into that title's delivery document under the same keys. A key v3 never reads (`watch` on a
+  series, any other key) is an invalid key. Two rows holding one entry merge by §9's entry merge. An `snt` row
+  whose `target` is neither `wat:<type>:<id>:<season>:<block>` nor `rec:<type>:<id>` cannot be placed.
 - **Seeding** (v3 §10's default receipts). For an account whose `set:deliver` holds a `seededThrough` at or below
   `base`, a target whose v3 row has seq above it — the `wat` row for an episode; for a film's watch, the greater seq
   of its `rec` and `wat` rows; the `rec` row for a list or rating; a folded row taking the greater of its parts' seqs
@@ -666,7 +673,9 @@ version by which fields a request carries.
   unknowns, invalid keys, a film `wat` row's non-`"0"` keys and a key failing the block condition dropped and
   counted; a stray `ep` row and a v1 event folded; `set:tracker-event:*` dropped; unknown kinds and every other `set`
   row staged unchanged; a log holding documents and v3 rows merged; failure on rows, bytes and a too-large season;
-  a pre-v3 log refused, and a v3 log with no `wat` row but an `snt` or `set:deliver:*` row converted; the window
+  a pre-v3 log refused, and a v3 log with no `wat` row but an `snt` or `set:deliver:*` row converted; title receipts
+  in the `rec:<type>:<id>` target form carried into the title's delivery document with no pending-command
+  difference, an unplaceable `snt` row and a lost receipt entry each aborting with `receipt_dropped`; the window
   known-limit count.
 - **Write-back.** A held document merged and written only when the merge differs; kept ops re-applied; settled
   entries merged by §9's order; kept v3 work discarded; never a `lease`; a merge over 256 KiB leaving the log's
