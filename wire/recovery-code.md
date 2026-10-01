@@ -1,6 +1,6 @@
 # Recovery code, v1 — proposal
 
-**Status: draft for review.** Nothing here is implemented.
+**Status: for review; the owner's decisions are in §13.** Nothing here is implemented.
 
 A recovery code lets a person open their library on a new device when no device that holds it is at hand: every TV
 lost or reset, a new Apple ID, or a browser with nothing linked. The code unwraps the **library key** ([library
@@ -11,6 +11,11 @@ What already exists, and what this adds. A TV keeps the library key in iCloud Ke
 Apple ID with Keychain on gets the key with no code. Pairing ([pairing v1](pairing-v1.md)) needs a device that still
 holds the library. The recovery code covers everything else, and it is the only path that does not depend on Apple or
 on a surviving device.
+
+**Den Web is the main path.** Most people will make and redeem codes in Den Web, where pasting and typing are easy;
+the TV supports both, with the remote as the slower way in. Den Web's page is served by den-edge, so **a den-edge
+serving a modified page can read a code typed into it** (§1). That is the one place where this design trusts den-edge
+with a secret, and it is the same trust a browser already places in it for the library key.
 
 Words: *MUST* is a rule a client or den-edge breaks at the cost of the user's secrets or of another client;
 *should* is advice.
@@ -25,7 +30,7 @@ Words: *MUST* is a rule a client or den-edge breaks at the cost of the user's se
 | **A stolen code** | The code is the library key. The holder of a stolen code can do what any linked device can. Detection: den-edge counts opens (§5), which Settings shows. Response: turn the code off **and reset the library key** (§6, §9) — turning it off alone stops future opens, not a key already taken. The code is never stored in the library, never logged and shown once (§6). |
 | **Online guessing at den-edge** | One guess is one Argon2id on the guesser's side and one request; a request reveals only whether a locator exists, and finding one that exists means knowing the code. Rate limits (§5) keep den-edge from being a cheap existence oracle or load target; they are not what makes guessing fail — the 110 bits are. |
 | **A lost code** | While any device holds the library: make a new one (§6), which turns the old one off. With every device and the code lost, the library is gone; den-edge cannot help, by design. |
-| **An active den-edge serving Den Web** | Not covered. Den Web's code is served by den-edge, so a den-edge that serves a modified page can read anything a browser holds, the library key included, today, with or without recovery codes. Redeeming on the TV avoids it. |
+| **An active den-edge serving Den Web** | **Not covered, and Den Web is the main path.** Den Web's code is served by den-edge, so a den-edge that serves a modified page can read a code typed or pasted into it, and anything else a browser holds, the library key included — today, with or without recovery codes. Making and redeeming on the TV avoids it. |
 | **A device that was shut out by a key reset** | It may hold an old code's `manage` (§7), which only acts on entries of the old key. A new code is written to the new library only. |
 
 ## 2. The code
@@ -120,17 +125,21 @@ gives it no more. Not offered for a device's own library (library v2 §1), which
 **Making**:
 
 1. Make the code (§2) and `manage`; derive (§3); seal the plaintext.
-2. `POST /recovery`. On `409 locator_taken` (never expected: 110 bits) start again from 1.
-3. Write the entry into `set:recovery` (§7) by compare-and-set, as `live`, and mark every other live entry `retired`
+2. `POST /recovery`. On `409 locator_taken` (never expected: 110 bits) start again from 1. The entry is not yet in the
+   library, so nothing points at it and the current code, if any, still works.
+3. **Show the code**, once, and **confirm it was saved**: the person types the code's last group (four characters),
+   compared on the device and never sent. A mismatch keeps the screen. Leaving without confirming `DELETE`s the entry
+   from step 2 and changes nothing else.
+4. Write the entry into `set:recovery` (§7) by compare-and-set, as `live`, and mark every other live entry `retired`
    in the same write. If the compare-and-set conflicts and the fresh read shows a live entry made after the read this
-   attempt started from, another device has just made a code: `DELETE` this one, and say so. Otherwise retry the
-   write.
-4. Only now **show the code**, once. Then `DELETE` each entry step 3 retired (§7 *Retiring*).
+   attempt started from, another device has just made a code: `DELETE` this one and tell the person to discard the
+   code they wrote down. Any other failure that ends the attempt does the same. Otherwise retry the write.
+5. `DELETE` each entry step 4 retired (§7 *Retiring*).
 
 The screen says what the code is and is not: "Anyone with this code can open your library. Write it down or keep it
-in a password manager. Den can't show it again." It has a **Done** action, and on the web a **Copy** action. The code
-MUST NOT be written to the library, to storage, to a log (the TV's remote log included), to analytics or to a URL; a
-client holds it in memory only until the screen closes or derivation is done.
+in a password manager. Den can't show it again." Den Web also offers **Copy**. The code MUST NOT be written to the
+library, to storage, to a log (the TV's remote log included), to analytics or to a URL; a client holds it in memory
+only until the screen closes or derivation is done.
 
 **Replacing** is making: the new code retires the old one. **Turning off** marks the live entry `retired` and
 `DELETE`s it, behind a confirmation.
@@ -165,8 +174,8 @@ a setting is never written back to live once retired.
 
 ## 8. Redeeming
 
-On a new device: the TV's first-run screen and Settings › Library offer "Open with a recovery code"; Den Web's
-link screen offers the same.
+On a new device: Den Web's link screen offers "Open with a recovery code" and accepts a pasted code; the TV's
+first-run screen and Settings › Library offer the same.
 
 1. Read the code (§2). A typo is reported at once, with no request.
 2. Derive (§3), then `POST /recovery/open`. `404 unknown_code`: "This code doesn't open a library. It may have been
@@ -254,22 +263,20 @@ and an entry surviving a restart and a store backup and restore.
   Argon2id in Safari, Chrome and Firefox on a phone.
 - **den-edge**: the four `/recovery` routes (§5), the table in the durable store, the limits, the 32-entry cap, log
   redaction, CORS; Den Web as below.
-- **Den Web**: Settings › Recovery code (make, show once with Copy, status, replace, turn off); "Open with a recovery
-  code" on the link screen; a library key held without a TV link; derivation in a Worker; the key-reset and move
+- **Den Web** (the main path): Settings › Recovery code (make, show once with Copy, confirm the last group, status,
+  replace, turn off); "Open with a recovery code" on the link screen, accepting a pasted code; a library key held without a TV link; derivation in a Worker; the key-reset and move
   rules of §9; `set:recovery` handling (§7).
 - **TV**: Settings › Library › Recovery code, built from `SettingsScreen`, `PrimaryActionButton`,
-  `DestructiveActionButton` with `.confirmDelete`, and a code screen that keeps a focusable Done; "Open with a
+  `DestructiveActionButton` with `.confirmDelete`, and a code screen whose focusable element is the last-group confirmation (`TextInputRow`); "Open with a
   recovery code" on the first-run screen and in Settings via `TextInputRow`; the Keychain write; the key-reset and move
   rules of §9; `DenLog` never sees the code, `A`, `wrapKey` or `manage`.
 
-## 13. Open questions for the owner
+## 13. Decisions
 
-1. **Length.** 24 characters (110 bits) is long to type with a Siri Remote, though the iPhone keyboard prompt helps.
-   20 characters (90 bits, with the same Argon2id) would still be far beyond reach. Keep 24?
-2. **Who may make a code**: any holder (proposed), or TVs only?
-3. **Opens counter**: show "opened N times" from den-edge (proposed, advisory), or leave it out?
-4. **Confirming the code was saved**: ask the person to type the last group before the screen closes, or trust Done
-   (proposed)?
-5. **v4 only**: ship with v4 builds (proposed), or also in a v3 build in case v4 slips?
-6. **Key reset ends the code** (proposed; the device cannot rewrap without the code). Should the reset screen go
-   straight into making a new one instead of offering it?
+1. **24 characters** (110 bits). Den Web is the main path, where pasting and typing are easy; the TV remote's cost is
+   secondary. The web known limit stays prominent (intro, §1).
+2. **Any device holding the library** may make a code (§6).
+3. **The open count is shown**, from den-edge, as advisory (§5, §6).
+4. **The person types the last group** to confirm the code was saved; the code goes live only after that (§6).
+5. **v4 builds only** (§10).
+6. **A key reset offers a new code**; it does not force one (§9).
