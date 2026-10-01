@@ -1,15 +1,20 @@
-# Library wire format, v4 — proposal
+# Library wire format, v4 — proposal (revision 2)
 
-**Status: draft for audit.** Nothing here is implemented. It replaces how a v3 library is *stored*, not what it
-*means*: every rule of [library v3](library-v3.md) §3–§8 (registers, merges, derivation, delivery, writing) applies
-unchanged to the decoded form. Keys, sealing, settings rows and the log protocol stay [library v2](library-v2.md).
+**Status: draft for audit.** Nothing here is implemented. v4 replaces how a v3 library is *stored*, not what it
+*means*: the v3 rows a v4 library decodes to are exactly the rows v3 would hold, and every rule of
+[library v3](library-v3.md) §3–§8 runs on them. Where a v3 rule reads something v4 storage no longer has (a
+per-row seq), §6 replaces the test and says so. Keys, sealing and settings rows stay [library v2](library-v2.md).
+
+Revision 2 answers the audit of revision 1 (oxyc/den-spec#19): exact numbers and stamps (§4), a carrier for
+everything v3 keeps (§4), bounded rows for long series (§3), per-target markers instead of row seqs (§6), local
+shard splits with no fence (§5), no shard count in a setting (§3), regrouping on key changes (§7), and the v3→v4
+switch written out (§8).
 
 Words: *MUST* is a rule a client breaks at the cost of other clients; *should* is advice.
 
 ## 1. Why
 
-v3 fixed what devices agree on. It did not make the library small, and no size budget was set or measured before
-it shipped. A real household library after its switch to v3:
+A real household library after its v3 switch:
 
 | | |
 |---|---:|
@@ -18,176 +23,265 @@ it shipped. A real household library after its switch to v3:
 | Tracker accounts | 1 |
 | Rows | 6,878 |
 | Sealed bytes (`k` + `v`) | 6.67 MB |
-| den-edge charge (`2(k+v) + fragment + 192`) | 21.5 MB of the 32 MiB cap |
+| Of which `set:tracker-event:*` rows v3 §9 says the switch drops (den-core bug, oxyc/den-core#21) | 2.08 MB |
+| **v3 like-for-like, without those** | **~4.6 MB, ~5,240 rows** |
 
-Where the bytes are:
+Where the like-for-like bytes are: `wat` 2.10 MB (1,886 rows, 844 of them one film each), `snt` 1.34 MB (1,707
+rows; 55% of their plaintext is stamps), `rec` 1.13 MB (1,640 rows), settings 0.02 MB. The causes are structural:
 
-| Row kind | Rows | Sealed | Note |
-|---|---:|---:|---|
-| `wat` | 1,886 | 2.10 MB | 844 of them hold one film each |
-| `set:tracker-event:*` | 1,636 | 2.08 MB | v3 §9 says the switch drops these; den-core's `v3_form` keeps every `set` row, so they survived |
-| `snt` | 1,707 | 1.34 MB | 55% of their plaintext is stamps |
-| `rec` | 1,640 | 1.13 MB | |
-| other `set` | 9 | 0.02 MB | |
-
-The causes are structural, not the data:
-
-1. **The same fact three times.** A watch is a `wat` register, again a receipt in `snt`, and (here) again a v1 event.
-2. **Stamps.** `[1585148400000, 6982, "3d93261e815f664b"]` is ~35 bytes of JSON and appears several times per
-   register and receipt, repeating the same few device ids.
-3. **JSON field names** (`"progress"`, `"viewing"`, `"imported"`, `"cleared"`, `"plays"`) on every register, and
-   default values (`"cleared":null`, `"imported":false`) written out: 284 KB of plaintext here.
-4. **A row per small thing.** Each row pays ~100 bytes of HMAC name, nonce and tag, then base64's third, and den-edge
-   charges each again at 2× plus 192 bytes. 6,878 rows is ~0.7 MB of envelope alone.
+1. **A row per small thing.** Each row pays ~100 bytes of name, nonce and tag, then base64's third.
+2. **JSON stamps** (`[1585148400000, 6982, "3d93261e815f664b"]`, ~35 bytes) several times per register and receipt,
+   repeating a handful of device ids.
+3. **JSON field names and written-out defaults** on every register (`"cleared":null,"imported":false` alone is
+   284 KB of plaintext here).
 
 ## 2. Goals
 
-1. **Everything is kept.** Every register, play (with its watched-at), reset, title field, receipt and setting v3
-   holds, bit for bit after decoding. No history or precision is dropped to save space.
-2. **Same semantics.** v4 adds no rule about state or delivery. den-core decodes a v4 row into the v3 rows it
-   stands for, runs the v3 op, and encodes the result. Every v3 vector holds on the decoded form.
-3. **Flexible.** A self-describing encoding with numbered fields: a later field is added without a new format, and
-   a reader keeps fields it does not know (as v3 keeps unknowns). Smallest-possible is not a goal.
-4. **A size budget, tested.** §8. A change that breaks it fails den-core's tests.
-5. **No new trust.** den-edge still sees only opaque rows, and learns no more than it does today.
+1. **Exact.** `decode(encode(rows))` is the same set of v3 rows, byte for byte in JCS (RFC 8785): every register,
+   play, reset, title field, receipt, unknown field, invalid key and `schema`. Nothing is rounded or dropped.
+2. **Same meaning.** v4 adds no rule about state or delivery except §6's replacement for per-row seq tests.
+3. **Flexible.** Self-describing encoding with numbered fields, unknowns kept at every level, versions per title.
+   Smallest-possible is not a goal.
+4. **Bounded rows.** No row exceeds den-edge's value cap, for any library v3 can hold, including a 99,999-episode
+   series (§3).
+5. **No library-wide events in normal use.** Growth splits one shard at a time, with no fence, no generation change
+   and no lease loss (§5).
+6. **A size budget, tested** (§10).
+7. **No new trust.** den-edge still sees opaque rows and learns no more than in v3 (§9).
 
 ## 3. Rows
 
-A v4 library holds three kinds of row. Names are hashed into `k` as in v2 §2.
-
 | Name | Holds | Written by |
 |---|---|---|
-| `shard:<n>` | every title whose shard is `n`: its v3 `rec` row and all its `wat` rows | any client |
-| `rcpt:<provider>:<account>:<n>` | that account's receipts (`snt` entries) for the titles of shard `n` | the account's lease holder only (v3 §6) |
-| `set:<name>` | settings, unchanged from v3 | any client |
+| `shard:<S>:<n>` | the title entries of every title whose shard at width `S` is `n` (§5), or a split stub | any client |
+| `part:<type>:<id>:<season>:<block>` | one block of a long title's episodes (spill, below) | any client |
+| `rcpt:<provider>:<account>:<S>:<n>` | that account's receipts for the titles of shard `n` at width `S`, or a split stub | the account's lease holder, and write-back (v3 §10) |
+| `rcptpart:<provider>:<account>:<type>:<id>:<season>:<block>` | one block of a long title's receipts | as `rcpt` |
+| `set:<name>` | settings, unchanged from v3 (JSON, uncompressed) | any client |
+| any other | kept with `k` and `v` unchanged, as v3 keeps rows of kinds it does not know | – |
 
-- **Shard of a title** = the first 4 bytes of HMAC-SHA256(`macKey`, `"shard/" + <type> + ":" + <id>`), big-endian,
-  modulo `S`. Keyed, so den-edge cannot map a title to its shard.
-- **`S`, the shard count**, is a power of two between 16 and 4096, chosen at the switch (§6) and recorded in
-  `set:format` as `{"shards": {"int": S}}`. It changes only by a fenced rewrite (§6, *Reshard*), never by a plain
-  write, so every client always addresses the same rows.
-- Receipts stay in their own rows because only the lease holder writes them (v3 §6). Keeping them apart from
-  `shard:n` means a delivery settle never conflicts with a person's edit, and a device without credentials never
-  rewrites receipts.
-- **No v1 events and no `ep` rows** exist in a v4 library. The switch folds any it finds (v3 §8) and drops them; a v4
-  client uploads neither on any path.
+- `<type>` is `movie` or `tv` and `<id>` the canonical decimal TMDB id, as v2 names titles.
+- **No `S` in any setting.** A row's width is in its name and its content (§4); a client learns the library's shards
+  from the rows it reads. Write-back never invents a width (§7).
+- **Spill.** A title entry whose encoded CBOR (§4) would exceed **4 KiB** keeps its `rec` fields and a spill marker
+  in its shard, and its seasons move to `part:` rows, one per v3 block (`floor(episode / 32)`). A `part:` row holds at
+  most 32 registers plus that block's carrier (§4), so its bound is v3's: under 23 KiB plaintext worst case (v3 §3
+  *Size*). Receipts spill the same way into `rcptpart:` rows (v3 §6 *Size*: under ~17 KiB). A title never un-spills.
+- **No `ep` rows and no v1 events.** A v4 client uploads neither on any path. A v4 reader that finds one — or a stray
+  v3 `wat`, `snt` or `rec` row — decodes it as the v3 row it is, merges it into the title's v4 rows on its next write
+  to that title (v3 §10 *No v2 rows*), and keeps it until then.
 
 ## 4. Encoding
 
-The plaintext of `shard:n` and `rcpt:…:n` is **deterministic CBOR** (RFC 8949 §4.2.1), compressed with raw DEFLATE
-(RFC 1951), then sealed exactly as v2 seals a row's JSON. Settings rows stay JSON.
+The plaintext of every v4 row (shard, part, rcpt, rcptpart) is **deterministic CBOR** (RFC 8949 §4.2.1), compressed
+with raw DEFLATE (RFC 1951), then sealed exactly as v2 seals a row's JSON. Settings rows stay JSON: they hold
+credentials, and §9 explains why only data rows are compressed.
 
-Deterministic CBOR because it is compact (integers are 1–9 bytes, byte strings are raw), self-describing (a reader
-can skip a field it does not know), and canonical (one value has one encoding, so two clients that hold the same
-state produce the same bytes and §5's ties are well defined).
+### Determinism
 
-**Compression before sealing** leaks only the compressed length, which an observer cannot steer: a row holds only
-the library's own data, never attacker-chosen text beside a secret. Each row is compressed alone, so den-edge learns
-nothing it does not already learn from today's row sizes.
+- Map keys are integers sorted per §4.2.1; a writer omits a key only where the v3 field it stands for is absent.
+- Numbers that are integers in v3 JSON are CBOR integers. **`value`, `seconds` and `resume.value` are CBOR floats in
+  preferred serialization** (RFC 8949 §4.2.2: the shortest float that represents the value exactly); a writer never
+  scales or rounds them. A v3 number that is an integer-valued float in JSON (`1`, `0`) is decoded as JSON writes it.
+- **`devices`**, the row's device table, is sorted bytewise; entry 0 is the empty device `""`.
+- **Equality, ties and no-op detection always compare decoded v3 rows** (JCS), never CBOR or compressed bytes.
+  Sealed bytes differ anyway (random nonce). v3 §4's JCS tie rule therefore resolves exactly as in v3.
+- **den-core compresses and decompresses** with one pinned DEFLATE implementation and level. No client uses a
+  platform DEFLATE (zlib, Apple Compression, `CompressionStream` and miniz_oxide produce different bytes), and no rule
+  depends on compressed bytes. Size thresholds (§3, §5) are measured on **CBOR length**, which is deterministic.
+
+### Device table and stamps
+
+- `devices` entries are byte strings of 8 bytes for a 16-hex `d`, or text strings for any other stored `d`
+  (`"local"`, or a `d` v3 readers keep though writers never write it).
+- A **stamp** is `[t, c, i]` with `i` an index into `devices`. **Only `[0, 0, ""]` encodes as `0`.** Every other stamp,
+  timeless or not, keeps its `t` and `c` (v3 §7 orders imports by `c`).
 
 ### Shard row
 
-A map with integer keys; a key absent means its default.
+A map:
 
-| Key | Field | Value |
-|---:|---|---|
-| 0 | `v` | format version, `4` |
-| 1 | `devices` | array of 8-byte device ids (the 16-hex `d` of every stamp in the row, as bytes); index 0 is always `""` |
-| 2 | `titles` | array of title entries, sorted by (type, id) |
-| 3… | | reserved; a reader keeps unknown keys through merges (≤ 1 KiB, as v3 §3) |
+| Key | Field |
+|---:|---|
+| 0 | `S` — the row's width (identity, v2 §2) |
+| 1 | `n` — the row's index (identity) |
+| 2 | `devices` |
+| 3 | `titles` — array of title entries sorted by (`type`, `id`) |
+| 4 | `split` — `true` on a stub (§5); a stub holds no titles |
+| 5… | unknown keys, kept (below) |
 
-A **stamp** is `[t, c, i]`: v3's `t` and `c` as CBOR integers, `i` an index into `devices`. The timeless stamp is
-`0`. `"local"` is a reserved device entry (`h'00'`). Stamps are compared as v3 §4 compares the stamps they stand
-for.
+### Title entry
 
-A **title entry** (map):
+| Key | Field |
+|---:|---|
+| 0 | `type` — text `"movie"` / `"tv"` |
+| 1 | `id` |
+| 2 | `schema` — the entry's format version (§4 *Versions*) |
+| 3 | `rec` — the v3 `rec` row (below), or absent when v3 holds no `rec` row |
+| 4 | `seasons` — season → season entry |
+| 5 | `wb` — set of targets marked written back (§6) |
+| 6 | `spilled` — `true` when the seasons live in `part:` rows |
+| 7… | unknown keys, kept |
 
-| Key | Field | From v3 |
-|---:|---|---|
-| 0 | type | 0 film, 1 series |
-| 1 | id | TMDB id |
-| 2 | rec | the `rec` row's fields as a map (status, resume, reaction, deleted, dismissed, episodesReset, addedAt, watchedAt, unknowns), each stamped value `[value, stamp]`; enums as small integers |
-| 3 | seasons | map season → `{0: seasonReset, 1: episodes}`; `episodes` maps episode number → register |
-| 4 | film | a film's `"0"` register |
+**`rec`** is a map from v3 field to its value, one key per field the v3 row holds: 0 `schema`, 1 `status`,
+2 `resume`, 3 `reaction`, 4 `deleted`, 5 `dismissed`, 6 `episodesReset`, 7 `addedAt`, 8 `watchedAt`, 9 unknown fields
+(a map, text keys). A field **absent in v3 is absent here**; a stamped default (`{"value": null, "at": <real>}`) is
+stored as such, so v3 §7's import ownership is unchanged. Enum values (`status`, `reaction`) are small integers for
+the values v3 defines and **text for any other**, so a value a later build adds survives.
 
-A **register** (map): 0 `progress` `[value×10⁶ as integer, viewing, seconds?, stamp]`, 1 `imported` (true only),
-2 `plays` (map key → watched-at, as v3), 3 `cleared` `[viewing, stamp]`. Absent = v3's default (no progress,
-`false`, `{}`, `null`).
+**Season entry**: a map, block → **block carrier**: 0 `schema` (absent when 3), 1 `seasonReset` (a stamp, kept on
+any block though v3 reads it only on block 0), 2 `registers` (episode number → register, valid keys only), 3
+`invalid` (text key → register, v3 §3's invalid entry keys), 4 row-level unknown fields (a map, text keys). One block
+carrier is exactly one v3 `wat` row; decoding rebuilds `wat:<type>:<id>:<season>:<block>` with that row's fields.
+A film's `"0"` register is season 0, block 0, as in v3.
 
-v3's 32-episode blocks disappear from the wire: a title's episodes are one map. The decoded form rebuilds v3's
-`wat:<type>:<id>:<season>:<block>` rows, blocks and all, so every v3 op and vector applies.
+**Register**: a map: 0 `progress` (a map: 0 `value`, 1 `viewing`, 2 `at`, 3 `seconds`, 4 unknowns), 1 `imported`
+(present only when `true`), 2 `plays` (key → watched-at, keys as v3 writes them), 3 `cleared` (`[viewing, stamp]`).
+v3 §3 says a register has no other fields; v4 adds none.
 
-### Receipt row
+### Part row
 
-A map: 0 `v`, 1 `devices`, 2 `targets`: map from target (title entry coordinates plus `season`/`episode`, or a
-title field) → v3's receipt entry tuple with its stamps and settle orders encoded as above. Every v3 receipt rule,
-including `sending`, `unverified` and seeding, applies to the decoded `snt` rows.
+A map: 0 `type`, 1 `id`, 2 `season`, 3 `block`, 4 `devices`, 5 the block carrier. Identity is keys 0–3.
 
-## 5. Merging and writing
+### Receipt rows
 
-- **Merge two versions of a shard** = decode both into v3 rows, merge each v3 row pair by v3's rules (§3, §4 ties on
-  the decoded rows), encode the result. Rows only one side holds are kept. The same for receipt rows.
-- **Write** = read the shard row (or start from an empty one), apply the v3 op to the decoded rows, encode, and
-  write `shard:n` with the base seq it was read at (v2 §5). On a conflict, merge the returned version and write again,
-  as v2 does today (three rounds).
-- **More conflicts than v3, by design.** Two devices editing different titles of one shard now conflict and merge. At
-  household rates this is rare; a bulk write (an import, marking a season) touches far fewer rows than v3 and sends
-  far fewer requests.
-- **den-core owns encoding.** Clients call `shard_apply(shard, op)`, `shard_merge(a, b)`, `shard_decode(shard)` and
-  the receipt equivalents; no client encodes CBOR itself (v3 §11).
+`rcpt`: a map: 0 provider, 1 account, 2 `S`, 3 `n`, 4 `devices`, 5 `rows` (array), 6 `split`, 7… unknowns. Each
+element of `rows` is one v3 `snt` row in compact form: its `target` (a `wat` row name) or `shard` (v3's own
+SHA-256/4096 title shard, `t<shard>`), its entries with stamps and settle orders' device ids as device-table
+indices, and its unknowns. Decoding rebuilds v3's `snt:<provider>:<account>:<target>` and
+`snt:<provider>:<account>:t<shard>` rows, so v3's receipt names, rules and vectors apply unchanged. `rcptpart`:
+provider, account, title, season, block, `devices`, and the `snt` rows for that block.
 
-## 6. The switch, and resharding
+### Versions and unknowns
 
-- **v3 → v4** uses v3 §9's machinery unchanged: ready builds report `format` 4; `switch_ready` gates on it; the
-  device holding delivery state performs one fenced rewrite whose rows are `v4_form(rows through base)` and commits
-  with `wireMin` 4. `v4_form` folds any `ep` or v1 event through v3 §8 first, then groups by shard and account.
-- **`S` at the switch** = the smallest power of two ≥ 16 for which no encoded shard row exceeds 8 KiB compressed.
-- **Reshard.** When a write would make a shard row exceed 16 KiB compressed, the writing client performs a fenced
-  rewrite with `S` doubled (the same rewrite, `wireMin` unchanged) and then makes its write. Every client sees the new
-  `set:format` in the same commit. A library never shrinks `S`.
-- **Write-back after a switch or restore** follows v3 §10 in v4 form.
+- `schema` lives on the **title entry**, not the row, so v2 §6's "MUST NOT write a row whose `schema` is higher"
+  freezes one title, not a shard of unrelated ones. A client that finds a title entry with a higher `schema` keeps
+  it byte for byte and does not write that title.
+- Unknown keys at the row level, title-entry level and register level are kept through merges. Of two versions,
+  the unknowns of the one whose newest stamp is later win (v3 §3's rule), per level. Each level's unknowns are at most
+  1 KiB of CBOR.
 
-## 7. den-edge
+### Bounds
 
-- Unchanged, except that a library's **charge is its stored bytes** (the sum of `k` + `v` it holds) rather than v2's
-  in-memory formula, and the cap is reviewed against §8. den-edge still interprets no row.
-- The **v3 store compacts** (redb's compaction) when more than half its file is free pages; measured here, 25.3 MB →
-  10.7 MB. This is a den-edge fix that does not wait for v4.
+A reader rejects a row that inflates past **256 KiB**, nests deeper than 16 levels, or fails its identity check
+(v2 §2: rebuild the name from the payload's identity keys and check the HMAC), and never writes over it.
 
-## 8. Size budget
+### Round-trip vector
 
-Measured by prototyping the encoding over the library in §1 (a hand-packed binary stand-in for CBOR, the same
-shard grouping, raw DEFLATE, today's JSON transport):
+For every row in every v3 vector, `JCS(decode(encode(row))) == JCS(row)`. §12 of v3 already includes invalid keys
+(`"01"`, `"-1"`, `"32"` in block 0, `"100000"`), unknowns and higher schemas; all must round-trip.
+
+## 5. Shards and splits
+
+- **Shard function.** `h` = the first 8 bytes, big-endian, of HMAC-SHA256(`shardKey`, `"movie:" | "tv:"` + canonical
+  decimal id), where `shardKey` = HKDF-SHA256(library key, salt `den/library/v4`, info `shard`, 32 bytes). A title's
+  shard at width `S` is `h mod S`. `S` is a power of two, at least 16.
+- **Extendible hashing.** `shard:<S>:<n>` splits into `shard:<2S>:<n>` and `shard:<2S>:<n+S>` (titles go to
+  `h mod 2S`). Different shards have different widths.
+- **Where a title lives**: start at `shard:16:<h mod 16>`; while that row is a stub, go to `shard:<2S>:<h mod 2S>`.
+  A row whose parent (at `S/2`) is not a stub is **not yet live**: readers ignore it, and its contents merge into
+  the children when the parent splits.
+- **Split** (any client, when a write would make a shard's CBOR exceed **8 KiB**):
+  1. Read the parent at seq `s`.
+  2. Write both children with the parent's titles, each merged with what that child row already holds (an
+     abandoned split may have left one).
+  3. Write the parent as a stub `{0: S, 1: n, 4: true}` with base `s`. This compare-and-set is the commit.
+  4. On a conflict at step 3, another write landed on the parent: re-read it, merge it into the children, retry.
+  A writer that read the parent before the stub conflicts on its next write to the parent, re-reads, and follows the
+  stub. Every v3 merge is a join, so a stale child never overrides newer state.
+- **No fence, no generation change, no lease loss.** A split is ordinary writes.
+- Receipt rows split the same way, by their own width, independently of shard rows.
+- **Stubs are permanent.** A library never merges shards back.
+
+## 6. Merging, writing, and what replaces per-row seq
+
+- **Merge two versions of a v4 row** = decode both into v3 rows, merge each pair by v3's rules, keep rows only one
+  side holds, encode. Ties are v3's, on the decoded rows (§4).
+- **Write** = read the row, apply the v3 op to the decoded rows, encode, write with the base seq it was read at
+  (v2 §5). On a conflict, merge the returned version and write again, **until the write is applied or no longer
+  holds** (v3 §10), with jittered backoff. Merges always converge, so no retry limit is needed.
+- **More conflicts than v3, by design.** Two devices editing different titles of one shard conflict and merge. A
+  bulk write (an import, marking a season) groups its changes by shard, at most 200 writes per batch, and sends far
+  fewer requests than v3. A playback progress write rewrites one shard (≤ 8 KiB CBOR) where v3 rewrote one block
+  (~5 KiB); at one write per 30 s of playback this is ~0.3 KB/s.
+- **A title found in the wrong shard** (a bug, or a write from before a split) is kept, merged into its correct
+  shard on the next write to it, and removed from the wrong one in the same batch. **A title found in two rows** is
+  the merge of both.
+- **`seededThrough` → `wb`.** v3 §6 decides a no-receipt target by whether "its row has seq above `seededThrough`".
+  A shard's seq moves with every title in it, so v4 replaces the test: a no-receipt target counts as above
+  `seededThrough` **if and only if its title entry's `wb` set holds it**. `wb` merges by union.
+  - `v4_form` (§8) sets `wb` on every target with no receipt whose v3 row seq is above `seededThrough`.
+  - v3 §10 write-back sets `wb` on every target it writes from kept or converted work.
+  - `seededThrough` is read only by a re-switch from a v3 log (§8).
+- **Receipt `base`.** v3 §6 bases a receipt write on "the receipt row's seq it read before deciding the command".
+  With coarser rows the holder's own settles would conflict with each other, so v4 generalises v3's intent → settle
+  case: **a holder may base a receipt write on the seq its own previous write to that row produced, if no read since
+  has shown another writer; settles decided against one read of a row go in one write.**
+- **§6 *Taking*** watches `set:deliver`'s seq and is unaffected. **v3 §9's handoff test** ("row seq above `head`")
+  arises only when re-switching from a v2 log, where `v4_form` evaluates it on the v3 rows before encoding.
+
+## 7. Key changes, linking and write-back
+
+- **Moving a library to another key** (v2 key reset, linking a device's own library, write-back into a library under
+  another key) decodes every shard, part and receipt row into titles and receipts, regroups them under the
+  destination's `shardKey` and its live shards, and merges each into the destination's rows (§6). A v4 row is never
+  copied as a row.
+- **Write-back after a switch or restore** (v3 §10) regroups what it holds under the shards the new log has. It
+  writes no stub, never a split it did not perform after reading the log, and no `set:format` (none exists).
+- **New libraries** (v3 §10): a library's first batch carries `x-den-wire-min: 4`.
+
+## 8. The switch from v3
+
+- **Offer.** v3 §9 *Who and when* with `<d>.format` = 4: every device seen within 180 days reports 4 (TVs count
+  whatever their `seen`).
+- **Performer.** Any ready device. No drain or handoff applies: v3 keeps delivery state in the log, not in a device.
+- **Rows.** `v4_form` = v3's compaction form (v3 §9, last paragraph: every `wat` and `snt` merged, stray `ep` and v1
+  events folded through §8), with `wb` set per §6, then grouped and encoded, splitting any shard whose CBOR exceeds
+  8 KiB (writing the stubs above it) and spilling any title over 4 KiB. Every `set` row except
+  `set:tracker-event:*`, and every row of a kind it does not know, is staged with `k` and `v` unchanged. Each
+  `set:deliver` setting is kept, `seededThrough` included (it now only serves a re-switch). `lease` is kept as
+  stored; the commit's new generation ends it, as in v3.
+- **Commit.** The fenced rewrite of v3 §9 (den-edge items 1–4) with `wireMin` 4, sent with `x-den-wire: 4`.
+- **v3 builds after the switch** get `426` and keep their writes. When they update to v4, they write their kept v3
+  rows back as v4 ops (§7).
+- **Restore to a log at minimum 3.** Any v4 client re-switches from the restored v3 log, merging in every `snt` and
+  `rcpt` receipt it holds (v3 §10 *A minimum never falls back*, applied to v4 rows).
+- **Restore to a log at minimum 2.** A v4 build switches it straight to v4 through v3 §9 and §10, so v4 builds keep
+  `v3_form`.
+
+## 9. den-edge and privacy
+
+- **Charge** = stored bytes (the sum of `k` + `v`) for every v3 and v4 library. This replaces v2's in-memory formula
+  in v3 §9's 32 MiB check and in the rewrite allowance (v3 §9 den-edge item 2). den-edge still interprets no row.
+- **Compression and secrecy.** Compression before encryption leaks something only when an attacker can place chosen
+  text beside a secret in one compressed message. v4 rows hold viewing data only; the one secret a library holds,
+  tracker credentials, lives in `set` rows, which are not compressed.
+- **What den-edge learns.** Row count (roughly library size / 8 KiB), when splits happen (which tracks growth), and
+  per-write size changes of a shard. In v3, row count approximated titles plus blocks, so v4 reveals less. The shard
+  function is keyed (§5): den-edge cannot tell which titles share a row.
+- **redb compaction and the old v2 log** are den-edge fixes that do not wait for v4: oxyc/den-edge#217.
+
+## 10. Size budget
+
+A prototype over the library in §1 (a hand-packed binary stand-in for CBOR, the same grouping, raw DEFLATE, today's
+JSON transport) measured:
 
 | Shards | Rows | Sealed total | Largest shard (compressed) |
 |---:|---:|---:|---:|
 | 64 | 71 | 228 KB | 6.2 KB |
 | 256 | 263 | 285 KB | 4.0 KB |
 
-CBOR with numbered fields is somewhat larger than the hand-packed stand-in. The budget leaves room for it:
+CBOR with exact floats, kept stamps and carriers will be larger than that stand-in. The budget:
 
-- **The library in §1** MUST be ≤ **500 KB sealed** in v4 (v3: 6.67 MB; ≥ 13× smaller).
-- **Per title** (including its registers and one account's receipts), a synthetic library MUST average ≤ **400 bytes
-  sealed** for a viewer of 50,000 titles and 200,000 episodes, with every shard row under den-edge's value cap after
-  resharding.
-- den-core carries both as tests: the first against a fixture built from §1's row shapes (no real titles), the second
-  generated.
+- **The library in §1** MUST be ≤ **500 KB sealed** (v3 like-for-like ~4.6 MB: ≥ 9×).
+- **A synthetic heavy viewer** — 50,000 titles, 200,000 episodes, one account — MUST average ≤ **400 bytes sealed
+  per title**, with every row under den-edge's value cap.
+- **A 10,000-episode series** with 8 plays per episode and a full `sending` on every receipt entry MUST spill into
+  `part:` and `rcptpart:` rows that are each under the cap.
+- den-core carries all three as tests; the first uses a fixture built from §1's row shapes (no real titles).
 
-## 9. Not in scope
+## 11. Not in scope
 
 - A binary transport between clients and den-edge (raw `k`, raw `v`): another ~25%, and a den-edge protocol change.
-  Possible later; v4 does not need it.
-- Changing any v3 rule about state or delivery, including v3 §14's open items.
-- Dropping v3's per-row history guarantees: nothing about plays (8 kept per register), resets or receipts changes.
-
-## 10. Open questions for the audit
-
-1. Is CBOR the right base, or should den-core reuse an encoding the den-dataset store already has?
-2. Shard rows trade per-title isolation for size. Is three-round conflict retry enough for a bulk import racing a
-   playing TV, or should a write that conflicts repeatedly back off by shard?
-3. Should receipts share the shard row after all (one row per shard), giving up the "only the lease holder writes"
-   separation, for another ~20% fewer rows?
-4. Is 8 KiB / 16 KiB the right reshard threshold given sync re-downloads a whole shard per changed title?
-5. Does any v3 rule depend on per-row seq numbers (`seededThrough`, receipt `base`) in a way shard rows break?
-   v3 §6 counts staged rows and compares a target's row seq to `seededThrough`; with shards, a target's seq is its
-   shard's.
+- Any change to v3's rules about state or delivery beyond §6, including v3 §14's open items.
+- Shrinking v3's history: 8 plays per register, resets and receipts are all kept.
