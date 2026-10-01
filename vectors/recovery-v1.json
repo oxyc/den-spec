@@ -1,0 +1,101 @@
+{
+  "comment": "wire/recovery-code.md, computed by tools/recovery-vectors.mjs. Byte strings are lowercase hex; sealed values base64url, unpadded, as they travel. The library key is pairing-v1.json's fixed key (bytes 0x00..0x1f).",
+  "alphabet": "ABCDEFGHJKLMNPQRSTUVWXYZ23456789",
+  "kdf": {
+    "algorithm": "argon2id",
+    "version": 19,
+    "memoryKiB": 65536,
+    "passes": 3,
+    "parallelism": 1,
+    "tagLength": 32,
+    "salt": "64656e2f7265636f766572792f7631"
+  },
+  "libraryKey": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "libraryId": "042131fb2b219bc6384f7b0b739d44dc",
+  "codes": [
+    {
+      "input": "GEB2-LP9U-C63W-Q95U-NSLT-XMFL",
+      "parsed": {
+        "data": "GEB2LP9UC63WQ95UNSLTXM"
+      }
+    },
+    {
+      "input": " geb2 lp9u c63w q95u nslt xmfl ",
+      "parsed": {
+        "data": "GEB2LP9UC63WQ95UNSLTXM"
+      }
+    },
+    {
+      "input": "AEB2-LP9U-C63W-Q95U-NSLT-XMFL",
+      "parsed": {
+        "error": "checksum"
+      }
+    },
+    {
+      "input": "GEB2-LP9U-C63W-Q95U-NSLT-XMFA",
+      "parsed": {
+        "error": "checksum"
+      }
+    },
+    {
+      "input": "GEB2-LP9U-C63W-Q95U-NSLT-XM",
+      "parsed": {
+        "error": "mistyped"
+      }
+    },
+    {
+      "input": "GEB2-LP9U-C63W-Q95U-NSLT-XMF0",
+      "parsed": {
+        "error": "mistyped"
+      }
+    },
+    {
+      "input": "GEB2-oP9U-C63W-Q95U-NSLT-XMFL",
+      "parsed": {
+        "error": "mistyped"
+      }
+    },
+    {
+      "input": "GEB2-iP9U-C63W-Q95U-NSLT-XMFL",
+      "parsed": {
+        "error": "mistyped"
+      }
+    },
+    {
+      "input": "GEB2-LP9U-C63W-Q95U-NSLT-XMFL-A",
+      "parsed": {
+        "error": "mistyped"
+      }
+    }
+  ],
+  "entries": [
+    {
+      "random": "e6e4a1588a2d3f12c25c19744e5f3bd2ccb0cad1954b",
+      "data": "GEB2LP9UC63WQ95UNSLTXM",
+      "check": "FL",
+      "code": "GEB2-LP9U-C63W-Q95U-NSLT-XMFL",
+      "argon2id": "5ef8e8c93dbc6f726ff84f8cf44be105491f96fa0e927064bb94198040d1de91",
+      "locator": "df858499eebc4d6ea5736d45e3019632",
+      "wrapKey": "ab5a68f55d111a8a4fa0bf7fbfd608568c6a36359e942162ad1e7475be32839b",
+      "nonce": "000102030405060708090a0b",
+      "plaintext": "{\"v\":1,\"libraryKey\":\"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8\",\"createdAt\":1790000000000}",
+      "sealed": "AAECAwQFBgcICQoLlCJZe4Oyvi9z_AUppqfkMI4h8K6p9ZVLCC4DQL7Ovh9eOx3IEdTxSjbYneBl4oHxJhOwhkA_Mjsu_sfPhf7unhVCJeaeO29P6YgG4SWX7YC7b8D8h_YA_LTThorPNOr43Kp8wP5nvv8ikkCz"
+    },
+    {
+      "random": "5eecfe358af9b4e28ebd2a3574b6dcf6482b1255f7c8",
+      "data": "8N8XL3WCQ7LXWY6YJMUXZJ",
+      "check": "AE",
+      "code": "8N8X-L3WC-Q7LX-WY6Y-JMUX-ZJAE",
+      "argon2id": "18ceffc21f9a25c82926ea0672719862eaaf2748d68c17c9511dcc24bb89cc90",
+      "locator": "ddd6a8d3fcc62f28cc1df2812f6e2e35",
+      "wrapKey": "3e64ecc96fc02bb56336db5e5e03666cf62518858134b012bdfbb41dfd444af2",
+      "nonce": "0c0d0e0f1011121314151617",
+      "plaintext": "{\"v\":1,\"libraryKey\":\"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8\",\"createdAt\":1790000000000}",
+      "sealed": "DA0ODxAREhMUFRYXNisDsvFPxCU5x92B1CQqsUjJaMd6HBi268VsouIyuRi93PSBasQm89IhcHSue1NgmdyTLDEEK85TkzjVvYgFwVGUvaqItCHH9DnHjgXQ76Ydzg85r1OVnMihKwVb7WuaeTSPGGK8-ugiO_0x"
+    }
+  ],
+  "swappedLocator": {
+    "comment": "first.sealed's plaintext sealed under first.wrapKey with second.locator in the AD: opening it with first.locator fails",
+    "sealed": "AAECAwQFBgcICQoLlCJZe4Oyvi9z_AUppqfkMI4h8K6p9ZVLCC4DQL7Ovh9eOx3IEdTxSjbYneBl4oHxJhOwhkA_Mjsu_sfPhf7unhVCJeaeO29P6YgG4SWX7YC7b8D8h_YA_LTThoo4kWGvT7j_nV-NkdXMbLw4"
+  }
+}
