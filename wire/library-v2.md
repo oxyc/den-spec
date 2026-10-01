@@ -68,6 +68,13 @@ A client writes with `POST /lib/{id}/batch {writes: [{k, base, v}]}`, where `bas
 for `k` (0 for a new row). A conflict answer carries the current row: the client opens it, merges (§5),
 and writes again with the new `base`. It reads with `GET /lib/{id}/changes?since=N`, remembering the `head`.
 
+A client that is up to date may add `&wait=S` (seconds, at most 25) to hear of the next write at once rather than at
+its next poll. With nothing after `since` — `since` is the `head`, and the `x-den-generation` it sends, if any, is
+the store's — den-edge holds the request until a write to that library commits, then answers as usual; at `S` it
+answers with no entries. Anything else is answered at once, as without `wait`, and so is a request past den-edge's
+cap on held requests, or to a den-edge that predates `wait`. A client MUST therefore not poll again straight after
+an early empty answer: it waits as it would without `wait`. Its request timeout must outlast `S`.
+
 Every `/lib` answer — a 404 for a library nobody has written included — carries `generation`, a random id of
 den-edge's store. It changes when the store does: restored from a backup, or lost and started over. Sequence
 numbers then continue from wherever that store was, so a `head` or a `base` from before means nothing. A client

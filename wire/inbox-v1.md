@@ -84,6 +84,12 @@ POST /inbox/drain
   nothing more until that has passed.
 - A den-edge older than the `POST` form answers it `404` or `405`; a client then drains each queue with `GET`.
 - A client should drain up to 16 queues per `POST` rather than one request per link.
+- `POST /inbox/drain?wait=S` (seconds, at most 25): when every queue asked for is empty, den-edge holds the request
+  until a message lands in one of them, then answers as usual; at `S` it answers with empty queues. It costs the
+  budget once, held or not. A drain with a queue that has messages is answered at once, and so is one past
+  den-edge's cap on held drains (two per address), or to a den-edge that predates `wait`. A client MUST therefore
+  not drain again straight after an early empty answer: it waits as it would without `wait`. Its request timeout
+  must outlast `S`.
 
 For a paired link, the TV:
 
