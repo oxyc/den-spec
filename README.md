@@ -17,6 +17,11 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
 - [`wire/inbox-v1.md`](wire/inbox-v1.md): a paired device's messages to its TV, sealed under its link key.
 - [`vectors/inbox-v1.json`](vectors/inbox-v1.json): sealed messages for pairing's fixed link key. Generated:
   `node tools/inbox-vectors.mjs > vectors/inbox-v1.json`.
+- [`wire/recovery-code.md`](wire/recovery-code.md) (proposal): a recovery code that unwraps the library key on a
+  new device, with no device that holds the library at hand. Argon2id-wrapped, stored at den-edge under a locator
+  it cannot tie to a library.
+- [`vectors/recovery-v1.json`](vectors/recovery-v1.json): codes, Argon2id and sealed entries for fixed inputs.
+  Generated: `node tools/recovery-vectors.mjs > vectors/recovery-v1.json` (Node 24.7 or later).
 - [`wire/routes-v1.md`](wire/routes-v1.md): den-edge's table of every address for each service, and the rule
   every client applies to it — order, health check, and the home check before a plain LAN address.
 - [`wire/store-v3.md`](wire/store-v3.md): the current single mmap'd artifact den-atlas serves from — every
