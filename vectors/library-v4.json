@@ -463,6 +463,7 @@
         },
         "dropped": [],
         "name": "title:movie:550",
+        "reason": "format",
         "status": "newer"
       },
       "request": {
@@ -1308,7 +1309,7 @@
           }
         ],
         "now": 2000,
-        "op": "pending_targets"
+        "op": "pending_targets_v4"
       },
       "section": "§4 Malformed parts"
     },
@@ -1363,7 +1364,7 @@
       "request": {
         "episode": "1",
         "now": 3000,
-        "op": "episode_state",
+        "op": "episode_state_v4",
         "season": {
           "episodes": {
             "1": {
@@ -1421,7 +1422,7 @@
       "request": {
         "episode": 1,
         "now": 3000,
-        "op": "episode_state",
+        "op": "episode_state_v4",
         "season": {
           "episodes": {
             "1": {
@@ -1476,7 +1477,7 @@
       "request": {
         "episode": "1",
         "now": 4000,
-        "op": "episode_state",
+        "op": "episode_state_v4",
         "season": {
           "episodes": {
             "1": {
@@ -1520,7 +1521,7 @@
       "request": {
         "episode": "1",
         "now": 1000,
-        "op": "episode_state",
+        "op": "episode_state_v4",
         "season": {
           "episodes": {
             "1": {
@@ -1558,7 +1559,7 @@
       "request": {
         "episode": "7",
         "now": 1000,
-        "op": "episode_state",
+        "op": "episode_state_v4",
         "season": null
       },
       "section": "§7"
@@ -1583,7 +1584,7 @@
       },
       "request": {
         "now": 6000,
-        "op": "film_state",
+        "op": "film_state_v4",
         "title": {
           "format": 4,
           "kind": "title",
@@ -1622,7 +1623,7 @@
       },
       "request": {
         "now": 1789000000000,
-        "op": "film_state",
+        "op": "film_state_v4",
         "title": {
           "addedAt": 1788000000000,
           "deleted": {
@@ -1694,7 +1695,7 @@
       },
       "request": {
         "now": 2000,
-        "op": "film_state",
+        "op": "film_state_v4",
         "title": {
           "format": 4,
           "kind": "title",
@@ -2109,7 +2110,6 @@
             "a1b2c3d4e5f60718"
           ],
           "kind": "progress",
-          "status": "watched",
           "value": 0.97
         }
       },
@@ -4285,7 +4285,7 @@
           }
         ],
         "now": 3000,
-        "op": "pending_targets"
+        "op": "pending_targets_v4"
       },
       "section": "§9 Pending"
     },
@@ -4343,7 +4343,7 @@
           }
         ],
         "now": 3000,
-        "op": "pending_targets"
+        "op": "pending_targets_v4"
       },
       "section": "§9 Pending"
     },
@@ -4451,7 +4451,7 @@
           }
         ],
         "now": 3000,
-        "op": "pending_targets"
+        "op": "pending_targets_v4"
       },
       "section": "§9 Pending"
     },
@@ -4517,7 +4517,7 @@
           }
         ],
         "now": 3000,
-        "op": "pending_targets"
+        "op": "pending_targets_v4"
       },
       "section": "§9 Pending"
     },
@@ -4625,7 +4625,7 @@
           }
         ],
         "now": 3000,
-        "op": "pending_targets"
+        "op": "pending_targets_v4"
       },
       "section": "§9 Pending"
     },
@@ -4732,7 +4732,7 @@
           }
         ],
         "now": 3000,
-        "op": "pending_targets"
+        "op": "pending_targets_v4"
       },
       "section": "§9 Pending"
     },
@@ -4810,7 +4810,7 @@
           }
         ],
         "now": 3000,
-        "op": "pending_targets"
+        "op": "pending_targets_v4"
       },
       "section": "§4 Newer rows"
     },
@@ -5968,7 +5968,7 @@
           }
         ],
         "now": 4000,
-        "op": "pending_targets"
+        "op": "pending_targets_v4"
       },
       "section": "v3 §6 removals"
     },
@@ -6058,7 +6058,7 @@
           }
         ],
         "now": 3000,
-        "op": "pending_targets"
+        "op": "pending_targets_v4"
       },
       "section": "v3 §6 Unverified receipts"
     },
@@ -6151,7 +6151,7 @@
           }
         ],
         "now": 4000,
-        "op": "pending_targets"
+        "op": "pending_targets_v4"
       },
       "section": "v3 §6 Un-watch then re-mark"
     },
@@ -6216,7 +6216,7 @@
             ]
           ]
         ],
-        "op": "settle",
+        "op": "settle_v4",
         "order": [
           2,
           9,
@@ -6255,7 +6255,7 @@
           "value": "in"
         },
         "entry": null,
-        "op": "settle",
+        "op": "settle_v4",
         "order": [
           2,
           1,
@@ -6295,7 +6295,7 @@
           "value": "like"
         },
         "entry": null,
-        "op": "settle",
+        "op": "settle_v4",
         "order": [
           2,
           1,
@@ -6766,7 +6766,7 @@
           }
         ],
         "now": 3000,
-        "op": "write_back"
+        "op": "write_back_v4"
       },
       "section": "§11 Write-back"
     },
@@ -6852,7 +6852,7 @@
           }
         ],
         "now": 3000,
-        "op": "write_back"
+        "op": "write_back_v4"
       },
       "section": "§11 Write-back"
     },
@@ -6931,7 +6931,7 @@
           }
         ],
         "now": 3000,
-        "op": "write_back"
+        "op": "write_back_v4"
       },
       "section": "§11 Write-back"
     },
@@ -7037,7 +7037,7 @@
           }
         ],
         "now": 3000,
-        "op": "write_back"
+        "op": "write_back_v4"
       },
       "section": "§11 Write-back"
     },
@@ -7106,9 +7106,1332 @@
           }
         ],
         "now": 3000,
-        "op": "write_back"
+        "op": "write_back_v4"
       },
       "section": "§11 Write-back"
+    },
+    {
+      "name": "a timeless rating is not pending against a receipt with its own value stamp",
+      "ok_subset": {
+        "commands": [],
+        "settle": []
+      },
+      "request": {
+        "deliver": {
+          "account": "4812736",
+          "provider": "simkl",
+          "since": [
+            500,
+            0,
+            "a1b2c3d4e5f60718"
+          ]
+        },
+        "documents": [
+          {
+            "format": 4,
+            "kind": "title",
+            "reaction": {
+              "at": [
+                0,
+                5,
+                ""
+              ],
+              "value": "like"
+            },
+            "title": {
+              "id": 550,
+              "type": "movie"
+            }
+          },
+          {
+            "account": "4812736",
+            "entries": {
+              "list": [
+                "out",
+                [
+                  0,
+                  0,
+                  ""
+                ],
+                [
+                  2,
+                  2,
+                  "a1b2c3d4e5f60718"
+                ]
+              ],
+              "rating": [
+                "love",
+                [
+                  0,
+                  5,
+                  ""
+                ],
+                [
+                  2,
+                  1,
+                  "a1b2c3d4e5f60718"
+                ],
+                9
+              ]
+            },
+            "format": 4,
+            "kind": "delivery",
+            "provider": "simkl",
+            "title": {
+              "id": 550,
+              "type": "movie"
+            }
+          }
+        ],
+        "now": 3000,
+        "op": "pending_targets_v4"
+      },
+      "section": "v3 §6 Timeless values"
+    },
+    {
+      "name": "an in-progress replay of an unhidden imported watch sends no un-watch against its receipt",
+      "ok_subset": {
+        "commands": [],
+        "settle": []
+      },
+      "request": {
+        "deliver": {
+          "account": "4812736",
+          "provider": "simkl",
+          "since": [
+            500,
+            0,
+            "a1b2c3d4e5f60718"
+          ]
+        },
+        "documents": [
+          {
+            "episodes": {
+              "1": {
+                "cleared": null,
+                "imported": true,
+                "plays": {
+                  "-9007199254737992": 3000
+                },
+                "progress": {
+                  "at": [
+                    4000,
+                    0,
+                    "a1b2c3d4e5f60718"
+                  ],
+                  "value": 0.3,
+                  "viewing": 1
+                }
+              }
+            },
+            "format": 4,
+            "kind": "season",
+            "season": 1,
+            "seasonReset": [
+              2000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "title": {
+              "id": 1399,
+              "type": "tv"
+            }
+          },
+          {
+            "account": "4812736",
+            "entries": {
+              "1": [
+                "w",
+                0,
+                3000,
+                [
+                  0,
+                  0,
+                  ""
+                ],
+                [
+                  2,
+                  1,
+                  "a1b2c3d4e5f60718"
+                ]
+              ]
+            },
+            "format": 4,
+            "kind": "delivery",
+            "provider": "simkl",
+            "season": 1,
+            "title": {
+              "id": 1399,
+              "type": "tv"
+            }
+          }
+        ],
+        "now": 5000,
+        "op": "pending_targets_v4"
+      },
+      "section": "v3 §6 Targets and values"
+    },
+    {
+      "name": "an in-progress replay of an unhidden imported watch sends no un-watch with no receipt",
+      "ok_subset": {
+        "commands": []
+      },
+      "request": {
+        "deliver": {
+          "account": "4812736",
+          "provider": "simkl",
+          "since": [
+            500,
+            0,
+            "a1b2c3d4e5f60718"
+          ]
+        },
+        "documents": [
+          {
+            "episodes": {
+              "1": {
+                "cleared": null,
+                "imported": true,
+                "plays": {
+                  "-9007199254737992": 3000
+                },
+                "progress": {
+                  "at": [
+                    4000,
+                    0,
+                    "a1b2c3d4e5f60718"
+                  ],
+                  "value": 0.3,
+                  "viewing": 1
+                }
+              }
+            },
+            "format": 4,
+            "kind": "season",
+            "season": 1,
+            "seasonReset": [
+              2000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "title": {
+              "id": 1399,
+              "type": "tv"
+            }
+          }
+        ],
+        "now": 5000,
+        "op": "pending_targets_v4"
+      },
+      "section": "v3 §6 Targets and values"
+    },
+    {
+      "name": "an imported watch a reset hides is an un-watch",
+      "ok_subset": {
+        "commands": [
+          {
+            "at": 2000,
+            "key": "1",
+            "kind": "unwatched",
+            "p": 0
+          }
+        ]
+      },
+      "request": {
+        "deliver": {
+          "account": "4812736",
+          "provider": "simkl",
+          "since": [
+            500,
+            0,
+            "a1b2c3d4e5f60718"
+          ]
+        },
+        "documents": [
+          {
+            "episodes": {
+              "1": {
+                "cleared": null,
+                "imported": true,
+                "plays": {
+                  "-9007199254739992": 1000
+                }
+              }
+            },
+            "format": 4,
+            "kind": "season",
+            "season": 1,
+            "seasonReset": [
+              2000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "title": {
+              "id": 1399,
+              "type": "tv"
+            }
+          }
+        ],
+        "now": 5000,
+        "op": "pending_targets_v4"
+      },
+      "section": "v3 §6 Targets and values"
+    },
+    {
+      "name": "a replayed title write older than the stored field writes nothing",
+      "ok": {
+        "documents": []
+      },
+      "request": {
+        "now": 1800000000000,
+        "op": "apply_write",
+        "seasons": [],
+        "target": {
+          "id": 550,
+          "type": "movie"
+        },
+        "title": {
+          "format": 4,
+          "kind": "title",
+          "status": {
+            "at": [
+              2000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": "watched"
+          },
+          "title": {
+            "id": 550,
+            "type": "movie"
+          }
+        },
+        "write": {
+          "at": [
+            1000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "fields": {
+            "status": "watchlist"
+          },
+          "kind": "title"
+        }
+      },
+      "section": "§2 Idempotence"
+    },
+    {
+      "name": "a title write sets only the fields it is later than",
+      "ok": {
+        "documents": [
+          {
+            "format": 4,
+            "kind": "title",
+            "reaction": {
+              "at": [
+                1500,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "like"
+            },
+            "status": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "watched"
+            },
+            "title": {
+              "id": 550,
+              "type": "movie"
+            }
+          }
+        ]
+      },
+      "request": {
+        "now": 1800000000000,
+        "op": "apply_write",
+        "seasons": [],
+        "target": {
+          "id": 550,
+          "type": "movie"
+        },
+        "title": {
+          "format": 4,
+          "kind": "title",
+          "status": {
+            "at": [
+              2000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": "watched"
+          },
+          "title": {
+            "id": 550,
+            "type": "movie"
+          }
+        },
+        "write": {
+          "at": [
+            1500,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "fields": {
+            "reaction": "like",
+            "status": "watchlist"
+          },
+          "kind": "title"
+        }
+      },
+      "section": "§2 Idempotence"
+    },
+    {
+      "name": "a kept title write older than the log's field writes nothing back",
+      "ok": {
+        "discarded": 0,
+        "dropped": [],
+        "writes": []
+      },
+      "request": {
+        "documents": [],
+        "kept": [
+          {
+            "target": {
+              "id": 550,
+              "type": "movie"
+            },
+            "write": {
+              "at": [
+                1000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "fields": {
+                "status": "watchlist"
+              },
+              "kind": "title"
+            }
+          }
+        ],
+        "log": [
+          {
+            "format": 4,
+            "kind": "title",
+            "status": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "watched"
+            },
+            "title": {
+              "id": 550,
+              "type": "movie"
+            }
+          }
+        ],
+        "now": 3000,
+        "op": "write_back_v4"
+      },
+      "section": "§11 Write-back"
+    },
+    {
+      "name": "a kept write to a newer-format document is held, never written",
+      "ok": {
+        "discarded": 0,
+        "dropped": [
+          {
+            "kept": 0,
+            "name": "title:movie:550",
+            "reason": "newer_format"
+          }
+        ],
+        "writes": []
+      },
+      "request": {
+        "documents": [],
+        "kept": [
+          {
+            "target": {
+              "id": 550,
+              "type": "movie"
+            },
+            "write": {
+              "at": [
+                2500,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "fields": {
+                "reaction": "love"
+              },
+              "kind": "title"
+            }
+          }
+        ],
+        "log": [
+          {
+            "format": 5,
+            "kind": "title",
+            "status": {
+              "at": [
+                1000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "watched"
+            },
+            "title": {
+              "id": 550,
+              "type": "movie"
+            }
+          }
+        ],
+        "now": 3000,
+        "op": "write_back_v4"
+      },
+      "section": "§4 Newer rows"
+    },
+    {
+      "name": "one kept write that cannot apply is dropped and the rest written back",
+      "ok": {
+        "discarded": 0,
+        "dropped": [
+          {
+            "kept": 0,
+            "name": "title:movie:550",
+            "reason": "invalid_write"
+          }
+        ],
+        "writes": [
+          {
+            "document": {
+              "format": 4,
+              "kind": "title",
+              "reaction": {
+                "at": [
+                  2500,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ],
+                "value": "like"
+              },
+              "title": {
+                "id": 550,
+                "type": "movie"
+              }
+            },
+            "name": "title:movie:550"
+          }
+        ]
+      },
+      "request": {
+        "documents": [],
+        "kept": [
+          {
+            "target": {
+              "id": 550,
+              "type": "movie"
+            },
+            "write": {
+              "at": [
+                2500,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "kind": "nonsense"
+            }
+          },
+          {
+            "target": {
+              "id": 550,
+              "type": "movie"
+            },
+            "write": {
+              "at": [
+                2500,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "fields": {
+                "reaction": "like"
+              },
+              "kind": "title"
+            }
+          }
+        ],
+        "log": [],
+        "now": 3000,
+        "op": "write_back_v4"
+      },
+      "section": "§11 Write-back"
+    },
+    {
+      "name": "playing a watched film starts one new viewing, in progress",
+      "ok": {
+        "documents": [
+          {
+            "format": 4,
+            "kind": "title",
+            "resume": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": 0.3,
+              "viewing": 1
+            },
+            "status": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "inProgress"
+            },
+            "title": {
+              "id": 550,
+              "type": "movie"
+            },
+            "watch": {
+              "cleared": null,
+              "imported": false,
+              "plays": {
+                "0": 1000
+              }
+            }
+          }
+        ]
+      },
+      "request": {
+        "now": 1800000000000,
+        "op": "apply_write",
+        "seasons": [],
+        "target": {
+          "id": 550,
+          "type": "movie"
+        },
+        "title": {
+          "format": 4,
+          "kind": "title",
+          "resume": {
+            "at": [
+              1000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": 1.0,
+            "viewing": 0
+          },
+          "status": {
+            "at": [
+              1000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": "watched"
+          },
+          "title": {
+            "id": 550,
+            "type": "movie"
+          },
+          "watch": {
+            "cleared": null,
+            "imported": false,
+            "plays": {
+              "0": 1000
+            }
+          }
+        },
+        "write": {
+          "at": [
+            2000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "kind": "progress",
+          "value": 0.3
+        }
+      },
+      "section": "§8 Films"
+    },
+    {
+      "name": "the next tick stays in that viewing",
+      "ok": {
+        "documents": [
+          {
+            "format": 4,
+            "kind": "title",
+            "resume": {
+              "at": [
+                3000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": 0.4,
+              "viewing": 1
+            },
+            "status": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "inProgress"
+            },
+            "title": {
+              "id": 550,
+              "type": "movie"
+            },
+            "watch": {
+              "cleared": null,
+              "imported": false,
+              "plays": {
+                "0": 1000
+              }
+            }
+          }
+        ]
+      },
+      "request": {
+        "now": 1800000000000,
+        "op": "apply_write",
+        "seasons": [],
+        "target": {
+          "id": 550,
+          "type": "movie"
+        },
+        "title": {
+          "format": 4,
+          "kind": "title",
+          "resume": {
+            "at": [
+              2000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": 0.3,
+            "viewing": 1
+          },
+          "status": {
+            "at": [
+              2000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": "inProgress"
+          },
+          "title": {
+            "id": 550,
+            "type": "movie"
+          },
+          "watch": {
+            "cleared": null,
+            "imported": false,
+            "plays": {
+              "0": 1000
+            }
+          }
+        },
+        "write": {
+          "at": [
+            3000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "kind": "progress",
+          "value": 0.4
+        }
+      },
+      "section": "§8 Films"
+    },
+    {
+      "error": "invalid_write:status",
+      "name": "a film's status is decided by the op, never sent with progress",
+      "request": {
+        "now": 1800000000000,
+        "op": "apply_write",
+        "seasons": [],
+        "target": {
+          "id": 550,
+          "type": "movie"
+        },
+        "title": null,
+        "write": {
+          "at": [
+            2000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "kind": "progress",
+          "status": "inProgress",
+          "value": 0.3
+        }
+      },
+      "section": "§8 Films"
+    },
+    {
+      "name": "a reshaped format 5 title holds its own targets and no other",
+      "ok_subset": {
+        "commands": [
+          {
+            "document": "dlv:simkl:4812736:movie:551",
+            "kind": "watched"
+          }
+        ],
+        "held": [
+          {
+            "document": "dlv:simkl:4812736:movie:550",
+            "key": "list",
+            "reason": "newer_format"
+          },
+          {
+            "document": "dlv:simkl:4812736:movie:550",
+            "key": "rating",
+            "reason": "newer_format"
+          },
+          {
+            "document": "dlv:simkl:4812736:movie:550",
+            "key": "watch",
+            "reason": "newer_format"
+          }
+        ]
+      },
+      "request": {
+        "deliver": {
+          "account": "4812736",
+          "provider": "simkl",
+          "since": [
+            500,
+            0,
+            "a1b2c3d4e5f60718"
+          ]
+        },
+        "documents": [
+          {
+            "format": 5,
+            "kind": "title",
+            "status": "watched",
+            "title": {
+              "id": 550,
+              "type": "movie"
+            }
+          },
+          {
+            "format": 4,
+            "kind": "title",
+            "resume": {
+              "at": [
+                1000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": 1.0,
+              "viewing": 0
+            },
+            "status": {
+              "at": [
+                1000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "watched"
+            },
+            "title": {
+              "id": 551,
+              "type": "movie"
+            },
+            "watch": {
+              "cleared": null,
+              "plays": {
+                "0": 1000
+              }
+            }
+          }
+        ],
+        "now": 3000,
+        "op": "pending_targets_v4"
+      },
+      "section": "§4 Newer rows"
+    },
+    {
+      "name": "a film re-marked after a delivered un-watch sends the un-watch first",
+      "ok_subset": {
+        "commands": [
+          {
+            "at": 2000,
+            "key": "watch",
+            "kind": "unwatched",
+            "p": 1,
+            "step": "unwatch_then_remark"
+          }
+        ]
+      },
+      "request": {
+        "deliver": {
+          "account": "4812736",
+          "provider": "simkl",
+          "since": [
+            500,
+            0,
+            "a1b2c3d4e5f60718"
+          ]
+        },
+        "documents": [
+          {
+            "format": 4,
+            "kind": "title",
+            "resume": {
+              "at": [
+                3000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": 1.0,
+              "viewing": 1
+            },
+            "status": {
+              "at": [
+                3000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "watched"
+            },
+            "title": {
+              "id": 550,
+              "type": "movie"
+            },
+            "watch": {
+              "cleared": [
+                0,
+                [
+                  2000,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ]
+              ],
+              "plays": {
+                "0": 1000,
+                "1": 3000
+              }
+            }
+          },
+          {
+            "account": "4812736",
+            "entries": {
+              "list": [
+                "out",
+                [
+                  3000,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ],
+                [
+                  2,
+                  2,
+                  "a1b2c3d4e5f60718"
+                ]
+              ],
+              "rating": [
+                null,
+                [
+                  0,
+                  0,
+                  ""
+                ],
+                [
+                  2,
+                  3,
+                  "a1b2c3d4e5f60718"
+                ]
+              ],
+              "watch": [
+                "w",
+                0,
+                1000,
+                [
+                  1000,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ],
+                [
+                  2,
+                  1,
+                  "a1b2c3d4e5f60718"
+                ]
+              ]
+            },
+            "format": 4,
+            "kind": "delivery",
+            "provider": "simkl",
+            "title": {
+              "id": 550,
+              "type": "movie"
+            }
+          }
+        ],
+        "now": 4000,
+        "op": "pending_targets_v4"
+      },
+      "section": "v3 §6 Un-watch then re-mark"
+    },
+    {
+      "name": "a list removal with no receipt settles silently",
+      "ok": {
+        "commands": [],
+        "greatest_epoch": 0,
+        "held": [],
+        "removals": null,
+        "settle": [
+          {
+            "built_from": {
+              "key": "list",
+              "kind": "list",
+              "stamp": [
+                3000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "gone"
+            },
+            "document": "dlv:simkl:4812736:movie:550",
+            "key": "list"
+          }
+        ]
+      },
+      "request": {
+        "deliver": {
+          "account": "4812736",
+          "provider": "simkl",
+          "since": [
+            500,
+            0,
+            "a1b2c3d4e5f60718"
+          ]
+        },
+        "documents": [
+          {
+            "deleted": {
+              "at": [
+                3000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": true
+            },
+            "format": 4,
+            "kind": "title",
+            "status": {
+              "at": [
+                1000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "watchlist"
+            },
+            "title": {
+              "id": 550,
+              "type": "movie"
+            }
+          }
+        ],
+        "now": 4000,
+        "op": "pending_targets_v4"
+      },
+      "section": "v3 §6 command table"
+    },
+    {
+      "name": "episode imports skip a deleted series",
+      "ok": {
+        "documents": []
+      },
+      "request": {
+        "now": 1800000000000,
+        "op": "apply_write",
+        "seasons": [],
+        "target": {
+          "id": 1399,
+          "type": "tv"
+        },
+        "title": {
+          "deleted": {
+            "at": [
+              1,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": true
+          },
+          "format": 4,
+          "kind": "title",
+          "title": {
+            "id": 1399,
+            "type": "tv"
+          }
+        },
+        "write": {
+          "items": [
+            {
+              "episode": 1,
+              "plays": [
+                1700000000000
+              ],
+              "season": 1
+            }
+          ],
+          "kind": "import_episodes"
+        }
+      },
+      "section": "v3 §7 Title imports"
+    },
+    {
+      "name": "a replayed un-watch after a re-mark writes nothing",
+      "ok": {
+        "documents": []
+      },
+      "request": {
+        "now": 1800000000000,
+        "op": "apply_write",
+        "seasons": [
+          {
+            "episodes": {
+              "1": {
+                "cleared": [
+                  0,
+                  [
+                    2000,
+                    0,
+                    "a1b2c3d4e5f60718"
+                  ]
+                ],
+                "imported": false,
+                "plays": {
+                  "0": 1000,
+                  "1": 3000
+                },
+                "progress": {
+                  "at": [
+                    3000,
+                    0,
+                    "a1b2c3d4e5f60718"
+                  ],
+                  "value": 1.0,
+                  "viewing": 1
+                }
+              }
+            },
+            "format": 4,
+            "kind": "season",
+            "season": 1,
+            "seasonReset": null,
+            "title": {
+              "id": 1399,
+              "type": "tv"
+            }
+          }
+        ],
+        "target": {
+          "id": 1399,
+          "type": "tv"
+        },
+        "title": null,
+        "write": {
+          "at": [
+            2000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "episodes": [
+            [
+              1,
+              1
+            ]
+          ],
+          "kind": "unwatch"
+        }
+      },
+      "section": "§2 Idempotence"
+    },
+    {
+      "name": "un-watching an in-progress episode clears its resume point",
+      "ok": {
+        "documents": [
+          {
+            "episodes": {
+              "1": {
+                "cleared": [
+                  0,
+                  [
+                    2000,
+                    0,
+                    "a1b2c3d4e5f60718"
+                  ]
+                ],
+                "imported": false,
+                "plays": {},
+                "progress": {
+                  "at": [
+                    2000,
+                    0,
+                    "a1b2c3d4e5f60718"
+                  ],
+                  "value": 0,
+                  "viewing": 1
+                }
+              }
+            },
+            "format": 4,
+            "kind": "season",
+            "season": 1,
+            "seasonReset": null,
+            "title": {
+              "id": 1399,
+              "type": "tv"
+            }
+          }
+        ]
+      },
+      "request": {
+        "now": 1800000000000,
+        "op": "apply_write",
+        "seasons": [
+          {
+            "episodes": {
+              "1": {
+                "cleared": null,
+                "imported": false,
+                "plays": {},
+                "progress": {
+                  "at": [
+                    1000,
+                    0,
+                    "a1b2c3d4e5f60718"
+                  ],
+                  "value": 0.5,
+                  "viewing": 0
+                }
+              }
+            },
+            "format": 4,
+            "kind": "season",
+            "season": 1,
+            "seasonReset": null,
+            "title": {
+              "id": 1399,
+              "type": "tv"
+            }
+          }
+        ],
+        "target": {
+          "id": 1399,
+          "type": "tv"
+        },
+        "title": null,
+        "write": {
+          "at": [
+            2000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "episodes": [
+            [
+              1,
+              1
+            ]
+          ],
+          "kind": "unwatch"
+        }
+      },
+      "section": "v3 §7 Un-watch"
+    },
+    {
+      "name": "un-watching an episode with nothing to clear writes nothing",
+      "ok": {
+        "documents": []
+      },
+      "request": {
+        "now": 1800000000000,
+        "op": "apply_write",
+        "seasons": [],
+        "target": {
+          "id": 1399,
+          "type": "tv"
+        },
+        "title": null,
+        "write": {
+          "at": [
+            2000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "episodes": [
+            [
+              1,
+              5
+            ]
+          ],
+          "kind": "unwatch"
+        }
+      },
+      "section": "v3 §7 Un-watch"
+    },
+    {
+      "name": "decode keeps the 8-kept selection of plays, so every decoded document merges with itself unchanged",
+      "ok": {
+        "document": {
+          "format": 4,
+          "kind": "title",
+          "title": {
+            "id": 550,
+            "type": "movie"
+          },
+          "watch": {
+            "cleared": null,
+            "plays": {
+              "0": 1000,
+              "2": 1002,
+              "3": 1003,
+              "4": 1004,
+              "5": 1005,
+              "6": 1006,
+              "7": 1007,
+              "8": 1008
+            }
+          }
+        },
+        "dropped": [
+          {
+            "part": "watch.plays",
+            "reason": "selection"
+          }
+        ],
+        "name": "title:movie:550",
+        "status": "document"
+      },
+      "request": {
+        "op": "doc_decode",
+        "plaintext": "AC3NWwqDMBCF4b2c5_OQqFHJboJNaWi8YNMWkey949Cn-fiZYU7c130OBb4jnmm5waOkkiP4n_5EkuqckXJsEjCvnxRRiW8o0-PamHIMe5S15Z0zseVwvK5u4K0xcmkVlmgUDdEqWqJTyHuncESv6IlBMRCjYqy1_gA"
+      },
+      "section": "§6"
+    },
+    {
+      "name": "a format 5 document reads with its reason",
+      "ok_subset": {
+        "reason": "format",
+        "status": "newer"
+      },
+      "request": {
+        "op": "doc_decode",
+        "plaintext": "AKWSS27DIBCG7zJrVwIb_Nr1HFUXExi3qNiODE4URb57B1dO3S4iRWEDYv755nkFtJbsa4RWVnUttpOBJU-RLLRXQLa-_TWzAOUhN4VVpLtSVLKG9wxO6GeCtkMfaGGGC70L4UlKN059ctYZfLmBWRBd9AQZTIQmunHY4xsGyxtedJJyWxh10Fg21R4PfjwRLIkS5p7-M-6nGMiMgw3Q1oUSN6Tkl6OzGz74zeQQMc7hMfKW3Rmj-eTOMeanXKY4Ll5rdoyXY9L0I4dLilWcFMYTTqnfw-x9BkePlzX-CwfWqmlyrSol-E7zFmI3b5F-yv2PXHfiN-NlC7Tty069fAM"
+      },
+      "section": "§4 Newer rows"
     }
   ],
   "merge": [
@@ -7988,6 +9311,560 @@
   ],
   "spec": "wire/library-v4.md",
   "switch": [
+    {
+      "base": 20,
+      "dry_run": {
+        "counts": {
+          "malformed_reference": 1
+        },
+        "pass": true
+      },
+      "form": {
+        "ok_subset": {
+          "rows": 10
+        }
+      },
+      "name": "a register v3 cannot derive is compared with its malformed member dropped on both sides",
+      "now": 10000,
+      "performer": "a1b2c3d4e5f60718",
+      "rows": [
+        {
+          "bytes": 200,
+          "k": "k00",
+          "row": {
+            "addedAt": 1000,
+            "deleted": {
+              "at": [
+                1000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": false
+            },
+            "dismissed": {
+              "at": [
+                1000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": false
+            },
+            "episodesReset": null,
+            "extra": 1,
+            "kind": "rec",
+            "reaction": {
+              "at": [
+                5000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "love"
+            },
+            "resume": {
+              "at": [
+                5000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": 1,
+              "viewing": 0
+            },
+            "schema": 2,
+            "status": {
+              "at": [
+                5000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "watched"
+            },
+            "title": {
+              "id": 550,
+              "type": "movie"
+            },
+            "watchedAt": 5000
+          },
+          "seq": 1
+        },
+        {
+          "bytes": 200,
+          "k": "k01",
+          "row": {
+            "addedAt": 2000,
+            "deleted": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": false
+            },
+            "dismissed": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": false
+            },
+            "episodesReset": null,
+            "kind": "rec",
+            "reaction": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": null
+            },
+            "resume": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": 0,
+              "viewing": 0
+            },
+            "schema": 2,
+            "status": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "watchlist"
+            },
+            "title": {
+              "id": 1399,
+              "type": "tv"
+            },
+            "watchedAt": null
+          },
+          "seq": 2
+        },
+        {
+          "bytes": 200,
+          "k": "k02",
+          "row": {
+            "block": 0,
+            "entries": {
+              "0": {
+                "cleared": null,
+                "imported": false,
+                "later": "x",
+                "plays": {
+                  "0": 5000
+                }
+              },
+              "1": {
+                "cleared": null,
+                "imported": false,
+                "plays": {}
+              }
+            },
+            "kind": "wat",
+            "schema": 3,
+            "season": 0,
+            "seasonReset": null,
+            "title": {
+              "id": 550,
+              "type": "movie"
+            }
+          },
+          "seq": 3
+        },
+        {
+          "bytes": 200,
+          "k": "k03",
+          "row": {
+            "block": 0,
+            "entries": {
+              "01": {
+                "cleared": null,
+                "imported": false,
+                "plays": {
+                  "0": 1
+                },
+                "progress": {
+                  "at": [
+                    1,
+                    0,
+                    "a1b2c3d4e5f60718"
+                  ],
+                  "value": 1,
+                  "viewing": 0
+                }
+              },
+              "1": {
+                "cleared": null,
+                "imported": false,
+                "plays": {
+                  "0": 3000
+                },
+                "progress": {
+                  "at": [
+                    3000,
+                    0,
+                    "a1b2c3d4e5f60718"
+                  ],
+                  "value": 1,
+                  "viewing": 0
+                }
+              },
+              "2": {
+                "cleared": null,
+                "imported": false,
+                "plays": {
+                  "0": 3100,
+                  "x": 5
+                },
+                "progress": {
+                  "at": [
+                    3100,
+                    0,
+                    "a1b2c3d4e5f60718"
+                  ],
+                  "value": 1,
+                  "viewing": 0
+                }
+              },
+              "40": {
+                "cleared": null,
+                "imported": false,
+                "plays": {
+                  "0": 1
+                },
+                "progress": {
+                  "at": [
+                    1,
+                    0,
+                    "a1b2c3d4e5f60718"
+                  ],
+                  "value": 1,
+                  "viewing": 0
+                }
+              }
+            },
+            "kind": "wat",
+            "rowExtra": true,
+            "schema": 3,
+            "season": 1,
+            "seasonReset": [
+              500,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "title": {
+              "id": 1399,
+              "type": "tv"
+            }
+          },
+          "seq": 4
+        },
+        {
+          "bytes": 200,
+          "k": "k04",
+          "row": {
+            "block": 1,
+            "entries": {
+              "32": {
+                "cleared": null,
+                "imported": false,
+                "plays": {
+                  "0": 3200
+                },
+                "progress": {
+                  "at": [
+                    3200,
+                    0,
+                    "a1b2c3d4e5f60718"
+                  ],
+                  "value": 1,
+                  "viewing": 0
+                }
+              }
+            },
+            "kind": "wat",
+            "schema": 3,
+            "season": 1,
+            "seasonReset": [
+              9000000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "title": {
+              "id": 1399,
+              "type": "tv"
+            }
+          },
+          "seq": 5
+        },
+        {
+          "bytes": 200,
+          "k": "k05",
+          "row": {
+            "account": "4812736",
+            "entries": {
+              "1": [
+                "w",
+                0,
+                3000,
+                [
+                  3000,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ],
+                [
+                  1,
+                  1,
+                  "a1b2c3d4e5f60718"
+                ]
+              ],
+              "2": [
+                "n",
+                -1,
+                null,
+                [
+                  0,
+                  0,
+                  ""
+                ],
+                [
+                  1,
+                  2,
+                  "a1b2c3d4e5f60718"
+                ]
+              ]
+            },
+            "kind": "snt",
+            "provider": "simkl",
+            "schema": 3,
+            "target": "wat:tv:1399:1:0"
+          },
+          "seq": 6
+        },
+        {
+          "bytes": 200,
+          "k": "k06",
+          "row": {
+            "account": "4812736",
+            "entries": {
+              "bogus": [
+                "out",
+                [
+                  1,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ],
+                [
+                  1,
+                  5,
+                  "a1b2c3d4e5f60718"
+                ]
+              ],
+              "rec:movie:550#list": [
+                "b",
+                "out",
+                [
+                  1000,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ],
+                [
+                  1,
+                  4,
+                  "a1b2c3d4e5f60718"
+                ]
+              ],
+              "rec:movie:550#watch": [
+                "w",
+                0,
+                5000,
+                [
+                  5000,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ],
+                [
+                  1,
+                  3,
+                  "a1b2c3d4e5f60718"
+                ],
+                [
+                  [
+                    0,
+                    null,
+                    4000
+                  ]
+                ]
+              ]
+            },
+            "kind": "snt",
+            "provider": "simkl",
+            "schema": 3,
+            "shard": "3e0"
+          },
+          "seq": 7
+        },
+        {
+          "bytes": 200,
+          "k": "k07",
+          "row": {
+            "kind": "set",
+            "name": "deliver:simkl:4812736",
+            "schema": 2,
+            "values": {
+              "lease": {
+                "at": [
+                  1000,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ],
+                "value": {
+                  "strings": [
+                    "",
+                    "1"
+                  ]
+                }
+              },
+              "seedBound": {
+                "at": [
+                  1000,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ],
+                "value": {
+                  "int": 3150
+                }
+              },
+              "seededThrough": {
+                "at": [
+                  1000,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ],
+                "value": {
+                  "int": 6
+                }
+              },
+              "since": {
+                "at": [
+                  1000,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ],
+                "value": {
+                  "string": "[1000,0,\"a1b2c3d4e5f60718\"]"
+                }
+              }
+            }
+          },
+          "seq": 8
+        },
+        {
+          "bytes": 200,
+          "k": "k08",
+          "row": {
+            "kind": "set",
+            "name": "prefs",
+            "schema": 2,
+            "values": {}
+          },
+          "seq": 9
+        },
+        {
+          "bytes": 200,
+          "k": "k09",
+          "row": {
+            "episode": 3,
+            "kind": "ep",
+            "progress": {
+              "at": [
+                7000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": 1.0,
+              "viewing": 0
+            },
+            "schema": 2,
+            "season": 1,
+            "title": {
+              "id": 1399,
+              "type": "tv"
+            }
+          },
+          "seq": 10
+        },
+        {
+          "bytes": 200,
+          "k": "k10",
+          "row": {
+            "kind": "set",
+            "name": "tracker-event:e4",
+            "schema": 2,
+            "values": {
+              "event": {
+                "at": [
+                  7100,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ],
+                "value": {
+                  "string": "{\"after\":{\"episode\":4,\"kind\":\"ep\",\"progress\":{\"at\":[7100,0,\"a1b2c3d4e5f60718\"],\"value\":1.0,\"viewing\":0},\"schema\":2,\"season\":1,\"title\":{\"id\":1399,\"type\":\"tv\"}},\"at\":[7100,0,\"a1b2c3d4e5f60718\"],\"before\":{\"episode\":4,\"kind\":\"ep\",\"progress\":{\"at\":[100,0,\"a1b2c3d4e5f60718\"],\"value\":0.0,\"viewing\":0},\"schema\":2,\"season\":1,\"title\":{\"id\":1399,\"type\":\"tv\"}},\"changes\":{\"progress\":{\"after\":{\"at\":[7100,0,\"a1b2c3d4e5f60718\"],\"value\":1.0,\"viewing\":0},\"before\":{\"at\":[100,0,\"a1b2c3d4e5f60718\"],\"value\":0.0,\"viewing\":0}}},\"id\":\"e4\",\"schema\":1}"
+                }
+              }
+            }
+          },
+          "seq": 11
+        },
+        {
+          "bytes": 200,
+          "k": "k11",
+          "row": {
+            "kind": "zzz",
+            "schema": 9
+          },
+          "seq": 12
+        },
+        {
+          "bytes": 200,
+          "k": "k12",
+          "row": {
+            "block": 0,
+            "entries": {
+              "1": {
+                "cleared": null,
+                "imported": false,
+                "plays": {
+                  "0": 6000
+                },
+                "progress": {
+                  "at": [
+                    6000,
+                    0,
+                    "a1b2c3d4e5f60718"
+                  ],
+                  "value": 1,
+                  "viewing": 0
+                }
+              }
+            },
+            "kind": "wat",
+            "schema": 3,
+            "season": 2,
+            "seasonReset": null,
+            "title": {
+              "id": 1399,
+              "type": "tv"
+            }
+          },
+          "seq": 13
+        }
+      ],
+      "tamper": null
+    },
     {
       "base": 20,
       "dry_run": {

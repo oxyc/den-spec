@@ -1,4 +1,4 @@
-# Library wire format, v4 — proposal (revision 6)
+# Library wire format, v4 — proposal (revision 7)
 
 **Status: draft for audit.** Nothing here is implemented.
 
@@ -138,7 +138,8 @@ A series title document has the same fields without `watch`, and `episodesReset`
 
 - `seasonReset`: a stamp or null (v3 §3), one per season.
 - `episodes`: key → **register** with v3 §3's fields and rules: `progress`, `imported`, `plays` (with the 8-kept
-  selection), `cleared`. A **valid key** is the canonical decimal form of an integer `0 ≤ e ≤ 99999` (v3's range,
+  selection, which a reader applies too: `doc_decode` keeps the least key and the 7 greatest of a `plays` holding
+  more, so the merge laws hold over every document it returns), `cleared`. A **valid key** is the canonical decimal form of an integer `0 ≤ e ≤ 99999` (v3's range,
   without the block condition). A reader derives nothing from any other key and keeps it (§6 *Unknowns*).
 - Numbers and stamp bounds are v3 §3's, unchanged.
 
@@ -317,7 +318,19 @@ stored state, exactly as v3 §7 decides it on rows:
   element of that account's entry; `imported: true` only under the condition; no `progress`, series `status` or
   `dismissed`; the film import's timeless `status`; and the known limits attached to those clauses. It drops the
   one-to-one **viewing window** matching (the three `seedBound` windows, and the full-history check that serves
-  them) and the `connectedFrom` floor.
+  them) and the `connectedFrom` floor. Episode imports skip a series whose title document is `deleted`.
+- **A film's status during playback** is decided by `apply_write`, never sent with the progress: a progress write
+  at or above 0.95 sets `status` `watched`, any other value above 0 sets `inProgress`, and 0 leaves it — v2's
+  status set, as shipped clients write it. It is written when the value changes or the write starts a new viewing.
+  So a watched film played again is `inProgress` in its new viewing, and the next progress write stays there (a
+  `watched` status left in place would start another viewing on every write, v3 §7 *Films*).
+- **Replays write nothing.** A write whose stamp is not later than one the state it writes already holds — a title
+  field's own stamp (the field's merge rule, §6), an episode register's `progress.at` or `cleared` stamp, a film's
+  `resume.at`, `status.at` or `watch.cleared` stamp — writes nothing to it, a stored stamp more than a day ahead
+  counting as none. Fresh writes always pass (§5: issued past everything read); a kept write (§11) or a resend
+  replayed after a newer change does not overwrite it (§2.2, §2.7).
+- **Un-watch** of an episode that is neither watched nor in progress writes nothing; an in-progress one is
+  un-watched as v3 §7 says, clearing its resume point.
 - **Protocol.** A writer reads the document at seq `s`, applies the write, encodes, and sends `{k, base: s, v}`
   (v2 §2). On a conflict it re-derives the write from the returned version (v3 §10 *Batches are not atomic*) and sends
   again, with jittered backoff, until the write is applied or no longer holds. A writer skips a write whose result
@@ -379,6 +392,10 @@ No v4 client writes any of the three. Write-back writes back `since` only.
   a regression (v3 §6).
 - A target with **no receipt** is pending when its value stamp is later than the account's `since`; otherwise it is
   caught up additively — watched, a list add, a rating — as v3 §6 *No receipt*, and any other value settles silently.
+  Pending still means a change the command table sends: a list `gone` with no receipt settles silently, since only
+  `in → gone` is a removal.
+- A target held by a newer document (§4) includes every episode of a series whose **title** document is newer: it
+  carries their covering `episodesReset`.
 
 ### Writing delivery documents
 
@@ -434,9 +451,14 @@ restore, §11).
 2. **Dry run.** Build `v4_form` (below). `doc_encode` and `doc_decode` every document. The reference is den-core's
    shipped `library_v3` (`v3_compact`, `episode_state`, `film_state`, `pending_targets`) run on the log through
    `base`, with the same clock. **Derived state** — every title's `rec` fields, and every coordinate's
-   `episode_state` or `film_state` — must match the decoded documents exactly. **Pending commands**, v4's
-   `pending_targets` on the decoded documents against the reference's, are compared on (target key, command kind,
-   `added`, `rating`, `p`). Check the row count, stored bytes and every document's cap. Where the log already holds a
+   `episode_state` or `film_state` — must match the decoded documents exactly. A register the reference cannot
+   derive (a malformed member, which `v4_form` drops, §4 *Malformed parts*) is derived on both sides with that member
+   dropped, and counted. **Pending commands**, v4's `pending_targets` on the decoded documents against the
+   reference's, are compared on (target key, command kind, `added`, `rating`, `p`). **Known limit**: shipped v3 has
+   no target builder of its own, so the reference builds its targets with v4's rules and no receipts. The comparison
+   therefore cannot catch a target-building bug, and the receipt-dependent rules (*An un-watch survives playback*,
+   *Un-watch then re-mark*) show as differences that are not real; it is a log, not a verification of v4's target
+   rules (the §15 delivery vectors are). Check the row count, stored bytes and every document's cap. Where the log already holds a
    document, its coordinates and targets are the §6/§9 merge of the converted rows and that document, which v3 never
    saw: they are checked for the round trip and caps only.
 3. A **derived-state** difference, a round-trip or cap failure, or a `v4_form` failure aborts: write nothing, log the
@@ -519,7 +541,9 @@ carries a `schema` above 3 (a `rec` above 2); that aborts as step 3 says.
   from the log's (§6), applies its kept writes as ops, merges every **settled** delivery entry it holds (intents
   included) by §9's order, and writes back `since` (v3 §10's credential rules apply to `set:trackers`). Never a
   `lease`. When a merge would exceed 256 KiB sealed (two devices that added episodes offline, say), the log's
-  version stands, the held copy's extra registers are dropped, and the title shows why.
+  version stands, the held copy's extra registers are dropped, and the title shows why. Each kept write stands
+  alone: one that touches a newer document (§4), or a series whose title document is newer, is held and reported;
+  one that no longer applies is reported and dropped; neither stops the others.
 - **Restores.** A restored v4 log needs only write-back. A restored v3 log, or a log in which v2 or v3 rows appear
   (a store restored with its minimum lost, written by an old build), runs the switch (§10), merging the log's
   documents, and then write-back. A v4 client that reads a minimum below 4 runs the switch too, which then only
@@ -570,7 +594,9 @@ den-edge interprets no row. Beyond v3 §13:
 ## 14. den-core
 
 The rules live in den-sync so both clients share them. Clients do the sealing (v2 §2) and the HMAC check against the
-name den-core returns.
+name den-core returns. An op v3 also defines has its own name for v4: `episode_state_v4`, `film_state_v4`,
+`pending_targets_v4`, `settle_v4` and `write_back_v4`. The v3 names keep exactly v3's shapes, so no op chooses a
+version by which fields a request carries.
 
 - `doc_decode`: plaintext → document and its name with the malformed parts it dropped, a JSON row, or unreadable /
   newer with its reason (§4).
@@ -620,10 +646,15 @@ name den-core returns.
   document's registers.
 - **Every write kind** in §8's table, including a film finished by playing writing `resume` and its play in one
   document, an un-watch writing `cleared` before the bump, mark-watched writing nothing on an imported or watched
-  episode, and each kept import clause (v3 §12 *Imports*); a tracker play inside a former viewing window written.
+  episode, and each kept import clause (v3 §12 *Imports*); a tracker play inside a former viewing window written;
+  a watched film played again `inProgress` in one new viewing, its next tick in the same one; a replayed title write
+  and a replayed un-watch older than the stored stamps writing nothing.
 - **Delivery.** v3 §12 *Delivery* run on delivery documents; a no-receipt `watched` stamped before `since` caught up
   additively and one stamped after it pending; a no-receipt `unwatched` before `since` settling silently and after it
-  sent; a command whose settle would not fit held as `receipt_full` and not sent; a pass whose intents and settles
+  sent; a timeless rating not pending against a receipt with its own value stamp; an in-progress replay of an
+  unhidden imported watch sending no un-watch; a film re-marked after a delivered un-watch sending the un-watch
+  first; a list `gone` with no receipt settling silently; a command whose settle would not fit held as
+  `receipt_full` and not sent; a pass whose intents and settles
   each fit alone but not together, holding every command from the first that does not fit; a conflicted settle
   discarded and decided again; a chained settle on the holder's own previous seq applied; a chain
   broken by another writer's version refused; an unknown outcome ending the chain; an intent then settle chained.
