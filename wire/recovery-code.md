@@ -24,14 +24,14 @@ Words: *MUST* is a rule a client or den-edge breaks at the cost of the user's se
 
 | Threat | What holds |
 |---|---|
-| **den-edge reads what it stores** (its disk, its backups, its logs, its operator) | It holds a locator, a sealed blob and a hash (§4). Opening the blob takes the code. Testing a guess takes one Argon2id at 64 MiB (§3); the code has 110 random bits (§2), so an offline search is out of reach. den-edge does not store which library an entry belongs to. |
+| **den-edge reads what it stores** (its disk, its backups, its logs, its operator) | It holds, per entry, a locator, a sealed blob and the library the entry belongs to (§4, §5). Opening the blob takes the code. Testing a guess takes one Argon2id at 64 MiB (§3); the code has 110 random bits (§2), so an offline search is out of reach. Knowing which library an entry belongs to gains nothing toward the key; with one or two libraries per store it was never hidden anyway (§13, decision 7). |
 | **den-edge swaps or forges an entry** | The blob is AES-GCM under a key only the code derives, with the locator in the additional data. A forged blob fails to open; a blob moved to another locator fails to open. |
-| **den-edge withholds, deletes or rolls back an entry** | Not prevented: den-edge is trusted for availability, as it is for the library itself. A rollback can bring back a code that was turned off (§9 *Known limits*); a key reset (§9) still defeats it. |
-| **A stolen code** | The code is the library key. The holder of a stolen code can do what any linked device can. Detection: den-edge counts opens (§5), which Settings shows. Response: turn the code off **and reset the library key** (§6, §9) — turning it off alone stops future opens, not a key already taken. The code is never stored in the library, never logged and shown once (§6). |
+| **den-edge withholds, deletes or rolls back an entry** | Not prevented: den-edge is trusted for availability, as it is for the library itself. Devices reconcile what den-edge holds against the library (§7): a lost live entry is posted again, and a stale one deleted. A key reset (§9) defeats any rolled-back code. |
+| **A stolen code** | The code is the library key. The holder of a stolen code can do what any linked device can. Detection: den-edge counts opens (§5), which Settings shows. Response: turn the code off **and reset the library key** (§6, §9) — turning it off alone stops future opens, not a key already taken. The code is never stored, never logged and shown once (§6). |
 | **Online guessing at den-edge** | One guess is one Argon2id on the guesser's side and one request; a request reveals only whether a locator exists, and finding one that exists means knowing the code. Rate limits (§5) keep den-edge from being a cheap existence oracle or load target; they are not what makes guessing fail — the 110 bits are. |
 | **A lost code** | While any device holds the library: make a new one (§6), which turns the old one off. With every device and the code lost, the library is gone; den-edge cannot help, by design. |
 | **An active den-edge serving Den Web** | **Not covered, and Den Web is the main path.** Den Web's code is served by den-edge, so a den-edge that serves a modified page can read a code typed or pasted into it, and anything else a browser holds, the library key included — today, with or without recovery codes. Making and redeeming on the TV avoids it. |
-| **A device that was shut out by a key reset** | It may hold an old code's `manage` (§7), which only acts on entries of the old key. A new code is written to the new library only. |
+| **A device that was shut out by a key reset** | Its member proof names the old library, whose entries den-edge deleted with it (§5, §9), and den-edge no longer takes that proof. A new code exists only in the new library. |
 
 ## 2. The code
 
@@ -60,10 +60,15 @@ wrapKey  = HKDF-SHA256(ikm = A, salt = UTF-8("den/recovery/v1"), info = "wrap", 
 
 - **Why Argon2id**: memory-hard, so a GPU or ASIC search gains little over the device's own cost; RFC 9106 §4's
   second recommended setting (64 MiB, t = 3), with one lane because a browser runs one thread and lanes change no
-  total work. It is margin on top of the code's entropy: it is what keeps a partial disclosure (a photo with two
-  groups hidden) out of reach.
-- **Cost**: ~110 ms natively on an Apple-silicon Mac (measured with Node's Argon2id); expect well under a second on
-  an Apple TV and one to three seconds in a browser's WebAssembly. Both run it once per make or redeem. A client
+  total work. It is margin on top of the code's entropy, not what the code's security rests on.
+- **Partial disclosure.** The check characters let an attacker filter candidates *before* any Argon2id: a photo that
+  hides two data groups but shows the last group leaves about 2^30 candidates that pass the check, each needing one
+  Argon2id. A surviving candidate is still only a guess at a locator: testing it needs den-edge's table (or a backup of
+  it) or an online `open`. So against a partial disclosure the code holds through §5's rate limits and the secrecy of
+  den-edge's store, with Argon2id as the cost of each step — not through Argon2id alone. A code partly seen should be
+  replaced.
+- **Cost**: ~110 ms natively on an Apple-silicon Mac (measured with Node's Argon2id). The Apple TV and phone browsers
+  are **not yet measured**; the parameters are pinned only once §12's measurements show both acceptable. A client
   runs it off the main thread and shows progress.
 - **A fixed salt** is deliberate: the device has nothing to look up before it derives the locator, and a per-user
   salt only defends against precomputation, which 110 random bits already rule out. Deriving the locator any faster
@@ -74,8 +79,7 @@ wrapKey  = HKDF-SHA256(ikm = A, salt = UTF-8("den/recovery/v1"), info = "wrap", 
 
 What a device stores at den-edge for a code:
 
-- `locator`: 16 bytes, lowercase hex in requests. Unrelated to the library id; den-edge cannot compute one from the
-  other.
+- `locator`: 16 bytes, lowercase hex in requests. den-edge cannot compute it from the library id or the reverse.
 - `sealed`: unpadded base64url of `nonce (12) ‖ ciphertext ‖ tag (16)`, AES-256-GCM under `wrapKey` with a fresh
   random nonce and the additional data `UTF-8("den/recovery/v1") ‖ locator` (16 raw bytes). The plaintext is UTF-8
   JSON:
@@ -85,37 +89,40 @@ What a device stores at den-edge for a code:
   ```
 
   A reader MUST refuse a plaintext without a 32-byte `libraryKey` and ignore fields it does not know.
-- `manageHash`: SHA-256 of `manage`, 32 random bytes the making device generates, **not** derived from the code.
-  `manage` is what turns the entry off and reads its counter (§5); it is kept in the library (§7), so any device
-  holding the library can do both without the code.
+
+The same `{locator, sealed}` is also kept in the library (§7), so a device can post it again without the code.
 
 ## 5. den-edge
 
 | Route | Body / headers | Answer |
 |---|---|---|
-| `POST /recovery` | `{"locator", "sealed", "manageHash"}`; `x-den-library-member: <id>:<member>` | `201 {"createdAt"}`; `403 forbidden` without a valid member proof; `409 locator_taken`; `409 recovery_full` |
-| `POST /recovery/open` | `{"locator"}` | `200 {"sealed"}`; `404 {"error": "unknown_code"}` |
-| `POST /recovery/status` | `{"locator"}`; `x-den-recovery-manage: <hex manage>` | `200 {"createdAt", "opens", "lastOpenedAt"}`; `404 unknown_code`; `403 forbidden` |
-| `DELETE /recovery` | `{"locator"}`; `x-den-recovery-manage: <hex manage>` | `200 {"deleted": true \| false}` (idempotent; `false` when there was none); `403 forbidden` on a wrong `manage` |
+| `POST /recovery` | `{"locator", "sealed"}`; `x-den-library-member: <id>:<member>` | `201 {"createdAt"}`; `403 forbidden` without a valid member proof; `409 locator_taken`; `409 recovery_full` |
+| `GET /recovery` | `x-den-library-member: <id>:<member>` | `200 {"entries": [{"locator", "createdAt", "opens", "lastOpenedAt"}]}`, that library's entries; `403 forbidden` |
+| `DELETE /recovery` | `{"locator"}`; `x-den-library-member: <id>:<member>` | `200 {"deleted": true \| false}`: idempotent, and `false` for a locator this library has no entry under; `403 forbidden` |
+| `POST /recovery/open` | `{"locator"}`, no credential | `200 {"sealed"}`; `404 {"error": "unknown_code"}` |
 
+- **Owner.** An entry belongs to the library whose member proof made it, and den-edge records that library's id with
+  it. The member proof is the one den-edge already checks for relayed household requests (library v2 §1,
+  `holds_member_hash`): a library's registered `member`, or its token before one is registered. Only that library's
+  proof lists or deletes its entries; a locator under another library reads as absent.
 - **Storage**: one small table in den-edge's durable store, beside the libraries, so a store backup carries it. Per
-  entry: `locator`, `sealed` (at most 512 characters), `manageHash`, `createdAt`, `opens`, `lastOpenedAt`. **No
-  library id, no member, no address.** Entries never expire. At most **32** entries per store (a household holds one
-  or two); past that, `409 recovery_full`.
-- **Making** needs a member proof of **some** library on the store (as `NEW_LIBRARIES=members` does for a first
-  batch), so a stranger cannot fill the table. den-edge checks it and does not record which library it named.
-  (**Known limit**: at that request den-edge sees both the member's library id and the locator; with one or two
-  libraries per store, linking them is trivial anyway. What the rule buys is that den-edge's store and backups do
-  not record the link, and that redeeming names no library.)
-- **Opening** increments `opens` and sets `lastOpenedAt`. These are advisory: den-edge is untrusted and can lie.
-- **Secrets stay out of URLs and logs.** Locators and `manage` travel in bodies and headers, never in a path or
-  query. den-edge MUST NOT log a locator, `sealed`, `manage` or `manageHash`; its request line logs the route and the
-  status only.
-- **Limits**, per client address bucket (an IPv4 address, an IPv6 /64): `open` 5 per 10 minutes and 20 per day;
-  `POST /recovery` 10 per day; `status` and `DELETE` 60 per hour. Past one: `429 rate_limited` with `Retry-After`.
-  No store-wide limit on `open`: one would let anyone lock the owner out of recovery, and it buys no security.
-- Lookups are by the exact locator; `manage` compares in constant time against `manageHash`.
-- `/recovery` routes carry no `x-den-wire` and are not fenced by a library rewrite: they are not part of any library.
+  entry: `locator`, `sealed` (at most 512 characters), `library`, `createdAt`, `opens`, `lastOpenedAt`. Entries never
+  expire. At most **4** entries per library (a live code, one being made, and room for clean-up); past that,
+  `409 recovery_full`.
+- **Cascade.** When den-edge deletes a library (`DELETE /lib/{id}`, which a key reset ends with), it deletes that
+  library's entries in the same transaction.
+- **Opening** names no library and needs no credential: it is the new device's path. It increments `opens` and sets
+  `lastOpenedAt` on any successful lookup, the owner's own redeems included. Both are advisory: den-edge is untrusted
+  and can lie.
+- **Secrets stay out of URLs and logs.** Locators travel in bodies, never in a path or query. den-edge MUST NOT log a
+  locator, `sealed` or a member proof; its request line logs the route and the status only.
+- **Limits**, per **visitor** address: the address den-edge's `client_ip` reports, which is what a proxy listed in
+  `TRUSTED_PROXIES` says the visitor was (IPv6 collapsed to a /64), never the proxy's own address. `open` 5 per 10
+  minutes and 20 per day; `POST`, `GET` and `DELETE /recovery` 60 per hour. Past one: `429 rate_limited` with
+  `Retry-After`. No store-wide limit on `open`, and none that would fall on a proxy's address: either would let anyone
+  lock every visitor out of recovery, and neither buys security.
+- Lookups are by the exact locator.
+- `/recovery` routes carry no `x-den-wire` and are not fenced by a library rewrite: entries are not rows of the log.
 
 ## 6. Making, showing, replacing, turning off
 
@@ -124,53 +131,79 @@ gives it no more. Not offered for a device's own library (library v2 §1), which
 
 **Making**:
 
-1. Make the code (§2) and `manage`; derive (§3); seal the plaintext.
-2. `POST /recovery`. On `409 locator_taken` (never expected: 110 bits) start again from 1. The entry is not yet in the
-   library, so nothing points at it and the current code, if any, still works.
-3. **Show the code**, once, and **confirm it was saved**: the person types the code's last group (four characters),
-   compared on the device and never sent. A mismatch keeps the screen. Leaving without confirming `DELETE`s the entry
-   from step 2 and changes nothing else.
-4. Write the entry into `set:recovery` (§7) by compare-and-set, as `live`, and mark every other live entry `retired`
-   in the same write. If the compare-and-set conflicts and the fresh read shows a live entry made after the read this
-   attempt started from, another device has just made a code: `DELETE` this one and tell the person to discard the
-   code they wrote down. Any other failure that ends the attempt does the same. Otherwise retry the write.
-5. `DELETE` each entry step 4 retired (§7 *Retiring*).
+1. Make the code (§2); derive (§3); seal the plaintext.
+2. Write the entry into `set:recovery` (§7) as **`pending`**, by compare-and-set. A den-edge entry is never made that
+   the library does not already name.
+3. `POST /recovery`. On `409 recovery_full`, reconcile (§7) and post once more; still full, stop and say why. On
+   `409 locator_taken` (never expected: 110 bits) start again from 1.
+4. **Show the code**, once, and **confirm it was saved**: the person types the code's last group (four characters),
+   compared on the device and never sent. A mismatch keeps the screen. Leaving without confirming nulls the pending
+   entry and `DELETE`s it; a closed tab or a crash leaves that to the next reconcile (§7 *Abandoned*).
+5. By compare-and-set, turn this entry from `pending` into `live` and null the previous live entry, in one write. A
+   conflict is re-read: if this entry is no longer pending (abandoned by another device), or the fresh read shows a
+   live entry that was not live in the version step 2 was based on (another device made a code meanwhile), this
+   attempt **loses**: it nulls and `DELETE`s its own entry and, before the screen closes, says "This code wasn't saved
+   — discard it, a code was just made on *<device>*" (or "…setup took too long"). Otherwise retry the write. The
+   compare-and-set orders concurrent makes; no clock decides.
+6. `DELETE` the entry step 5 nulled. A failure is left to the next reconcile.
 
 The screen says what the code is and is not: "Anyone with this code can open your library. Write it down or keep it
-in a password manager. Den can't show it again." Den Web also offers **Copy**. The code MUST NOT be written to the
-library, to storage, to a log (the TV's remote log included), to analytics or to a URL; a client holds it in memory
-only until the screen closes or derivation is done.
+in a password manager. Den can't show it again." Den Web also offers **Copy**, and says beside it that clipboard
+history and the system's clipboard sync can carry the code to other devices; it clears the clipboard after
+60 seconds if the clipboard still holds the code. The code MUST NOT be written to the library, to storage, to a log
+(the TV's remote log included), to analytics or to a URL; a client holds it in memory only until the screen closes or
+derivation is done.
 
-**Replacing** is making: the new code retires the old one. **Turning off** marks the live entry `retired` and
-`DELETE`s it, behind a confirmation.
+**Replacing** is making: the new code ends the old one. **Turning off** nulls the live entry and `DELETE`s it,
+behind a confirmation.
 
 **Status**: Settings shows the live entry's `createdAt` and the device that made it (`by`, joined to `set:devices`),
-and, from `POST /recovery/status`, how many times it was opened and when last. When a code has been opened more times
-than the person expects, Settings offers "Turn off and reset library key".
+and, from `GET /recovery`, how many times it was opened and when last — "your own redeems count too". When a code has
+been opened more times than the person expects, Settings offers "Turn off and reset library key". A live entry
+posted again by a reconcile starts its count from zero; Settings says so.
+
+**Notice of change.** Each device remembers the locator of the live entry it last saw. When it reads that the live
+entry changed or is gone, and it did not make that change, it shows once: "A new recovery code was made on
+*<device>*. The code you had no longer works." or "Your recovery code was turned off on another device."
 
 ## 7. In the library: `set:recovery`
 
 A settings row (v2 §3), sealed and stamped like every other. Its settings are an **open group**, one per locator (hex),
-each `{"string": "<JSON>"}`:
+each `{"string": "<JSON>"}`, or `null` once the entry is ended:
 
 ```json
-{"library": "<library id, 32 hex>", "manage": "<hex, 32 bytes>", "createdAt": 1790000000000,
- "by": "<stamp device id>", "retired": null}
+{"state": "live", "library": "<library id, 32 hex>", "sealed": "<base64url>", "createdAt": 1790000000000,
+ "by": "<stamp device id>"}
 ```
 
-`retired` is null while live and the Unix ms it was retired otherwise. A setting merges by the later stamp (v2 §5);
-a setting is never written back to live once retired.
+`state` is `pending` or `live`. A setting merges by the later stamp (v2 §5); a writer never turns a `null` back into an
+entry.
 
-- **Live** = `retired` is null **and** `library` is the id of the library the row was read from. An entry for another
-  library (copied by a build that predates this spec, §8) is not live and is neither shown nor acted on.
-- **At most one live entry.** A device that reads more than one retires all but the one with the latest stamp.
-- **Retiring** writes `retired`, then `DELETE /recovery` with its `manage`. A device repeats the `DELETE` for every
-  retired entry of this library after each generation change (library v2 §2), since a store restore can bring an
-  entry back; `deleted: false` is the normal answer.
-- Retired entries stay in the row (about 200 bytes each), so a later device can still delete them. A device may drop
-  a retired entry (write the setting `null`) once a `DELETE` of it answered `deleted: false` after the last
-  generation change it saw.
-- `set:recovery` holds no code and nothing derived from one but the locator, which opens nothing.
+- **Own entries only.** An entry whose `library` is not the id of the library the row was read from (copied by a
+  build that predates this spec) is not acted on as a code; a reconcile nulls it.
+- **One live entry.** The compare-and-set of §6 step 5 keeps it to one. A merge (a write-back after a generation
+  change) can bring two together; a reconcile keeps the one den-edge lists, then the greater `createdAt`, then the
+  byte-greater locator, and nulls the other.
+- **Abandoned.** A `pending` entry is abandoned when its `createdAt` is more than an hour before the reader's clock,
+  or it was made by this device in an earlier launch. A reconcile nulls and `DELETE`s it. The making device, on its
+  next launch, tells the person: "Your recovery code setup didn't finish. The code you saw doesn't work; make a new
+  one."
+- `set:recovery` holds no code. `sealed` and the locator are opaque without it, and the row is sealed under the
+  library key, so keeping them there exposes nothing den-edge does not already hold.
+
+**Reconcile.** A device holding the library makes den-edge match the row:
+
+1. `GET /recovery`, then read the log to its head. (In this order: an entry is pending in the row before it is
+   posted, so every listed entry was already named.)
+2. `DELETE` every listed entry that the row does not name as `live` or as a `pending` entry that is not abandoned.
+3. Null abandoned pending entries and entries of another library (by compare-and-set).
+4. If the live entry is not listed, `POST` its `{locator, sealed}` again, unchanged: the person's code keeps working.
+   If that fails, Settings shows "Your recovery code no longer works: make a new one."
+
+A device reconciles at launch (at most once a day), whenever Settings › Recovery code opens, and after each
+generation change (library v2 §2) once its write-back is done — so a row written back from a device that saw a newer
+code wins before den-edge is made to match it. A device whose library is read-only (v4 §10 step 3) does steps 1, 2
+and 4 and skips 3.
 
 ## 8. Redeeming
 
@@ -178,8 +211,8 @@ On a new device: Den Web's link screen offers "Open with a recovery code" and ac
 first-run screen and Settings › Library offer the same.
 
 1. Read the code (§2). A typo is reported at once, with no request.
-2. Derive (§3), then `POST /recovery/open`. `404 unknown_code`: "This code doesn't open a library. It may have been
-   replaced or turned off." `429`: wait as told.
+2. Derive (§3), then `POST /recovery/open`. `404 unknown_code`: "This code doesn't open a library. Check it for a
+   typo; it may also have been replaced or turned off." `429`: wait as told.
 3. Open `sealed` with `wrapKey`. A blob that fails to open is reported as den-edge's error, not as a wrong code
    (the code passed its check and found a locator).
 4. Derive the library id and token (v2 §1) and read the library (`GET /lib/{id}/changes`). `410 library_moved`:
@@ -199,21 +232,17 @@ library; other devices pair with it.
 
 ## 9. Key reset, linking, moving
 
-- **Key reset** (v2 §1, v4 §12). The code wraps the old key, so after the reset it opens a key whose library answers
-  `410`. The resetting device MUST NOT copy `set:recovery` into the new library. After its `DELETE /lib/{id}` of the
-  old library succeeds, it retires and `DELETE`s every entry it read in the old library's `set:recovery` (it holds
-  their `manage`), and then offers "Make a new recovery code". Its confirmation says first that the current code will
-  stop working.
+- **Key reset** (v2 §1, v4 §12). The code wraps the old key, and the reset's `DELETE /lib/{id}` deletes the old
+  library's entries with it (§5 *Cascade*), so the old code stops opening anything. The resetting device MUST NOT copy
+  `set:recovery` entries into the new library. It then **offers** "Make a new recovery code"; it does not force one.
+  Its confirmation says first that the current code will stop working.
 - **Moving into another library** (an inbox `libraryKey` message, linking a device's own library, step 5 of §8): no
-  `set:recovery` entry is copied into the destination; the source library's code stays the source's.
+  `set:recovery` entry is copied into the destination; the source library's code stays the source's, and goes with it
+  if the source is deleted.
 - **Pairing** changes no key and no code.
-- **Known limits**:
-  - A build that predates this spec copies `set:recovery` like any settings row when it resets or moves. The copied
-    entries name another library, so §7 ignores them; their den-edge entries stay, opening a key that answers `410`,
-    and count toward the 32.
-  - A den-edge store restored to a backup taken before a code was turned off serves that code again until a device
-    holding the library sees the generation change and repeats its `DELETE`s (§7). A restore that also brings back a
-    library deleted by a key reset is a wider problem of restores, not of codes.
+- **Known limit**: a den-edge store restored to a backup taken before a code was ended, or before the current one was
+  made, holds the wrong entries until a device holding the library reconciles after the generation change (§7). With
+  no such device left, the restored entries stand.
 
 ## 10. Library v4, and v3 before the switch
 
@@ -226,12 +255,12 @@ the key. The one thing inside the library is `set:recovery`, a settings row, whi
 - **Which builds**: recovery ships in v4 builds only. A v4 build that opens a v3 library converts it (v4 §1), so it
   meets a v3 library only while a failed switch keeps it read-only (v4 §10 step 3). Then:
   - **making** a code waits for the conversion, since it writes `set:recovery`: Settings shows "Available after the
-    library update";
+    library update"; a reconcile skips its row writes (§7);
   - **redeeming** works: it needs only `/recovery` and a read of the library. The redeeming device is then the first
     v4 build to open that library and converts it (v4 §10), as any v4 build would; on a failure it stays read-only and
     retries as v4 says.
-- A v3 build never makes or redeems a code. One that copies `set:recovery` on a key reset is covered by §9's first
-  known limit.
+- A v3 build never makes or redeems a code. One that copies `set:recovery` on a key reset copies entries naming the
+  old library, which §7 nulls; den-edge already deleted their entries with the old library.
 - A code made on v4 opens the library under any later format: it carries the key, not rows.
 
 ## 11. Vectors
@@ -241,17 +270,23 @@ the key. The one thing inside the library is `set:recovery`, a settings row, whi
 Argon2id against RFC 9106 §5.3), pins:
 
 - making a code from 22 fixed bytes, its check characters and its display form;
-- reading typed codes: lowercase with spaces accepted; a data character wrong refused as `checksum`; too short, an
-  extra group and a `0` refused as `mistyped`;
+- reading typed codes: lowercase with spaces accepted; a data character wrong, and a check character wrong, refused as
+  `checksum`; too short, an extra group, a `0`, and a lowercase `o` or `i` (which uppercase to letters outside the
+  alphabet) refused as `mistyped`;
 - `A`, `locator` and `wrapKey` for two codes, and their sealed blobs for fixed nonces and the library key of
   `pairing-v1.json` (whose library id is `library-v2.json`'s);
-- a blob sealed with another locator in its additional data, which MUST fail to open;
-- `manage` and `manageHash`.
+- a blob sealed with another locator in its additional data, which MUST fail to open.
 
-den-edge's tests MUST cover: `open` of an unknown locator `404`; the per-address limits and their `Retry-After`;
-`POST /recovery` without a member proof `403` and past 32 entries `409 recovery_full`; `DELETE` idempotent and
-`403` on a wrong `manage`; `status` counting opens; nothing about a locator, `sealed` or `manage` in its log lines;
-and an entry surviving a restart and a store backup and restore.
+den-edge's tests MUST cover: `open` of an unknown locator `404`, and needing no credential; the per-visitor limits
+behind a trusted proxy (two visitors behind one proxy are two buckets) and their `Retry-After`; `POST`, `GET` and
+`DELETE /recovery` refused without a member proof, and a library's proof neither listing nor deleting another
+library's entry; the fifth entry of a library `409 recovery_full`; `DELETE` idempotent; `GET` counting opens;
+`DELETE /lib/{id}` deleting that library's entries; nothing about a locator, `sealed` or a member proof in its log
+lines; and an entry surviving a restart and a store backup and restore.
+
+Clients' tests MUST cover §6 and §7: a pending entry written before the `POST`; a make abandoned after the `POST`
+(crash) nulled and deleted by the next reconcile; a losing concurrent make; a live entry missing at den-edge posted
+again; an unnamed listed entry deleted; the reconcile triggers.
 
 ## 12. Work per repo
 
@@ -259,17 +294,21 @@ and an entry surviving a restart and a store backup and restore.
 - **den-core**: three ops in den-sync, so both clients share them: `recovery_code` (22 bytes → code), `recovery_read`
   (typed text → data or `mistyped`/`checksum`) and `recovery_derive` (data → `locator`, `wrapKey`). This adds
   RustCrypto `argon2`, `hkdf` and `sha2`, pinned in `Cargo.lock`; the ops stay pure (randomness arrives as input), and
-  sealing stays in the clients, as for rows. Load `recovery-v1.json` in the tests; measure the WebAssembly build's
-  Argon2id in Safari, Chrome and Firefox on a phone.
-- **den-edge**: the four `/recovery` routes (§5), the table in the durable store, the limits, the 32-entry cap, log
-  redaction, CORS; Den Web as below.
-- **Den Web** (the main path): Settings › Recovery code (make, show once with Copy, confirm the last group, status,
-  replace, turn off); "Open with a recovery code" on the link screen, accepting a pasted code; a library key held without a TV link; derivation in a Worker; the key-reset and move
-  rules of §9; `set:recovery` handling (§7).
+  sealing stays in the clients, as for rows. Load `recovery-v1.json` in the tests. **Measure** Argon2id at §3's
+  parameters on the slowest supported Apple TV and in Safari, Chrome and Firefox on a phone before the parameters are
+  pinned.
+- **den-edge**: the four `/recovery` routes (§5), the table in the durable store with each entry's library, the
+  per-library cap, the cascade on `DELETE /lib/{id}`, per-visitor limits through `client_ip`, log redaction, CORS;
+  Den Web as below.
+- **Den Web** (the main path): Settings › Recovery code (make, show once with Copy and its clipboard warning, confirm
+  the last group, status, replace, turn off, the change notice); "Open with a recovery code" on the link screen,
+  accepting a pasted code; a library key held without a TV link; derivation in a Worker; the reconcile and its
+  triggers (§7); the key-reset and move rules of §9.
 - **TV**: Settings › Library › Recovery code, built from `SettingsScreen`, `PrimaryActionButton`,
-  `DestructiveActionButton` with `.confirmDelete`, and a code screen whose focusable element is the last-group confirmation (`TextInputRow`); "Open with a
-  recovery code" on the first-run screen and in Settings via `TextInputRow`; the Keychain write; the key-reset and move
-  rules of §9; `DenLog` never sees the code, `A`, `wrapKey` or `manage`.
+  `DestructiveActionButton` with `.confirmDelete`, and a code screen whose focusable element is the last-group
+  confirmation (`TextInputRow`); "Open with a recovery code" on the first-run screen and in Settings via
+  `TextInputRow`; the Keychain write; the reconcile and its triggers (§7); the key-reset and move rules of §9;
+  `DenLog` never sees the code, `A` or `wrapKey`.
 
 ## 13. Decisions
 
@@ -280,3 +319,6 @@ and an entry surviving a restart and a store backup and restore.
 4. **The person types the last group** to confirm the code was saved; the code goes live only after that (§6).
 5. **v4 builds only** (§10).
 6. **A key reset offers a new code**; it does not force one (§9).
+7. **den-edge knows which library an entry belongs to.** Hiding it bought nothing with one or two libraries per
+   store, and recording it lets den-edge cap entries per library, delete them with their library and authorize every
+   change with the member proof (§5). Redeeming still names no library.

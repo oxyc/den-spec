@@ -32,6 +32,12 @@
       }
     },
     {
+      "input": "GEB2-LP9U-C63W-Q95U-NSLT-XMFA",
+      "parsed": {
+        "error": "checksum"
+      }
+    },
+    {
       "input": "GEB2-LP9U-C63W-Q95U-NSLT-XM",
       "parsed": {
         "error": "mistyped"
@@ -39,6 +45,18 @@
     },
     {
       "input": "GEB2-LP9U-C63W-Q95U-NSLT-XMF0",
+      "parsed": {
+        "error": "mistyped"
+      }
+    },
+    {
+      "input": "GEB2-oP9U-C63W-Q95U-NSLT-XMFL",
+      "parsed": {
+        "error": "mistyped"
+      }
+    },
+    {
+      "input": "GEB2-iP9U-C63W-Q95U-NSLT-XMFL",
       "parsed": {
         "error": "mistyped"
       }
@@ -79,9 +97,5 @@
   "swappedLocator": {
     "comment": "first.sealed's plaintext sealed under first.wrapKey with second.locator in the AD: opening it with first.locator fails",
     "sealed": "AAECAwQFBgcICQoLlCJZe4Oyvi9z_AUppqfkMI4h8K6p9ZVLCC4DQL7Ovh9eOx3IEdTxSjbYneBl4oHxJhOwhkA_Mjsu_sfPhf7unhVCJeaeO29P6YgG4SWX7YC7b8D8h_YA_LTThoo4kWGvT7j_nV-NkdXMbLw4"
-  },
-  "manage": {
-    "manage": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
-    "manageHash": "72dbb7336c76780023f83da4c355f2eeea85733b13d3477697917790c1229084"
   }
 }

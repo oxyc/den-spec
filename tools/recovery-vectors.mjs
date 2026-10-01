@@ -118,7 +118,11 @@ const swapped = (() => {
 
 // One data character wrong: caught by the check characters, before any request.
 const typo = (first.code[0] === 'A' ? 'B' : 'A') + first.code.slice(1)
-const manage = range(32, 64)
+// The data right and the last check character wrong: refused the same way.
+const checkTypo = first.code.slice(0, -1) + (first.code.endsWith('A') ? 'B' : 'A')
+// A lowercase o or i uppercases to O or I, which the alphabet leaves out.
+const withO = `${first.code.slice(0, 5)}o${first.code.slice(6)}`
+const withI = `${first.code.slice(0, 5)}i${first.code.slice(6)}`
 
 const vectors = {
   comment:
@@ -131,17 +135,19 @@ const vectors = {
   codes: [
     { input: first.code, parsed: { data: first.data } },
     { input: ` ${first.code.toLowerCase().replace(/-/g, ' ')} `, parsed: { data: first.data } },
-    { input: typo, parsed: parse(typo) },
-    { input: first.code.slice(0, -2), parsed: parse(first.code.slice(0, -2)) },
-    { input: `${first.code.slice(0, -1)}0`, parsed: parse(`${first.code.slice(0, -1)}0`) },
-    { input: `${first.code}-A`, parsed: parse(`${first.code}-A`) },
+    { input: typo, parsed: { error: 'checksum' } },
+    { input: checkTypo, parsed: { error: 'checksum' } },
+    { input: first.code.slice(0, -2), parsed: { error: 'mistyped' } },
+    { input: `${first.code.slice(0, -1)}0`, parsed: { error: 'mistyped' } },
+    { input: withO, parsed: { error: 'mistyped' } },
+    { input: withI, parsed: { error: 'mistyped' } },
+    { input: `${first.code}-A`, parsed: { error: 'mistyped' } },
   ],
   entries: [first, second],
   swappedLocator: {
     comment: 'first.sealed\'s plaintext sealed under first.wrapKey with second.locator in the AD: opening it with first.locator fails',
     sealed: swapped,
   },
-  manage: { manage: hex(manage), manageHash: hex(sha256(manage)) },
 }
 
 for (const c of vectors.codes) {
