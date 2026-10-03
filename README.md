@@ -20,6 +20,9 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
 - [`vectors/library-v4-moves.json`](vectors/library-v4-moves.json): moving a library to another key
   (library-v4 §12) — rows sealed under one fixed key, and what the other holds after the move. Generated:
   `node tools/move-vectors.mjs > vectors/library-v4-moves.json`.
+- [`vectors/library-v4-downloads.json`](vectors/library-v4-downloads.json): the shared download queue
+  (library-v4 §17) — the download rows' merge, poll answers, fallback, pruning and the release ranking. The cases
+  are den-core's `policy-v1.json` ones for those ops, and den-core checks the two are equal.
 - [`wire/recovery-code.md`](wire/recovery-code.md) (proposal): a recovery code that unwraps the library key on a
   new device, with no device that holds the library at hand. Argon2id-wrapped, stored at den-edge under a locator
   it cannot tie to a library.
