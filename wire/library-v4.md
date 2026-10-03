@@ -375,7 +375,8 @@ No v4 client writes any of the three. Write-back writes back `since` only.
 
 - **Encodings.** `since`: `{"string": <JSON stamp>}`. `lease`: `{"strings": [<device or "">, "<epoch>"]}`.
   `removals`: `{"string": <JSON>}` holding an object with an `approved` stamp, a `held` stamp, or both, written as
-  JCS (no client ever wrote v3's bare `"held"`; it is malformed). `unverified`: `{"ints": [<epoch>, …]}`, ascending.
+  JCS (no client ever wrote v3's bare `"held"`; it is malformed, and a malformed `removals` reads as a **closed**
+  latch with no approval — the safety latch fails closed). `unverified`: `{"ints": [<epoch>, …]}`, ascending.
 - **Merges** are den-core's `merge` of the settings row, by v3 §6's per-setting rules: `since` to the earlier stamp
   it holds; `lease` by epoch, then an empty holder, then the JCS of the stamped value; `unverified` as the union of
   its epochs, at the later stamp; `removals` by the later `approved` and the later `held`, each on its own, at the
@@ -389,20 +390,32 @@ No v4 client writes any of the three. Write-back writes back `since` only.
   is a union, which could never drop an epoch), when it differs from the row.
 - **`removals`** (the latch, v3 §6). Only list removals whose value stamp is later than `approved` count. The latch is
   **closed while `held` is later than `approved`** (or `held` is set and `approved` is not), and while it is closed
-  every counted removal is held. It **closes** when the counted removals pending now, together with the list removals
-  this holder sent for the account in the last 120 s, come to more than 20 — a mass removal at once, or a trickle pass
-  after pass. Each holder keeps its own send times and passes them to `pending_targets_v4` (`removals_sent`), which
-  then answers `"removals": {"held": <the latest stamp among the counted removals>}`. The holder writes that `held`
-  beside the stored `approved`, by compare-and-set, unless the stored `held` is already as late. A stored `held` keeps
-  the latch closed with nothing pending: any later removal, even one, is held until someone approves, which is
-  intended — it is the person's look at the list that opens it.
+  every counted removal is held. It **closes**:
+  - **by count**, when the counted removals pending now, together with the list removals this holder sent for the
+    account in the last 120 s (and after `approved`'s time), come to more than 20: a mass removal at once, or a
+    trickle whose passes fall within 120 s of each other. A trickle slower than that is not caught;
+  - **by rate**, when more than 20 list removals were sent in that window and any list removal stamped at or before
+    `approved` is pending. Every pending list removal is then held, and `held` is set past the approval (the later of
+    `now` and the approval's next counter, under the approval's device), so the person sees the batch before it goes.
+  `pending_targets_v4` then answers `"removals": {"held": <the latest stamp among the removals it closed on, or that
+  stamp past the approval>}`. The holder writes that `held` beside the stored `approved`, by compare-and-set, unless
+  the stored `held` is already as late. A stored `held` keeps the latch closed with nothing pending: any later removal,
+  even one, is held until someone approves, which is intended — it is the person's look at the list that opens it.
+- **`removals_sent`** is **required** by `pending_targets_v4` (absent is `invalid_account`), so a binding that forgets
+  it fails instead of turning the rule off. Each device keeps its send times for each account **across restarts**
+  (and across a browser's tabs), and passes those of the last 120 s. A send it still counts as recent on a monotonic
+  clock, after its wall clock stepped back, is passed as `now`: den-core counts no send later than `now`.
 - **Approving.** A person approves held removals on any client after seeing **every** one of them listed. The
-  approval is `pending_targets_v4`'s `approval`: the latest value stamp among the removals it holds, **never a fresh
-  stamp**, so a removal made after the list was shown, or by a device whose clock runs ahead, is never approved
-  unseen. The client writes `{"approved": <that stamp>}` beside the stored `held`, by compare-and-set on
-  `set:deliver`; on a conflict it reads the row again and shows the list again. Since `held` is the latest stamp of
-  the removals that closed the latch, approving what was shown opens it, and any removal stamped later closes it
-  again.
+  approval is `pending_targets_v4`'s `approval`: the latest value stamp among the removals it holds, or the latch's
+  `held` (stored, or closing in that pass) when that is later — **never a fresh stamp**. A removal stamped before that
+  `held` and still pending is itself held, so listed: a removal made after the list was shown, or by a device whose
+  clock runs ahead, is never approved unseen, and a latch whose closing removal was since undone still opens. The
+  client writes `{"approved": <that stamp>}` beside the stored `held`, by compare-and-set on `set:deliver`; on a
+  conflict it reads the row again and shows the list again.
+- **Known limit.** An approval covers every list removal stamped at or before it, including ones a device that was
+  offline delivers **after** it. Such a late batch is held only by the rate rule: once more than 20 list removals were
+  sent within 120 s. A late batch read with no more than 20 sent in the window goes out under the approval unseen. An
+  approval that covers exactly the set it showed would need its count stored beside it; v4 does not do that.
 
 ### Delivery documents
 

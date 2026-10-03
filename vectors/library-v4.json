@@ -1231,6 +1231,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             500,
             0,
@@ -4245,6 +4246,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             2000,
             0,
@@ -4303,6 +4305,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             500,
             0,
@@ -4406,6 +4409,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             2000,
             0,
@@ -4472,6 +4476,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             500,
             0,
@@ -4534,6 +4539,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             500,
             0,
@@ -4641,6 +4647,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             500,
             0,
@@ -4761,6 +4768,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             500,
             0,
@@ -4943,6 +4951,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             500,
             0,
@@ -6001,6 +6010,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             500,
             0,
@@ -6100,6 +6110,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             500,
             0,
@@ -6622,6 +6633,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             500,
             0,
@@ -6706,6 +6718,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             500,
             0,
@@ -7747,6 +7760,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             500,
             0,
@@ -7825,6 +7839,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             500,
             0,
@@ -7907,6 +7922,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             500,
             0,
@@ -7968,6 +7984,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             500,
             0,
@@ -8534,6 +8551,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             500,
             0,
@@ -8604,6 +8622,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             500,
             0,
@@ -8739,6 +8758,7 @@
         "deliver": {
           "account": "4812736",
           "provider": "simkl",
+          "removals_sent": [],
           "since": [
             500,
             0,
@@ -8775,6 +8795,119 @@
         "op": "pending_targets_v4"
       },
       "section": "v3 §6 command table"
+    },
+    {
+      "name": "an approval reaches the stored held when the removal that closed the latch was undone",
+      "ok": {
+        "approval": [
+          3500,
+          0,
+          "a1b2c3d4e5f60718"
+        ],
+        "commands": [
+          {
+            "added": false,
+            "at": 3000,
+            "baseline": false,
+            "built_from": {
+              "key": "list",
+              "kind": "list",
+              "stamp": [
+                3000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "gone"
+            },
+            "current": true,
+            "document": "dlv:simkl:4812736:movie:550",
+            "episode": false,
+            "key": "list",
+            "kind": "list",
+            "rating": null,
+            "removals_held": true,
+            "title": "title:movie:550"
+          }
+        ],
+        "greatest_epoch": 2,
+        "held": [],
+        "removals": null,
+        "settle": [],
+        "unverified": []
+      },
+      "request": {
+        "deliver": {
+          "account": "4812736",
+          "provider": "simkl",
+          "removals": {
+            "held": [
+              3500,
+              0,
+              "a1b2c3d4e5f60718"
+            ]
+          },
+          "removals_sent": [],
+          "since": [
+            500,
+            0,
+            "a1b2c3d4e5f60718"
+          ]
+        },
+        "documents": [
+          {
+            "deleted": {
+              "at": [
+                3000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": true
+            },
+            "format": 4,
+            "kind": "title",
+            "status": {
+              "at": [
+                1000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "watchlist"
+            },
+            "title": {
+              "id": 550,
+              "type": "movie"
+            }
+          },
+          {
+            "account": "4812736",
+            "entries": {
+              "list": [
+                "in",
+                [
+                  1000,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ],
+                [
+                  2,
+                  1,
+                  "a1b2c3d4e5f60718"
+                ]
+              ]
+            },
+            "format": 4,
+            "kind": "delivery",
+            "provider": "simkl",
+            "title": {
+              "id": 550,
+              "type": "movie"
+            }
+          }
+        ],
+        "now": 4000,
+        "op": "pending_targets_v4"
+      },
+      "section": "§9 Approving"
     },
     {
       "name": "episode imports skip a deleted series",
