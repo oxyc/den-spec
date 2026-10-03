@@ -363,8 +363,8 @@ still a settings row. `seededThrough` and `seedBound` are read only by the switc
 No v4 client writes any of the three. Write-back writes back `since` only.
 
 - **Encodings.** `since`: `{"string": <JSON stamp>}`. `lease`: `{"strings": [<device or "">, "<epoch>"]}`.
-  `removals`: `{"string": <JSON>}` holding `"held"` or `{"approved": <stamp>}`. `unverified`: `{"ints": [<epoch>,
-  …]}`, ascending.
+  `removals`: `{"string": <JSON>}` holding an object with an `approved` stamp, a `held` stamp, or both; a v3
+  `"held"` is read as `{"held"}` with no approval. `unverified`: `{"ints": [<epoch>, …]}`, ascending.
 - **Merges** are den-core's `merge` of the settings row, by v3 §6's per-setting rules: `since` to the earlier stamp
   it holds, `lease` by epoch, then an empty holder, then JCS (its own stamp ignored), `unverified` as the union of its
   epochs (at the later stamp), and every other setting by the later stamp. A value not in its form merges by the
@@ -373,10 +373,12 @@ No v4 client writes any of the three. Write-back writes back `since` only.
   `set:deliver` lists, and every settle epoch ≥ 2 the account's delivery documents hold from two devices, less any
   epoch no entry holds any more. Entries at those epochs are decided as unverified in that same pass. The lease holder
   writes the answer back, by compare-and-set on `set:deliver`, when it differs from the row.
-- **`removals`.** When `pending_targets_v4` answers `"removals": "held"`, the holder writes `"held"`, by
-  compare-and-set, unless the row already says so. A person approves held removals on any client after seeing them
-  listed, which writes `{"approved": <fresh stamp>}`; removals stamped at or before it are then decided, and the latch
-  re-arms only on removals stamped later.
+- **`removals`.** When `pending_targets_v4` answers `"removals": "held"`, the holder adds a `held` stamp, by
+  compare-and-set, unless the row already holds one, and **keeps any `approved` stamp beside it**: the latch counts
+  and holds only removals stamped after the approval, so the removals approved earlier are still decided while a
+  later batch is held. A stored `held` keeps the latch closed whatever the count. A person approves held removals on
+  any client after seeing them listed, which writes `{"approved": <fresh stamp>}` with no `held`; removals stamped
+  at or before it are then decided, and the latch re-arms only on removals stamped later.
 
 ### Delivery documents
 
@@ -667,8 +669,9 @@ version by which fields a request carries.
   `base`, with delivery resuming and the removed delivery document's targets decided against the snapshot; the
   removal skipped when that `k` reads valid at `base`. The guard: one row always removable; ten of a hundred
   removable; eleven, or two of nineteen, refused.
-- **Account settings.** `unverified` gaining an epoch two devices settled under and losing a listed epoch no entry
-  holds; one device's receipts at one epoch staying verified; `set:deliver` merges commutative, associative and
+- **Account settings.** 21 removals approved and then 21 more: only the later 21 held; a stored `held` beside the
+  approval holding the five of them still pending and none of the approved; `unverified` gaining an epoch two devices
+  settled under and losing a listed epoch no entry holds; one device's receipts at one epoch staying verified; `set:deliver` merges commutative, associative and
   idempotent, with the earliest `since`, the greatest lease epoch, an empty holder winning at one epoch, and the union
   of `unverified`.
 - **Identity.** A season document under a title's name, and a delivery document of another account, unreadable.
