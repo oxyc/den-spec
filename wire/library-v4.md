@@ -680,9 +680,10 @@ version by which fields a request carries.
 - **Write-back.** A held document merged and written only when the merge differs; kept ops re-applied; settled
   entries merged by §9's order; kept v3 work discarded; never a `lease`; a merge over 256 KiB leaving the log's
   version.
-- **Moves.** A key reset re-sealing every document under its new name; a `format: 5` document re-sealed with its
-  plaintext unchanged; a key reset refused while a newer-framing or unknown-kind row exists; a new library's first
-  batch at minimum 4.
+- **Moves** (`../vectors/library-v4-moves.json`, from `tools/move-vectors.mjs`: a move is the clients' sealing, so
+  den-core's vectors can't hold it). A key reset re-sealing every document under its new name; a `format: 5` document
+  re-sealed with its plaintext unchanged; a key reset refused while a newer-framing or unknown-kind row exists; a new
+  library's first batch at minimum 4.
 - **den-edge.** A 256 KiB value accepted at minimum 4 and refused at minimum 3 on each of the four paths; a staging
   request carrying a 256 KiB value accepted; a commit at `wireMin` 3 holding a 33 KiB staged row refused; `426` with
   `min` 4; a batch whose conflicts exceed 2 MiB returning the rest as `{k, seq, "omitted": true}`.
