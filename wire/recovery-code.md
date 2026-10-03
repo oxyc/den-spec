@@ -43,7 +43,10 @@ Words: *MUST* is a rule a client or den-edge breaks at the cost of the user's se
 - **Check characters**: `h = SHA-256(UTF-8("den/recovery/v1/check") ‖ UTF-8(data))`; the first is
   `ALPHABET[h[0] >> 3]`, the second `ALPHABET[((h[0] & 7) << 2) | (h[1] >> 6)]` — the first 10 bits of `h`. A
   typo slips past them once in 1,024.
-- **Reading a typed code**: uppercase it and drop spaces and dashes. Anything that is then not 24 characters of the
+- **Reading a typed code**: drop whitespace (any Unicode `White_Space` character: a pasted code may carry a newline
+  or a no-break space) and dashes. A zero-width no-break space (U+FEFF) is not `White_Space`, so it stays. Anything
+  left that is not ASCII is refused as **mistyped**, before any case
+  mapping, so `ſ` never reads as `S`; the rest is uppercased as ASCII. Anything that is then not 24 characters of the
   alphabet is refused as **mistyped**; check characters that do not match are refused as **a typo**. Both are
   refused before any derivation or request, and never corrected into a guess.
 
@@ -67,9 +70,16 @@ wrapKey  = HKDF-SHA256(ikm = A, salt = UTF-8("den/recovery/v1"), info = "wrap", 
   it) or an online `open`. So against a partial disclosure the code holds through §5's rate limits and the secrecy of
   den-edge's store, with Argon2id as the cost of each step — not through Argon2id alone. A code partly seen should be
   replaced.
-- **Cost**: ~110 ms natively on an Apple-silicon Mac (measured with Node's Argon2id). The Apple TV and phone browsers
-  are **not yet measured**; the parameters are pinned only once §12's measurements show both acceptable. A client
-  runs it off the main thread and shows progress.
+- **Cost**: ~110 ms natively on an Apple-silicon Mac (Node's Argon2id), and a median of ~140 ms in desktop Chrome's
+  wasm in a Worker, whose memory grows to ~65 MiB. A client runs it off the main thread, and while it runs shows
+  "Working…" with a spinner, so a slow device reads as busy, not stuck.
+- **A device that cannot derive.** A client gives one derivation **30 seconds**. Past that, or when the derivation
+  cannot get its memory (a wasm memory grow that fails), it stops and says "This device couldn't open the code — try
+  Den Web on a computer" (when making one, "couldn't make the code"). The parameters do not change per device: a
+  weaker setting on one device would be the setting an attacker uses. Clients report how long each derivation took
+  and how it ended — the operation, the outcome, the milliseconds and a short device label such as "iPhone ·
+  Safari", nothing about the code or the library — the TV in its device log, Den Web to `POST /recovery/timing`
+  (§5), so slow devices show up in use.
 - **A fixed salt** is deliberate: the device has nothing to look up before it derives the locator, and a per-user
   salt only defends against precomputation, which 110 random bits already rule out. Deriving the locator any faster
   than the wrap key would let den-edge test guesses against the locator at that speed, so both come from `A`.
@@ -100,6 +110,7 @@ The same `{locator, sealed}` is also kept in the library (§7), so a device can 
 | `GET /recovery` | `x-den-library-member: <id>:<member>` | `200 {"entries": [{"locator", "createdAt", "opens", "lastOpenedAt"}]}`, that library's entries; `403 forbidden` |
 | `DELETE /recovery` | `{"locator"}`; `x-den-library-member: <id>:<member>` | `200 {"deleted": true \| false}`: idempotent, and `false` for a locator this library has no entry under; `403 forbidden` |
 | `POST /recovery/open` | `{"locator"}`, no credential | `200 {"sealed"}`; `404 {"error": "unknown_code"}` |
+| `POST /recovery/timing` | `{"op": "make" \| "redeem", "outcome": "ok" \| "timeout" \| "memory" \| "error", "ms", "device"}`, no credential | `204`, logged as one line (§3); `400 bad_request` for anything else: `device` is 1–24 of `[a-z0-9-]` (`iphone-safari`), too short to carry a locator |
 
 - **Owner.** An entry belongs to the library whose member proof made it, and den-edge records that library's id with
   it. The member proof is the one den-edge already checks for relayed household requests (library v2 §1,
@@ -110,17 +121,33 @@ The same `{locator, sealed}` is also kept in the library (§7), so a device can 
   expire. At most **4** entries per library (a live code, one being made, and room for clean-up); past that,
   `409 recovery_full`.
 - **Cascade.** When den-edge deletes a library (`DELETE /lib/{id}`, which a key reset ends with), it deletes that
-  library's entries in the same transaction.
+  library's entries in the same transaction. `POST /recovery` is ordered against it: den-edge checks the member proof
+  again under the same lock that the cascade and the library's retirement hold, so an entry is never written for a
+  library already retired (it would open, and no proof could list or delete it).
 - **Opening** names no library and needs no credential: it is the new device's path. It increments `opens` and sets
   `lastOpenedAt` on any successful lookup, the owner's own redeems included. Both are advisory: den-edge is untrusted
   and can lie.
 - **Secrets stay out of URLs and logs.** Locators travel in bodies, never in a path or query. den-edge MUST NOT log a
   locator, `sealed` or a member proof; its request line logs the route and the status only.
-- **Limits**, per **visitor** address: the address den-edge's `client_ip` reports, which is what a proxy listed in
-  `TRUSTED_PROXIES` says the visitor was (IPv6 collapsed to a /64), never the proxy's own address. `open` 5 per 10
-  minutes and 20 per day; `POST`, `GET` and `DELETE /recovery` 60 per hour. Past one: `429 rate_limited` with
-  `Retry-After`. No store-wide limit on `open`, and none that would fall on a proxy's address: either would let anyone
-  lock every visitor out of recovery, and neither buys security.
+- **Limits.** They are for load, not secrecy: a 110-bit code is never found by guessing, whatever the rate. Past any
+  limit: `429 rate_limited` with `Retry-After`.
+  - **Per visitor**: the address den-edge's `client_ip` reports — what a proxy listed in `TRUSTED_PROXIES` says the
+    visitor was, never the proxy's own address — counted per IPv6 /56 (the usual delegation to one customer, so its
+    /64s share one budget) and per single IPv4 address (a /24 is often many households behind one carrier). `open`
+    5 per 10 minutes and 20 per day; `POST`, `GET` and `DELETE /recovery` 60 per hour, counted after the member proof
+    is checked, so anonymous requests make no bucket; `timing` 10 per hour.
+  - **Across everyone**: an `open` or `timing` that the visitor's own budget admits then takes a token from a
+    store-wide bucket (10 a second, a burst of 20). Only an admitted request takes one, so one address past its
+    budget cannot drain the bucket for everyone. That bounds den-edge's load, and the time `open` holds the lock the
+    cascade holds, whatever addresses a flood comes from.
+  - **The table** the per-visitor budgets count in is recovery's own: its refusals and its fullness fall on no other
+    route, and no other route's on recovery. It is bounded and never evicts: expired entries are swept, and when it
+    is still full a new budget is refused, as den-edge's shared limiter refuses one. Eviction would let a caller who
+    can get its own budgets evicted start them over.
+  - **Accepted consequence:** a flood large enough to fill the table makes recovery refuse newcomers until its
+    entries expire. Existing budgets keep counting, and no other route is affected.
+- **Ordering against `DELETE /lib/{id}`.** That delete checks its token before it waits for the lock the cascade
+  holds, so a flood of unauthenticated deletes cannot stall the recovery routes.
 - Lookups are by the exact locator.
 - `/recovery` routes carry no `x-den-wire` and are not fenced by a library rewrite: entries are not rows of the log.
 
@@ -149,8 +176,10 @@ gives it no more. Not offered for a device's own library (library v2 §1), which
 
 The screen says what the code is and is not: "Anyone with this code can open your library. Write it down or keep it
 in a password manager. Den can't show it again." Den Web also offers **Copy**, and says beside it that clipboard
-history and the system's clipboard sync can carry the code to other devices; it clears the clipboard after
-60 seconds if the clipboard still holds the code. The code MUST NOT be written to the library, to storage, to a log
+history and the system's clipboard sync can carry the code to other devices, and that the person should clear the
+clipboard once the code is saved. Den Web does not promise to clear it: a browser lets a page read the clipboard
+(which a clear only if it still holds the code needs) only inside a gesture, and an unconditional clear would destroy
+whatever the person copied since. The code MUST NOT be written to the library, to storage, to a log
 (the TV's remote log included), to analytics or to a URL; a client holds it in memory only until the screen closes or
 derivation is done.
 
@@ -194,7 +223,12 @@ entry.
 **Reconcile.** A device holding the library makes den-edge match the row:
 
 1. `GET /recovery`, then read the log to its head. (In this order: an entry is pending in the row before it is
-   posted, so every listed entry was already named.)
+   posted, so every listed entry was already named.) A reconcile that did not read the log to its head in this pass —
+   the read failed, den-edge was busy, the library was missing, or the read stopped at a generation change — **stops
+   here**, with no `DELETE`, no row write and no `POST`. Acting on a row read earlier could delete the person's
+   current code and post a replaced one again; `GET /recovery` sits on a lane that may answer while the log read is
+   refused, so this is the expected failure under load, not a corner case. A reconcile at launch counts as the day's
+   only once it got past this step.
 2. `DELETE` every listed entry that the row does not name as `live` or as a `pending` entry that is not abandoned.
 3. Null abandoned pending entries and entries of another library (by compare-and-set).
 4. If the live entry is not listed, `POST` its `{locator, sealed}` again, unchanged: the person's code keeps working.
@@ -223,7 +257,9 @@ first-run screen and Settings › Library offer the same.
      browser as it keeps a link's key, with no link. It then joins `set:devices` as usual (v2 §3).
    - A device already holding this library: nothing to do.
    - A device holding another den-edge library asks first, then moves into the recovered one as an inbox `libraryKey`
-     message moves a TV (inbox v1 §2; library v4 §12): its rows are merged in.
+     message moves a TV (inbox v1 §2; library v4 §12): its rows are merged in. **Known limit**: a TV holding a v4
+     library cannot move yet (oxyc/den#192), and every TV that could have made a code holds one, so until that lands
+     a TV redeems only where it holds no den-edge library; it says why otherwise. Den Web is not affected.
 6. Zero the code, `A` and `wrapKey`. Show once: "Your recovery code still works. If anyone else may have seen it,
    make a new one in Settings."
 
@@ -272,7 +308,8 @@ Argon2id against RFC 9106 §5.3), pins:
 - making a code from 22 fixed bytes, its check characters and its display form;
 - reading typed codes: lowercase with spaces accepted; a data character wrong, and a check character wrong, refused as
   `checksum`; too short, an extra group, a `0`, and a lowercase `o` or `i` (which uppercase to letters outside the
-  alphabet) refused as `mistyped`;
+  alphabet) refused as `mistyped`; no-break spaces between groups accepted; zero-width no-break spaces between
+  groups, and a `ſ` in place of an `S`, refused as `mistyped`;
 - `A`, `locator` and `wrapKey` for two codes, and their sealed blobs for fixed nonces and the library key of
   `pairing-v1.json` (whose library id is `library-v2.json`'s);
 - a blob sealed with another locator in its additional data, which MUST fail to open.
@@ -282,11 +319,18 @@ behind a trusted proxy (two visitors behind one proxy are two buckets) and their
 `DELETE /recovery` refused without a member proof, and a library's proof neither listing nor deleting another
 library's entry; the fifth entry of a library `409 recovery_full`; `DELETE` idempotent; `GET` counting opens;
 `DELETE /lib/{id}` deleting that library's entries; nothing about a locator, `sealed` or a member proof in its log
-lines; and an entry surviving a restart and a store backup and restore.
+lines; an entry surviving a restart and a store backup and restore; recovery's full table refusing a newcomer, leaving
+every other route working, and admitting again once its entries expire; the store-wide bucket capping `open` and
+`timing` across many addresses, and one address past its own budget leaving another's `open` admitted; two /64s of one /56 sharing one budget, and one IPv4 address limited apart from its
+neighbour; a `timing` `device` the size of a locator refused; a `POST` whose body arrives only after a `DELETE /lib/{id}`
+has finished writing no entry; and a flood of unauthenticated `DELETE /lib/{id}` leaving the recovery routes
+answering.
 
 Clients' tests MUST cover §6 and §7: a pending entry written before the `POST`; a make abandoned after the `POST`
 (crash) nulled and deleted by the next reconcile; a losing concurrent make; a live entry missing at den-edge posted
-again; an unnamed listed entry deleted; the reconcile triggers.
+again; an unnamed listed entry deleted; a reconcile whose log read fails (a `503`) or stops at a generation change
+deleting, writing and posting nothing; the reconcile triggers, with a failed launch reconcile not counting as the
+day's. And §3: a derivation past 30 seconds, or one that cannot get its memory, ending in the device error.
 
 ## 12. Work per repo
 
@@ -294,10 +338,8 @@ again; an unnamed listed entry deleted; the reconcile triggers.
 - **den-core**: three ops in den-sync, so both clients share them: `recovery_code` (22 bytes → code), `recovery_read`
   (typed text → data or `mistyped`/`checksum`) and `recovery_derive` (data → `locator`, `wrapKey`). This adds
   RustCrypto `argon2`, `hkdf` and `sha2`, pinned in `Cargo.lock`; the ops stay pure (randomness arrives as input), and
-  sealing stays in the clients, as for rows. Load `recovery-v1.json` in the tests. **Measure** Argon2id at §3's
-  parameters on the slowest supported Apple TV and in Safari, Chrome and Firefox on a phone before the parameters are
-  pinned.
-- **den-edge**: the four `/recovery` routes (§5), the table in the durable store with each entry's library, the
+  sealing stays in the clients, as for rows. Load `recovery-v1.json` in the tests.
+- **den-edge**: the five `/recovery` routes (§5), the table in the durable store with each entry's library, the
   per-library cap, the cascade on `DELETE /lib/{id}`, per-visitor limits through `client_ip`, log redaction, CORS;
   Den Web as below.
 - **Den Web** (the main path): Settings › Recovery code (make, show once with Copy and its clipboard warning, confirm

@@ -48,8 +48,12 @@ function check(data) {
 
 const display = (code) => code.match(/.{4}/g).join('-')
 
+// §2: whitespace (Unicode White_Space) and dashes dropped; anything non-ASCII left is mistyped before any case mapping,
+// so `ſ` never reads as `S`; then ASCII uppercase.
 function parse(input) {
-  const code = input.toUpperCase().replace(/[\s-]/g, '')
+  const kept = input.replace(/[\p{White_Space}-]/gu, '')
+  if (/[^\x00-\x7f]/.test(kept)) return { error: 'mistyped' }
+  const code = kept.replace(/[a-z]/g, (c) => c.toUpperCase())
   if (code.length !== DATA + 2 || [...code].some((c) => !ALPHABET.includes(c))) return { error: 'mistyped' }
   const data = code.slice(0, DATA)
   if (code.slice(DATA) !== check(data)) return { error: 'checksum' }
@@ -142,6 +146,11 @@ const vectors = {
     { input: withO, parsed: { error: 'mistyped' } },
     { input: withI, parsed: { error: 'mistyped' } },
     { input: `${first.code}-A`, parsed: { error: 'mistyped' } },
+    // A no-break space (U+00A0) is whitespace and dropped. A zero-width no-break space (U+FEFF) is not White_Space,
+    // so it is kept, and mistyped as non-ASCII. `ſ` (U+017F) is not ASCII, so it is never uppercased into `S`.
+    { input: first.code.replace(/-/g, '\u00a0'), parsed: { data: first.data } },
+    { input: first.code.replace(/-/g, '\ufeff'), parsed: { error: 'mistyped' } },
+    { input: first.code.replace('S', '\u017f'), parsed: { error: 'mistyped' } },
   ],
   entries: [first, second],
   swappedLocator: {
