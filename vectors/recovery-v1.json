@@ -74,6 +74,12 @@
       }
     },
     {
+      "input": "GEB2﻿LP9U﻿C63W﻿Q95U﻿NSLT﻿XMFL",
+      "parsed": {
+        "error": "mistyped"
+      }
+    },
+    {
       "input": "GEB2-LP9U-C63W-Q95U-NſLT-XMFL",
       "parsed": {
         "error": "mistyped"
