@@ -797,7 +797,7 @@ Each value is stamped and tagged as v2 §3 says:
 | Value | Tag | Meaning | Written by |
 |---|---|---|---|
 | `release` | `string`: JCS of `{identity, label, url, sizeBytes?, cached?}` | the release being fetched. `identity` is the info-hash, else the lowercased release file name, else the URL. `url` is the writer's play ticket (below) | the starter; the holder on a fallback |
-| `title` | `string`: JCS of `{mediaType, mediaId, season?, episode?, title, posterPath?, stillPath?, originalLanguage?, preferredLanguage?}` | what to show, and the languages the dub rule ranks against | the starter; any client filling in a title or poster that was empty |
+| `title` | `string`: JCS of `{mediaType, mediaId, imdbId?, season?, episode?, title, posterPath?, stillPath?, originalLanguage?, preferredLanguage?}` | what to show, the IMDb id den-scout lists the content under, and the languages the dub rule ranks against | the starter; any client filling in a title or poster that was empty |
 | `queuedAt` | `int` (ms) | when the add was made: the start grace, the stall clock and every lifetime count from it | the starter; the holder on a fallback or a resume |
 | `tried` | `strings` | identities given up on for this content, oldest first | the holder |
 | `candidates` | `int` | how many releases the last resolve offered (not a dead swarm) | the starter, the holder |
