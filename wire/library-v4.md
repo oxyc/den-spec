@@ -1,4 +1,4 @@
-# Library wire format, v4 — proposal (revision 7)
+# Library wire format, v4 — proposal (revision 8)
 
 **Status: draft for audit.** Nothing here is implemented.
 
@@ -202,12 +202,30 @@ one that fails to decode or that decodes to a different document; it logs the do
 ### Unreadable rows
 
 An unreadable row is ignored for state, and while it remains no device delivers for any account (it may be a
-delivery document). A v4 client that reads one logs its `k` and the reason, and once it has read the log to its head
-removes it by a **compaction**: a fenced rewrite (v3 §9) at the unchanged minimum that stages every other row read
-through the rewrite's `base` as stored, and skips the removal if that `k` reads valid at `base`. A write to that `k`
-waits for the removal. A removed delivery document's targets are then decided again against the snapshot (§9). Every
-conforming writer makes readable rows (a newer one writes a higher `format` or a newer framing, below), so an
-unreadable row is corruption or a bug, and removing it is safe.
+delivery document). A v4 client that reads one logs its `k` and the reason.
+
+**Only a row that fails to open is ever removed.** A row whose AES-GCM open fails is corruption: no writer sealed
+those bytes under this key. Once the log is read to its head, a client removes such a row by a **compaction**: a
+fenced rewrite (v3 §9) at the unchanged minimum that stages every other row read through the rewrite's `base` as
+stored, and skips the removal if that `k` opens at `base`. A write to that `k` waits for the removal. A removed
+delivery document's targets are then decided again against the snapshot (§9).
+
+A row that opens is exactly what some writer sealed. If it then fails — in den-core's `doc_decode` (bad framing,
+invalid JSON, a failed identity) or in a client's own decoding of a settings row (an unknown value tag, a
+non-integral `int`) — this reader disagrees with that writer. It stays unreadable, delivery stays paused, and it is
+**never removed by compaction**: removing it would delete a row another build reads, for every device.
+
+**The compaction guard.** Corruption touches a row or two. Many rows failing to open at once is more likely a wrong
+key, and a compaction would then delete good rows for every device. So a compaction removes the rows it found through
+`base` only when den-core's `compaction_guard` allows it: at most **10** rows, and, past a single row, at most
+**10 %** of the rows read through `base`. When it refuses, the client removes nothing, delivery stays paused, and it
+shows "Delivery paused: library rows can't be read" until the rows read again (the right key) or a person resolves
+it.
+
+**A `k` is compacted at most once.** A client keeps, across generations, every `k` it has removed by compaction. If
+that `k` comes back (another build wrote it back, §11) and still fails to open here, the client does not remove it
+again: it stays unreadable and delivery stays paused, so two builds can't remove and restore one row in a loop, each
+round a generation change.
 
 **Newer rows are never removed.** A document whose `format` is greater than 4 is read for the fields this spec
 defines, if it decodes by these rules (v2 §6), and is **never written**: writes to it are held, and every target it
@@ -354,6 +372,50 @@ and the lease row's seq for v3 §6 *Taking*.
 `set:deliver:<provider>:<account id>` keeps `since`, `lease`, `removals` and `unverified` with v3's rules, and is
 still a settings row. `seededThrough` and `seedBound` are read only by the switch (§10); `connectedFrom` by no rule.
 No v4 client writes any of the three. Write-back writes back `since` only.
+
+- **Encodings.** `since`: `{"string": <JSON stamp>}`. `lease`: `{"strings": [<device or "">, "<epoch>"]}`.
+  `removals`: `{"string": <JSON>}` holding an object with an `approved` stamp, a `held` stamp, or both, written as
+  JCS (no client ever wrote v3's bare `"held"`; it is malformed, and a malformed `removals` reads as a **closed**
+  latch with no approval — the safety latch fails closed). `unverified`: `{"ints": [<epoch>, …]}`, ascending.
+- **Merges** are den-core's `merge` of the settings row, by v3 §6's per-setting rules: `since` to the earlier stamp
+  it holds; `lease` by epoch, then an empty holder, then the JCS of the stamped value; `unverified` as the union of
+  its epochs, at the later stamp; `removals` by the later `approved` and the later `held`, each on its own, at the
+  later stamp; every other setting by the later stamp. A value not in its setting's form ranks below every value that
+  is, and two of them merge by the later stamp, so each rule stays a join (commutative, associative, idempotent) over
+  any mix of versions.
+- **`unverified`** is computed by `pending_targets_v4`, which answers the account's epochs after its read: the ones
+  `set:deliver` lists, and every settle epoch ≥ 2 the account's delivery documents hold from two devices, less any
+  epoch no entry holds any more. Entries at those epochs are decided as unverified in that same pass. The lease holder
+  writes the answer back by compare-and-set on `set:deliver`, **replacing** the setting with it (never merging: a merge
+  is a union, which could never drop an epoch), when it differs from the row.
+- **`removals`** (the latch, v3 §6). Only list removals whose value stamp is later than `approved` count. The latch is
+  **closed while `held` is later than `approved`** (or `held` is set and `approved` is not), and while it is closed
+  every counted removal is held. It **closes**:
+  - **by count**, when the counted removals pending now, together with the list removals this holder sent for the
+    account in the last 120 s (and after `approved`'s time), come to more than 20: a mass removal at once, or a
+    trickle whose passes fall within 120 s of each other. A trickle slower than that is not caught;
+  - **by rate**, when more than 20 list removals were sent in that window and any list removal stamped at or before
+    `approved` is pending. Every pending list removal is then held, and `held` is set past the approval (the later of
+    `now` and the approval's next counter, under the approval's device), so the person sees the batch before it goes.
+  `pending_targets_v4` then answers `"removals": {"held": <the latest stamp among the removals it closed on, or that
+  stamp past the approval>}`. The holder writes that `held` beside the stored `approved`, by compare-and-set, unless
+  the stored `held` is already as late. A stored `held` keeps the latch closed with nothing pending: any later removal,
+  even one, is held until someone approves, which is intended — it is the person's look at the list that opens it.
+- **`removals_sent`** is **required** by `pending_targets_v4` (absent is `invalid_account`), so a binding that forgets
+  it fails instead of turning the rule off. Each device keeps its send times for each account **across restarts**
+  (and across a browser's tabs), and passes those of the last 120 s. A send it still counts as recent on a monotonic
+  clock, after its wall clock stepped back, is passed as `now`: den-core counts no send later than `now`.
+- **Approving.** A person approves held removals on any client after seeing **every** one of them listed. The
+  approval is `pending_targets_v4`'s `approval`: the latest value stamp among the removals it holds, or the latch's
+  `held` (stored, or closing in that pass) when that is later — **never a fresh stamp**. A removal stamped before that
+  `held` and still pending is itself held, so listed: a removal made after the list was shown, or by a device whose
+  clock runs ahead, is never approved unseen, and a latch whose closing removal was since undone still opens. The
+  client writes `{"approved": <that stamp>}` beside the stored `held`, by compare-and-set on `set:deliver`; on a
+  conflict it reads the row again and shows the list again.
+- **Known limit.** An approval covers every list removal stamped at or before it, including ones a device that was
+  offline delivers **after** it. Such a late batch is held only by the rate rule: once more than 20 list removals were
+  sent within 120 s. A late batch read with no more than 20 sent in the window goes out under the approval unseen. An
+  approval that covers exactly the set it showed would need its count stored beside it; v4 does not do that.
 
 ### Delivery documents
 
@@ -556,7 +618,11 @@ carries a `schema` above 3 (a `rec` above 2); that aborts as step 3 says.
   documents, and then write-back. A v4 client that reads a minimum below 4 runs the switch too, which then only
   raises the minimum.
 - **Delivery after a generation change** waits as v3 §6 *Taking* says: 10 minutes of observation under the new
-  generation, a fresh take, and decisions only on state read to the head.
+  generation, a fresh take, and decisions only on state read to the head. A device that holds documents to write back
+  also waits until its write-back has landed: a receipt it still holds would otherwise be missing from the log, and a
+  target decided without it could settle past it (a list removal settled `gone` silently, its held `in` then losing to
+  that newer settle). A held document den-core refuses is reported and dropped, so one bad document can't hold back
+  the rest.
 
 ## 12. Moving a library: key reset, linking, new libraries
 
@@ -613,7 +679,11 @@ version by which fields a request carries.
 - `title_state`, `episode_state`, `film_state`: documents + resets + clock → v3 §5's derived state.
 - `apply_write`: write kind + the documents it touches + clock → the documents to write, or nothing (§8: every write
   kind, imports included).
-- `pending_targets`: documents + delivery documents + `set:deliver` + clock → commands (§9, v3 §6); `decide` (v3 §6);
+- `compaction_guard`: unreadable rows + rows read through `base` → whether a compaction may remove them (§4).
+- `merge` of a `set:deliver` row: §9 *Account settings*' per-setting rules.
+- `pending_targets`: documents + delivery documents + `set:deliver` (with the holder's `removals_sent`) + clock →
+  commands, the `held` to write when the latch closes, the `approval` of what it holds, and the account's
+  `unverified` epochs (§9, v3 §6); `decide` (v3 §6);
   `settle`: outcome + built-from value + entry → the entry, or nothing; `delivery_write`: delivery document + every
   settle and intent of one write → the document, or `too_large`; `lease` (v3 §6).
 - `v4_form`: every row through `base`, with seqs, + the performer id → the switch's rows, or a failure (§10). Keeps
@@ -639,7 +709,17 @@ version by which fields a request carries.
   its target decided as having no receipt.
 - **Unreadable rows.** A row that fails to open stopping delivery, then removed by a compaction staged through
   `base`, with delivery resuming and the removed delivery document's targets decided against the snapshot; the
-  removal skipped when that `k` reads valid at `base`.
+  removal skipped when that `k` opens at `base`; a row that opens but fails a reader's decoding kept. The guard: one
+  row always removable; ten of a hundred removable; eleven, or two of nineteen, refused.
+- **Account settings.** 21 removals approved and then 21 more: only the later 21 held, closing at the latest of them,
+  and an approval of what is held answered as that same stamp; a stored `held` later than the approval holding the
+  five of them still pending and none of the approved; an approval reaching `held` opening it; 16 removals sent in
+  the last 120 s and 5 pending closing it, 15 and 5 not, sends older than 120 s not counting; `unverified` gaining an
+  epoch two devices settled under and losing a listed epoch no entry holds; one device's receipts at one epoch
+  staying verified; `set:deliver` merges — the earliest `since` with a malformed version ranked below (`a` 1000 at
+  5, malformed `b` at 6, `c` 2000 at 7: `a⊔b = a`, `b⊔c = c`, `a⊔c = a`), the greater lease epoch and an empty
+  holder at one epoch, the union of `unverified`, and the later `approved` beside the later `held` — and the laws
+  over random triples of them, malformed values included.
 - **Identity.** A season document under a title's name, and a delivery document of another account, unreadable.
 - **Merges.** Merge laws (commutative, associative, idempotent) over random triples of title, season and delivery
   documents, with 30 plays, the same imported play from two sources, `cleared` in one part, settle orders from skewed
