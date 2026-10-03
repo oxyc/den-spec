@@ -136,8 +136,9 @@ The same `{locator, sealed}` is also kept in the library (§7), so a device can 
     /64s share one budget) and per single IPv4 address (a /24 is often many households behind one carrier). `open`
     5 per 10 minutes and 20 per day; `POST`, `GET` and `DELETE /recovery` 60 per hour, counted after the member proof
     is checked, so anonymous requests make no bucket; `timing` 10 per hour.
-  - **Across everyone**: `open` and `timing` each take a token from a store-wide bucket (10 a second, a burst of 20)
-    before the per-visitor budget is counted. That bounds den-edge's load, and the time `open` holds the lock the
+  - **Across everyone**: an `open` or `timing` that the visitor's own budget admits then takes a token from a
+    store-wide bucket (10 a second, a burst of 20). Only an admitted request takes one, so one address past its
+    budget cannot drain the bucket for everyone. That bounds den-edge's load, and the time `open` holds the lock the
     cascade holds, whatever addresses a flood comes from.
   - **The table** the per-visitor budgets count in is recovery's own: its refusals and its fullness fall on no other
     route, and no other route's on recovery. It is bounded and never evicts: expired entries are swept, and when it
@@ -320,7 +321,7 @@ library's entry; the fifth entry of a library `409 recovery_full`; `DELETE` idem
 `DELETE /lib/{id}` deleting that library's entries; nothing about a locator, `sealed` or a member proof in its log
 lines; an entry surviving a restart and a store backup and restore; recovery's full table refusing a newcomer, leaving
 every other route working, and admitting again once its entries expire; the store-wide bucket capping `open` and
-`timing` across many addresses; two /64s of one /56 sharing one budget, and one IPv4 address limited apart from its
+`timing` across many addresses, and one address past its own budget leaving another's `open` admitted; two /64s of one /56 sharing one budget, and one IPv4 address limited apart from its
 neighbour; a `timing` `device` the size of a locator refused; a `POST` whose body arrives only after a `DELETE /lib/{id}`
 has finished writing no entry; and a flood of unauthenticated `DELETE /lib/{id}` leaving the recovery routes
 answering.
