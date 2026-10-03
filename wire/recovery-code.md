@@ -139,10 +139,11 @@ The same `{locator, sealed}` is also kept in the library (§7), so a device can 
   - Recovery's buckets MUST NOT share a table whose refusal falls on other routes, or whose fullness falls on
     recovery's.
   - When it is full it MUST NOT refuse a new visitor for that reason, or filling it from many addresses is a
-    store-wide limit by another name. It evicts expired entries first, then the entry with the lowest count (the
-    newest of those first, so a flood evicts its own fresh entries before a caller already counted), and never evicts
-    an entry that is refusing while one that is not exists — so a flood cannot free a bucket that is holding its
-    caller back. Finding the entry to evict MUST NOT scan the table.
+    store-wide limit by another name. It evicts expired entries first. A newcomer never evicts an entry of its own
+    /56, so an address cannot reset its own buckets by taking turns between them or between its /64s. Of the rest it
+    evicts the entry with the lowest count, the oldest of those first, and never one that is refusing while one that
+    is not exists — so a flood cannot free a bucket that is holding its caller back. Evicting a bucket that is not
+    refusing only gives that caller its budget back. Finding the entry to evict MUST NOT scan the table.
   - It caps the entries any one IPv6 /56 — the usual delegation to one customer — may hold, so a round-robin over a
     customer's /64s stays bounded, and a newcomer from a /56 at its cap is refused alone. IPv4 addresses are not
     grouped: a /24 is often many households behind one carrier.
@@ -322,8 +323,9 @@ behind a trusted proxy (two visitors behind one proxy are two buckets) and their
 library's entry; the fifth entry of a library `409 recovery_full`; `DELETE` idempotent; `GET` counting opens;
 `DELETE /lib/{id}` deleting that library's entries; nothing about a locator, `sealed` or a member proof in its log
 lines; an entry surviving a restart and a store backup and restore; recovery's limit table flooded with four times
-its capacity from many addresses leaving a new visitor's `open` and every other route working, without displacing
-callers already counted or freeing a refusing bucket; a round-robin over many /64s of one /56 staying bounded; a
+its capacity from many addresses leaving a new visitor's `open` and every other route working, without freeing a
+refusing bucket; over a full table, one /64, and two /64s of one /56 taking turns, each refused at its `open` and
+`timing` limits; a round-robin over many /64s of one /56 staying bounded; a
 `timing` `device` the size of a locator refused; a `POST` whose body arrives only after a `DELETE /lib/{id}`
 has finished writing no entry; and a flood of unauthenticated `DELETE /lib/{id}` leaving the recovery routes
 answering.
