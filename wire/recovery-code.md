@@ -129,26 +129,22 @@ The same `{locator, sealed}` is also kept in the library (§7), so a device can 
   and can lie.
 - **Secrets stay out of URLs and logs.** Locators travel in bodies, never in a path or query. den-edge MUST NOT log a
   locator, `sealed` or a member proof; its request line logs the route and the status only.
-- **Limits**, per **visitor** address: the address den-edge's `client_ip` reports, which is what a proxy listed in
-  `TRUSTED_PROXIES` says the visitor was (IPv6 collapsed to a /64), never the proxy's own address. `open` 5 per 10
-  minutes and 20 per day; `POST`, `GET` and `DELETE /recovery` 60 per hour; `timing` 10 per hour. Past one:
-  `429 rate_limited` with `Retry-After`. No store-wide limit on `open`, and none that would fall on a proxy's address:
-  either would let anyone lock every visitor out of recovery, and neither buys security. That includes the table
-  recovery's limits count in, which is bounded. These rules are for that table; den-edge's other routes keep their
-  own limiter as it was.
-  - Recovery's buckets MUST NOT share a table whose refusal falls on other routes, or whose fullness falls on
-    recovery's.
-  - When it is full it MUST NOT refuse a new visitor for that reason, or filling it from many addresses is a
-    store-wide limit by another name. It evicts expired entries first. A newcomer never evicts an entry of its own
-    /56, so an address cannot reset its own buckets by taking turns between them or between its /64s. Of the rest it
-    evicts the entry with the lowest count, the oldest of those first, and never one that is refusing while one that
-    is not exists — so a flood cannot free a bucket that is holding its caller back. Evicting a bucket that is not
-    refusing only gives that caller its budget back. Finding the entry to evict MUST NOT scan the table.
-  - It caps the entries any one IPv6 /56 — the usual delegation to one customer — may hold, so a round-robin over a
-    customer's /64s stays bounded, and a newcomer from a /56 at its cap is refused alone. IPv4 addresses are not
-    grouped: a /24 is often many households behind one carrier.
-
-  The owner routes are counted after the member proof is checked, so anonymous requests make no bucket.
+- **Limits.** They are for load, not secrecy: a 110-bit code is never found by guessing, whatever the rate. Past any
+  limit: `429 rate_limited` with `Retry-After`.
+  - **Per visitor**: the address den-edge's `client_ip` reports — what a proxy listed in `TRUSTED_PROXIES` says the
+    visitor was, never the proxy's own address — counted per IPv6 /56 (the usual delegation to one customer, so its
+    /64s share one budget) and per single IPv4 address (a /24 is often many households behind one carrier). `open`
+    5 per 10 minutes and 20 per day; `POST`, `GET` and `DELETE /recovery` 60 per hour, counted after the member proof
+    is checked, so anonymous requests make no bucket; `timing` 10 per hour.
+  - **Across everyone**: `open` and `timing` each take a token from a store-wide bucket (10 a second, a burst of 20)
+    before the per-visitor budget is counted. That bounds den-edge's load, and the time `open` holds the lock the
+    cascade holds, whatever addresses a flood comes from.
+  - **The table** the per-visitor budgets count in is recovery's own: its refusals and its fullness fall on no other
+    route, and no other route's on recovery. It is bounded and never evicts: expired entries are swept, and when it
+    is still full a new budget is refused, as den-edge's shared limiter refuses one. Eviction would let a caller who
+    can get its own budgets evicted start them over.
+  - **Accepted consequence:** a flood large enough to fill the table makes recovery refuse newcomers until its
+    entries expire. Existing budgets keep counting, and no other route is affected.
 - **Ordering against `DELETE /lib/{id}`.** That delete checks its token before it waits for the lock the cascade
   holds, so a flood of unauthenticated deletes cannot stall the recovery routes.
 - Lookups are by the exact locator.
@@ -322,11 +318,10 @@ behind a trusted proxy (two visitors behind one proxy are two buckets) and their
 `DELETE /recovery` refused without a member proof, and a library's proof neither listing nor deleting another
 library's entry; the fifth entry of a library `409 recovery_full`; `DELETE` idempotent; `GET` counting opens;
 `DELETE /lib/{id}` deleting that library's entries; nothing about a locator, `sealed` or a member proof in its log
-lines; an entry surviving a restart and a store backup and restore; recovery's limit table flooded with four times
-its capacity from many addresses leaving a new visitor's `open` and every other route working, without freeing a
-refusing bucket; over a full table, one /64, and two /64s of one /56 taking turns, each refused at its `open` and
-`timing` limits; a round-robin over many /64s of one /56 staying bounded; a
-`timing` `device` the size of a locator refused; a `POST` whose body arrives only after a `DELETE /lib/{id}`
+lines; an entry surviving a restart and a store backup and restore; recovery's full table refusing a newcomer, leaving
+every other route working, and admitting again once its entries expire; the store-wide bucket capping `open` and
+`timing` across many addresses; two /64s of one /56 sharing one budget, and one IPv4 address limited apart from its
+neighbour; a `timing` `device` the size of a locator refused; a `POST` whose body arrives only after a `DELETE /lib/{id}`
 has finished writing no entry; and a flood of unauthenticated `DELETE /lib/{id}` leaving the recovery routes
 answering.
 
