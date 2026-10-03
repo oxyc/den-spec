@@ -66,6 +66,18 @@
       "parsed": {
         "error": "mistyped"
       }
+    },
+    {
+      "input": "GEB2 LP9U C63W Q95U NSLT XMFL",
+      "parsed": {
+        "data": "GEB2LP9UC63WQ95UNSLTXM"
+      }
+    },
+    {
+      "input": "GEB2-LP9U-C63W-Q95U-NſLT-XMFL",
+      "parsed": {
+        "error": "mistyped"
+      }
     }
   ],
   "entries": [

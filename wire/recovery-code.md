@@ -43,7 +43,9 @@ Words: *MUST* is a rule a client or den-edge breaks at the cost of the user's se
 - **Check characters**: `h = SHA-256(UTF-8("den/recovery/v1/check") ‖ UTF-8(data))`; the first is
   `ALPHABET[h[0] >> 3]`, the second `ALPHABET[((h[0] & 7) << 2) | (h[1] >> 6)]` — the first 10 bits of `h`. A
   typo slips past them once in 1,024.
-- **Reading a typed code**: uppercase it and drop spaces and dashes. Anything that is then not 24 characters of the
+- **Reading a typed code**: drop whitespace (any Unicode `White_Space` character: a pasted code may carry a newline
+  or a no-break space) and dashes. Anything left that is not ASCII is refused as **mistyped**, before any case
+  mapping, so `ſ` never reads as `S`; the rest is uppercased as ASCII. Anything that is then not 24 characters of the
   alphabet is refused as **mistyped**; check characters that do not match are refused as **a typo**. Both are
   refused before any derivation or request, and never corrected into a guess.
 
@@ -110,7 +112,9 @@ The same `{locator, sealed}` is also kept in the library (§7), so a device can 
   expire. At most **4** entries per library (a live code, one being made, and room for clean-up); past that,
   `409 recovery_full`.
 - **Cascade.** When den-edge deletes a library (`DELETE /lib/{id}`, which a key reset ends with), it deletes that
-  library's entries in the same transaction.
+  library's entries in the same transaction. `POST /recovery` is ordered against it: den-edge checks the member proof
+  again under the same lock that the cascade and the library's retirement hold, so an entry is never written for a
+  library already retired (it would open, and no proof could list or delete it).
 - **Opening** names no library and needs no credential: it is the new device's path. It increments `opens` and sets
   `lastOpenedAt` on any successful lookup, the owner's own redeems included. Both are advisory: den-edge is untrusted
   and can lie.
@@ -120,7 +124,11 @@ The same `{locator, sealed}` is also kept in the library (§7), so a device can 
   `TRUSTED_PROXIES` says the visitor was (IPv6 collapsed to a /64), never the proxy's own address. `open` 5 per 10
   minutes and 20 per day; `POST`, `GET` and `DELETE /recovery` 60 per hour. Past one: `429 rate_limited` with
   `Retry-After`. No store-wide limit on `open`, and none that would fall on a proxy's address: either would let anyone
-  lock every visitor out of recovery, and neither buys security.
+  lock every visitor out of recovery, and neither buys security. That includes the limiter's own table: when it is
+  full it MUST evict (the bucket nearest expiry, say) rather than refuse new visitors, or filling it from many
+  addresses is a store-wide limit by another name; and recovery's buckets MUST NOT share a table whose refusal falls
+  on other routes. The owner routes are counted after the member proof is checked, so anonymous requests make no
+  bucket.
 - Lookups are by the exact locator.
 - `/recovery` routes carry no `x-den-wire` and are not fenced by a library rewrite: entries are not rows of the log.
 
@@ -149,8 +157,10 @@ gives it no more. Not offered for a device's own library (library v2 §1), which
 
 The screen says what the code is and is not: "Anyone with this code can open your library. Write it down or keep it
 in a password manager. Den can't show it again." Den Web also offers **Copy**, and says beside it that clipboard
-history and the system's clipboard sync can carry the code to other devices; it clears the clipboard after
-60 seconds if the clipboard still holds the code. The code MUST NOT be written to the library, to storage, to a log
+history and the system's clipboard sync can carry the code to other devices, and that the person should clear the
+clipboard once the code is saved. Den Web does not promise to clear it: a browser lets a page read the clipboard
+(which a clear only if it still holds the code needs) only inside a gesture, and an unconditional clear would destroy
+whatever the person copied since. The code MUST NOT be written to the library, to storage, to a log
 (the TV's remote log included), to analytics or to a URL; a client holds it in memory only until the screen closes or
 derivation is done.
 
@@ -194,7 +204,12 @@ entry.
 **Reconcile.** A device holding the library makes den-edge match the row:
 
 1. `GET /recovery`, then read the log to its head. (In this order: an entry is pending in the row before it is
-   posted, so every listed entry was already named.)
+   posted, so every listed entry was already named.) A reconcile that did not read the log to its head in this pass —
+   the read failed, den-edge was busy, the library was missing, or the read stopped at a generation change — **stops
+   here**, with no `DELETE`, no row write and no `POST`. Acting on a row read earlier could delete the person's
+   current code and post a replaced one again; `GET /recovery` sits on a lane that may answer while the log read is
+   refused, so this is the expected failure under load, not a corner case. A reconcile at launch counts as the day's
+   only once it got past this step.
 2. `DELETE` every listed entry that the row does not name as `live` or as a `pending` entry that is not abandoned.
 3. Null abandoned pending entries and entries of another library (by compare-and-set).
 4. If the live entry is not listed, `POST` its `{locator, sealed}` again, unchanged: the person's code keeps working.
@@ -223,7 +238,9 @@ first-run screen and Settings › Library offer the same.
      browser as it keeps a link's key, with no link. It then joins `set:devices` as usual (v2 §3).
    - A device already holding this library: nothing to do.
    - A device holding another den-edge library asks first, then moves into the recovered one as an inbox `libraryKey`
-     message moves a TV (inbox v1 §2; library v4 §12): its rows are merged in.
+     message moves a TV (inbox v1 §2; library v4 §12): its rows are merged in. **Known limit**: a TV holding a v4
+     library cannot move yet (oxyc/den#192), and every TV that could have made a code holds one, so until that lands
+     a TV redeems only where it holds no den-edge library; it says why otherwise. Den Web is not affected.
 6. Zero the code, `A` and `wrapKey`. Show once: "Your recovery code still works. If anyone else may have seen it,
    make a new one in Settings."
 
@@ -272,7 +289,8 @@ Argon2id against RFC 9106 §5.3), pins:
 - making a code from 22 fixed bytes, its check characters and its display form;
 - reading typed codes: lowercase with spaces accepted; a data character wrong, and a check character wrong, refused as
   `checksum`; too short, an extra group, a `0`, and a lowercase `o` or `i` (which uppercase to letters outside the
-  alphabet) refused as `mistyped`;
+  alphabet) refused as `mistyped`; no-break spaces between groups accepted; a `ſ` in place of an `S` refused as
+  `mistyped`;
 - `A`, `locator` and `wrapKey` for two codes, and their sealed blobs for fixed nonces and the library key of
   `pairing-v1.json` (whose library id is `library-v2.json`'s);
 - a blob sealed with another locator in its additional data, which MUST fail to open.
@@ -282,11 +300,15 @@ behind a trusted proxy (two visitors behind one proxy are two buckets) and their
 `DELETE /recovery` refused without a member proof, and a library's proof neither listing nor deleting another
 library's entry; the fifth entry of a library `409 recovery_full`; `DELETE` idempotent; `GET` counting opens;
 `DELETE /lib/{id}` deleting that library's entries; nothing about a locator, `sealed` or a member proof in its log
-lines; and an entry surviving a restart and a store backup and restore.
+lines; an entry surviving a restart and a store backup and restore; the limiter's table filled from many addresses
+leaving a new visitor's `open` and every other route working; and a `POST` that raced a `DELETE /lib/{id}` writing
+no entry.
 
 Clients' tests MUST cover §6 and §7: a pending entry written before the `POST`; a make abandoned after the `POST`
 (crash) nulled and deleted by the next reconcile; a losing concurrent make; a live entry missing at den-edge posted
-again; an unnamed listed entry deleted; the reconcile triggers.
+again; an unnamed listed entry deleted; a reconcile whose log read fails (a `503`) or stops at a generation change
+deleting, writing and posting nothing; the reconcile triggers, with a failed launch reconcile not counting as the
+day's.
 
 ## 12. Work per repo
 
