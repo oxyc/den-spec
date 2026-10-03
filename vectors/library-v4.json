@@ -4350,6 +4350,7 @@
     {
       "name": "no receipt: an unwatched value before since settles silently",
       "ok": {
+        "approval": null,
         "commands": [],
         "greatest_epoch": 0,
         "held": [],
@@ -4818,6 +4819,11 @@
     {
       "name": "more than 20 pending removals latch",
       "ok_subset": {
+        "approval": [
+          3000,
+          0,
+          "a1b2c3d4e5f60718"
+        ],
         "commands": [
           {
             "added": false,
@@ -4925,7 +4931,13 @@
             "removals_held": true
           }
         ],
-        "removals": "held"
+        "removals": {
+          "held": [
+            3000,
+            0,
+            "a1b2c3d4e5f60718"
+          ]
+        }
       },
       "request": {
         "deliver": {
@@ -6185,6 +6197,370 @@
         "op": "pending_targets_v4"
       },
       "section": "v3 §6 Unverified receipts"
+    },
+    {
+      "name": "set:deliver since: a malformed version ranks below a well-formed one (a⊔b = a)",
+      "ok": {
+        "kind": "set",
+        "name": "deliver:simkl:42",
+        "schema": 2,
+        "values": {
+          "since": {
+            "at": [
+              5,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": {
+              "string": "[1000,0,\"a1b2c3d4e5f60718\"]"
+            }
+          }
+        }
+      },
+      "request": {
+        "a": {
+          "kind": "set",
+          "name": "deliver:simkl:42",
+          "schema": 2,
+          "values": {
+            "since": {
+              "at": [
+                5,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "[1000,0,\"a1b2c3d4e5f60718\"]"
+              }
+            }
+          }
+        },
+        "b": {
+          "kind": "set",
+          "name": "deliver:simkl:42",
+          "schema": 2,
+          "values": {
+            "since": {
+              "at": [
+                6,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "nope"
+              }
+            }
+          }
+        },
+        "op": "merge"
+      },
+      "section": "§9 Account settings"
+    },
+    {
+      "name": "set:deliver since: a malformed version ranks below a well-formed one (b⊔c = c)",
+      "ok": {
+        "kind": "set",
+        "name": "deliver:simkl:42",
+        "schema": 2,
+        "values": {
+          "since": {
+            "at": [
+              7,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": {
+              "string": "[2000,0,\"a1b2c3d4e5f60718\"]"
+            }
+          }
+        }
+      },
+      "request": {
+        "a": {
+          "kind": "set",
+          "name": "deliver:simkl:42",
+          "schema": 2,
+          "values": {
+            "since": {
+              "at": [
+                6,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "nope"
+              }
+            }
+          }
+        },
+        "b": {
+          "kind": "set",
+          "name": "deliver:simkl:42",
+          "schema": 2,
+          "values": {
+            "since": {
+              "at": [
+                7,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "[2000,0,\"a1b2c3d4e5f60718\"]"
+              }
+            }
+          }
+        },
+        "op": "merge"
+      },
+      "section": "§9 Account settings"
+    },
+    {
+      "name": "set:deliver since: the earlier stamp, whatever the later write (a⊔c = a)",
+      "ok": {
+        "kind": "set",
+        "name": "deliver:simkl:42",
+        "schema": 2,
+        "values": {
+          "since": {
+            "at": [
+              5,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": {
+              "string": "[1000,0,\"a1b2c3d4e5f60718\"]"
+            }
+          }
+        }
+      },
+      "request": {
+        "a": {
+          "kind": "set",
+          "name": "deliver:simkl:42",
+          "schema": 2,
+          "values": {
+            "since": {
+              "at": [
+                5,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "[1000,0,\"a1b2c3d4e5f60718\"]"
+              }
+            }
+          }
+        },
+        "b": {
+          "kind": "set",
+          "name": "deliver:simkl:42",
+          "schema": 2,
+          "values": {
+            "since": {
+              "at": [
+                7,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "[2000,0,\"a1b2c3d4e5f60718\"]"
+              }
+            }
+          }
+        },
+        "op": "merge"
+      },
+      "section": "§9 Account settings"
+    },
+    {
+      "name": "set:deliver lease: the greater epoch, and at one epoch an empty holder",
+      "ok": {
+        "kind": "set",
+        "name": "deliver:simkl:42",
+        "schema": 2,
+        "values": {
+          "lease": {
+            "at": [
+              7,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": {
+              "strings": [
+                "",
+                "5"
+              ]
+            }
+          }
+        }
+      },
+      "request": {
+        "a": {
+          "kind": "set",
+          "name": "deliver:simkl:42",
+          "schema": 2,
+          "values": {
+            "lease": {
+              "at": [
+                9,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "strings": [
+                  "aaaaaaaaaaaaaaaa",
+                  "5"
+                ]
+              }
+            }
+          }
+        },
+        "b": {
+          "kind": "set",
+          "name": "deliver:simkl:42",
+          "schema": 2,
+          "values": {
+            "lease": {
+              "at": [
+                7,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "strings": [
+                  "",
+                  "5"
+                ]
+              }
+            }
+          }
+        },
+        "op": "merge"
+      },
+      "section": "§9 Account settings"
+    },
+    {
+      "name": "set:deliver unverified: the union of the epochs",
+      "ok": {
+        "kind": "set",
+        "name": "deliver:simkl:42",
+        "schema": 2,
+        "values": {
+          "unverified": {
+            "at": [
+              9,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": {
+              "ints": [
+                2,
+                4
+              ]
+            }
+          }
+        }
+      },
+      "request": {
+        "a": {
+          "kind": "set",
+          "name": "deliver:simkl:42",
+          "schema": 2,
+          "values": {
+            "unverified": {
+              "at": [
+                9,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "ints": [
+                  2
+                ]
+              }
+            }
+          }
+        },
+        "b": {
+          "kind": "set",
+          "name": "deliver:simkl:42",
+          "schema": 2,
+          "values": {
+            "unverified": {
+              "at": [
+                7,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "ints": [
+                  4
+                ]
+              }
+            }
+          }
+        },
+        "op": "merge"
+      },
+      "section": "§9 Account settings"
+    },
+    {
+      "name": "set:deliver removals: the later approval and the later hold, each kept",
+      "ok": {
+        "kind": "set",
+        "name": "deliver:simkl:42",
+        "schema": 2,
+        "values": {
+          "removals": {
+            "at": [
+              9000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": {
+              "string": "{\"approved\":[4000,0,\"a1b2c3d4e5f60718\"],\"held\":[6000,0,\"a1b2c3d4e5f60718\"]}"
+            }
+          }
+        }
+      },
+      "request": {
+        "a": {
+          "kind": "set",
+          "name": "deliver:simkl:42",
+          "schema": 2,
+          "values": {
+            "removals": {
+              "at": [
+                4000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"approved\":[4000,0,\"a1b2c3d4e5f60718\"]}"
+              }
+            }
+          }
+        },
+        "b": {
+          "kind": "set",
+          "name": "deliver:simkl:42",
+          "schema": 2,
+          "values": {
+            "removals": {
+              "at": [
+                9000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"approved\":[1000,0,\"a1b2c3d4e5f60718\"],\"held\":[6000,0,\"a1b2c3d4e5f60718\"]}"
+              }
+            }
+          }
+        },
+        "op": "merge"
+      },
+      "section": "§9 Account settings"
     },
     {
       "name": "a compaction removes one unreadable row, whatever the library's size",
@@ -8336,6 +8712,7 @@
     {
       "name": "a list removal with no receipt settles silently",
       "ok": {
+        "approval": null,
         "commands": [],
         "greatest_epoch": 0,
         "held": [],
