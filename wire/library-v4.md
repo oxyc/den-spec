@@ -848,7 +848,10 @@ no device). It is its own row, so it never contends with a tracker's lease.
   that is still running.
 - **Holding** is checked against the row as well as the clock: a process holds the lease only while its own take or
   renewal succeeded less than 120 s ago **and** the row as last read still names this device at the epoch it took.
-  A row at another epoch means another process took it.
+  A row at another epoch means another process took it. So a holder away for more than 120 s (a TV in the
+  background, a hidden tab) comes back to its own row as another holder's: observation counts from its last renewal,
+  so after 2–10 minutes away it waits out the rest of the 10 before moving any download on, and after longer it takes
+  again at once. A relaunch always waits the full 10. That is a pause in fallbacks and prunes, never a stuck queue.
 
 **Only the holder** writes `tried`, `exhausted`, `announced`, `reported`, `reannounced` and `progress`, a fallback's
 `release`, `queuedAt` and `candidates`, a resumed add's `queuedAt`, `progress` and `resumeAt`, a prune's tombstones
