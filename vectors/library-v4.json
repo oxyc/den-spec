@@ -1983,6 +1983,94 @@
       "section": "§8 Rewatch"
     },
     {
+      "name": "a finished episode's next finishing tick stays in its viewing",
+      "ok": {
+        "documents": [
+          {
+            "episodes": {
+              "1": {
+                "cleared": null,
+                "imported": false,
+                "plays": {
+                  "0": 1000
+                },
+                "progress": {
+                  "at": [
+                    3000,
+                    0,
+                    "a1b2c3d4e5f60718"
+                  ],
+                  "value": 0.97,
+                  "viewing": 0
+                }
+              }
+            },
+            "format": 4,
+            "kind": "season",
+            "season": 1,
+            "seasonReset": null,
+            "title": {
+              "id": 1399,
+              "type": "tv"
+            }
+          }
+        ]
+      },
+      "request": {
+        "now": 1800000000000,
+        "op": "apply_write",
+        "seasons": [
+          {
+            "episodes": {
+              "1": {
+                "cleared": null,
+                "imported": false,
+                "plays": {
+                  "0": 1000
+                },
+                "progress": {
+                  "at": [
+                    1000,
+                    0,
+                    "a1b2c3d4e5f60718"
+                  ],
+                  "value": 1.0,
+                  "viewing": 0
+                }
+              }
+            },
+            "format": 4,
+            "kind": "season",
+            "season": 1,
+            "seasonReset": null,
+            "title": {
+              "id": 1399,
+              "type": "tv"
+            }
+          }
+        ],
+        "target": {
+          "id": 1399,
+          "type": "tv"
+        },
+        "title": null,
+        "write": {
+          "at": [
+            3000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "episode": [
+            1,
+            1
+          ],
+          "kind": "progress",
+          "value": 0.97
+        }
+      },
+      "section": "§8 Playback"
+    },
+    {
       "name": "playback never writes 0 in a new viewing",
       "ok": {
         "documents": []
@@ -2112,6 +2200,96 @@
           ],
           "kind": "progress",
           "value": 0.97
+        }
+      },
+      "section": "§8 Films"
+    },
+    {
+      "name": "a finished film's next finishing tick stays in its viewing",
+      "ok": {
+        "documents": [
+          {
+            "format": 4,
+            "kind": "title",
+            "resume": {
+              "at": [
+                3000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": 0.98,
+              "viewing": 0
+            },
+            "status": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "watched"
+            },
+            "title": {
+              "id": 550,
+              "type": "movie"
+            },
+            "watch": {
+              "cleared": null,
+              "imported": false,
+              "plays": {
+                "0": 2000
+              }
+            }
+          }
+        ]
+      },
+      "request": {
+        "now": 1800000000000,
+        "op": "apply_write",
+        "seasons": [],
+        "target": {
+          "id": 550,
+          "type": "movie"
+        },
+        "title": {
+          "format": 4,
+          "kind": "title",
+          "resume": {
+            "at": [
+              2000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": 0.97,
+            "viewing": 0
+          },
+          "status": {
+            "at": [
+              2000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": "watched"
+          },
+          "title": {
+            "id": 550,
+            "type": "movie"
+          },
+          "watch": {
+            "cleared": null,
+            "imported": false,
+            "plays": {
+              "0": 2000
+            }
+          }
+        },
+        "write": {
+          "at": [
+            3000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "kind": "progress",
+          "value": 0.98
         }
       },
       "section": "§8 Films"

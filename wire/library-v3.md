@@ -538,7 +538,9 @@ deliver for it; one at a time.
 Every write is a set-to-value; replaying one changes nothing. `register_write` (§11) decides every case below.
 
 - **Playback** updates `progress` in the current viewing as v2 updates an `ep` row. It starts viewing + 1 when the
-  current viewing's **stored** progress is ≥ 0.95 or is hidden by a covering reset, or the register is `imported`
+  current viewing's **stored** progress is ≥ 0.95 and the write's `value` is < 0.95 (a finished viewing played again
+  — a further write at ≥ 0.95, such as a tick through the credits, stays in the finished viewing and adds no play),
+  or the stored progress is hidden by a covering reset, or the register is `imported`
   (unhidden) and the current viewing has no progress, or that viewing has a play hidden by a reset or `cleared` —
   judged on the stored register, never on derived state (as the shipped TV does for a
   finished episode). A playback write never writes `value` 0 in a new viewing: the
@@ -637,7 +639,8 @@ Every write is a set-to-value; replaying one changes nothing. `register_write` (
 - **Films**: status, resume and reaction stay in `rec` (v2). Finishing or marking a film watched also writes the
   play for `resume.viewing`, **in the same batch** as the `rec` change. Un-watching sets `cleared` to
   `[resume.viewing, stamp]` **before** v2 bumps it, in the same batch too. Playing a film whose status is `watched`
-  while `resume.value` < 0.95 (an imported watch) starts `resume.viewing` + 1, as a finished resume does.
+  while `resume.value` < 0.95 (an imported watch) starts `resume.viewing` + 1, as a finished resume does when it is
+  played back below 0.95.
 
 ## 8. v2's reference reading
 

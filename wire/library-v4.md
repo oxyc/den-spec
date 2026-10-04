@@ -734,7 +734,8 @@ version by which fields a request carries.
 - **Every write kind** in §8's table, including a film finished by playing writing `resume` and its play in one
   document, an un-watch writing `cleared` before the bump, mark-watched writing nothing on an imported or watched
   episode, and each kept import clause (v3 §12 *Imports*); a tracker play inside a former viewing window written;
-  a watched film played again `inProgress` in one new viewing, its next tick in the same one; a replayed title write
+  a watched film played again `inProgress` in one new viewing, its next tick in the same one; a finished film's or
+  episode's next tick at or above 0.95 staying in its viewing with no second play; a replayed title write
   and a replayed un-watch older than the stored stamps writing nothing.
 - **Delivery.** v3 §12 *Delivery* run on delivery documents; a no-receipt `watched` stamped before `since` caught up
   additively and one stamped after it pending; a no-receipt `unwatched` before `since` settling silently and after it
