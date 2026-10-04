@@ -821,7 +821,13 @@ Each value is stamped and tagged as v2 §3 says:
   release, or after `exhausted`, it restarts: `removed` at a fresh stamp, then every value at a later one. Starting
   needs no lease: two clients starting the same content write the same row, and the merge keeps one `release`.
 - **Never synced**: the live figures (percent, rate, ETA, seeds, peers), which every client asks den-scout for
-  itself with `?probe=1`, and a release's `proxyHeaders`, which carry the debrid account's bearer token.
+  itself with `?probe=1`, and a release's `proxyHeaders`, which carry the debrid account's bearer token. The play
+  ticket *is* synced, on purpose: it is a bearer capability for one release for a day (to play it, and to cancel or
+  reannounce it), and the row is sealed under the library key like every row.
+- **Cancelling** at the debrid (a Cancel, or a fallback giving up on a release) is allowed only when den-core's
+  `download_cancel_safe` says so: never while another live, non-exhausted row names the same `release.identity`,
+  whatever that row's state. One season pack is one torrent across every episode, and a sibling reading "not started",
+  "unreachable" or "ready" may still be fetching or playing it. The row is tombstoned either way.
 - **Play tickets** are minted per client and per resolve, so `release.url` is the writer's. A client whose own
   addon routes cannot reach that URL — a browser reading a TV's LAN URL, a TV reading a browser's relay path — or
   that is told the ticket expired (`410 ticket_expired`) resolves the content again and takes the release with the
@@ -836,10 +842,23 @@ compare-and-set on the row's seq, exactly as v3 §6 *Holding* and *Taking* say, 
 renew at 60 s, expire at 120 s, take after 10 minutes of observing the row's seq unchanged (or at once when it names
 no device). It is its own row, so it never contends with a tracker's lease.
 
+- **A row naming this device that this process never took** (a relaunch, a second window of one browser, which
+  shares its device id) is **another holder**: the process takes only after 10 minutes of observing the row's seq
+  unchanged, as for any other device. A live holder renews every 60 s, so a second window never takes from a first
+  that is still running.
+- **Holding** is checked against the row as well as the clock: a process holds the lease only while its own take or
+  renewal succeeded less than 120 s ago **and** the row as last read still names this device at the epoch it took.
+  A row at another epoch means another process took it.
+
 **Only the holder** writes `tried`, `exhausted`, `announced`, `reported`, `reannounced` and `progress`, a fallback's
-`release`, `queuedAt` and `candidates`, a prune's tombstones and a renewed `url`. It checks the lease immediately
-before each such write and writes it by compare-and-set on the row's seq; a conflicted write is **discarded** and
+`release`, `queuedAt` and `candidates`, a resumed add's `queuedAt`, `progress` and `resumeAt`, a prune's tombstones
+and a renewed `url`. It checks the lease immediately before each such write and writes it by compare-and-set on the
+seq of the row **as read when it decided** (never a seq read afterwards); a conflicted write is **discarded** and
 decided again on the next pass against the row as read. Every client may start, cancel and remove.
+
+**A prune** is decided only on rows read since the last pull of the log, by the holder, and each tombstone is that
+compare-and-set write: a device back after days away never tombstones a row from its own old copy, over a start
+another device wrote meanwhile.
 
 `progress` is written when the stall clock moved and the row's `progress` is absent or was stamped at least
 5 minutes ago — never on every poll. A holder keeps its own clock between writes and passes it to
@@ -856,6 +875,7 @@ so a relaunch doesn't announce it again.
 | `download_status` | `row`, `answer` (absent before any), `clock?`, `now` | `{state, clock, stalled, reannounce, write_progress, report, announce}`, with `service` (refused), `until` (paused) or `renew` (a lapsed ticket; `state` null) |
 | `download_next` | `row`, `releases`, `resolution`, `complete` | `{decision: next \| exhausted \| undecided, index?, candidates?, tried}` |
 | `download_prune` | `rows`, `states` (each row's last state, by name), `now` | `{remove: [row name…]}` |
+| `download_cancel_safe` | `row`, `rows` (every download row) | `true` when the row's release may be cancelled |
 | `rank_releases` | `releases`, `original?`, `preferred?`, `tried?` | `{order, best, pick}`, indices into `releases` |
 
 **An answer** is what den-scout said to a probe, as the client read it: `{"kind": "ready"}`, `{"kind":
@@ -865,7 +885,9 @@ so a relaunch doesn't announce it again.
 
 **`download_status`**: `state` is one of `starting`, `fetching`, `not_started`, `refused`, `paused`, `unreachable`,
 `ready` and `no_working_release` (`exhausted`). Silence (`dead`, `not_queued`, `unknown`) within **3 minutes** of
-`queuedAt` is `starting`. The stall clock moves only on a `preparing` answer whose progress rose or whose rate is
+`queuedAt` is `starting`. The stall clock starts at the **later** of `progress.progressAt` and `queuedAt` (so a
+release asked for again — a re-press, a resumed add — is not stalled by progress older than the new add), or at the
+caller's own clock when that is later. It moves only on a `preparing` answer whose progress rose or whose rate is
 above 0, and never while the debrid reports the fetch `stalled` with an empty swarm (seeds and peers known and 0).
 `stalled` is true after **20 minutes** without a move, on a `preparing` or `dead` answer, and at once when the debrid
 reports the fetch `failed`. `reannounce` is true once, at half that, while the swarm is reported empty and the row's
@@ -879,7 +901,8 @@ is `exhausted`, or `undecided` when `complete` is false (a source didn't answer)
 
 **`download_prune`** removes a live row older than its lifetime, from `queuedAt`: 2 days once `announced` or
 `ready`; 15 minutes while `not_started` or `refused` and never `reported`; 7 days otherwise. Past 100 live rows the
-oldest go too. The holder writes `removed` for each.
+oldest go too. The holder writes `removed` for each. The lifetimes count from `queuedAt`, so a download that took
+more than 2 days is pruned in the pass that finds it ready, and is never shown as ready (known limit).
 
 **`rank_releases`** is the one release ranking both clients use. A release is den-scout's stream `attributes`
 (`resolution`, `codec`, `dolbyVision`, `hdr`, `threeD`, `sizeBytes`, `seeders`, `cached`, `probed`,
