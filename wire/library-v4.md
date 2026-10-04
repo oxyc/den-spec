@@ -878,7 +878,7 @@ so a relaunch doesn't announce it again.
 | `download_merge` | `a`, `b`: two versions of one row | the merged row (above) |
 | `download_status` | `row`, `answer` (absent before any), `clock?`, `now` | `{state, clock, stalled, reannounce, write_progress, report, announce}`, with `service` (refused), `until` (paused) or `renew` (a lapsed ticket; `state` null) |
 | `download_next` | `row`, `releases`, `resolution`, `complete` | `{decision: next \| exhausted \| undecided, index?, candidates?, tried}` |
-| `download_prune` | `rows`, `states` (each row's last state, by name), `now` | `{remove: [row name…]}` |
+| `download_prune` | `rows`, `states` (each row's last state, by name), `watched` (each row's own episode or film watched, by name), `now` | `{remove: [row name…]}` |
 | `download_cancel_safe` | `row`, `rows` (every download row) | `true` when the row's release may be cancelled |
 | `rank_releases` | `releases`, `original?`, `preferred?`, `tried?` | `{order, best, pick}`, indices into `releases` |
 
@@ -903,10 +903,14 @@ reports the fetch `failed`. `reannounce` is true once, at half that, while the s
 is `exhausted`, or `undecided` when `complete` is false (a source didn't answer). `none` (no sources at all) is
 `exhausted`; `undecided` (unreachable) decides nothing.
 
-**`download_prune`** removes a live row older than its lifetime, from `queuedAt`: 2 days once `announced` or
-`ready`; 15 minutes while `not_started` or `refused` and never `reported`; 7 days otherwise. Past 100 live rows the
-oldest go too. The holder writes `removed` for each. The lifetimes count from `queuedAt`, so a download that took
-more than 2 days is pruned in the pass that finds it ready, and is never shown as ready (known limit).
+**`download_prune`** removes a live row older than its lifetime, from `queuedAt`: 15 minutes while `not_started` or
+`refused` and never `reported`; 7 days otherwise. A row that is `announced` or last read `ready` has **no**
+lifetime — it is never aged out — and is removed instead the moment `watched` says its own content was watched, by
+name, whatever its age. `watched` is the caller's own watch state for that row's **episode or film**, never the
+series' standing: a series record left `watched` from a finished earlier season says nothing about a new episode
+still downloading, and must not prune it. A row the user removes by hand is the caller's own tombstone, not this
+op's. Past 100 live rows the oldest go too, ready or not — the one place age still bounds a ready row. The holder
+writes `removed` for each.
 
 **`rank_releases`** is the one release ranking both clients use. A release is den-scout's stream `attributes`
 (`resolution`, `codec`, `dolbyVision`, `hdr`, `threeD`, `sizeBytes`, `seeders`, `cached`, `probed`,
