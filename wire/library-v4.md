@@ -903,14 +903,14 @@ reports the fetch `failed`. `reannounce` is true once, at half that, while the s
 is `exhausted`, or `undecided` when `complete` is false (a source didn't answer). `none` (no sources at all) is
 `exhausted`; `undecided` (unreachable) decides nothing.
 
-**`download_prune`** removes a live row older than its lifetime, from `queuedAt`: 15 minutes while `not_started` or
-`refused` and never `reported`; 7 days otherwise. A row that is `announced` or last read `ready` has **no**
-lifetime — it is never aged out — and is removed instead the moment `watched` says its own content was watched, by
-name, whatever its age. `watched` is the caller's own watch state for that row's **episode or film**, never the
-series' standing: a series record left `watched` from a finished earlier season says nothing about a new episode
-still downloading, and must not prune it. A row the user removes by hand is the caller's own tombstone, not this
-op's. Past 100 live rows the oldest go too, ready or not — the one place age still bounds a ready row. The holder
-writes `removed` for each.
+**`download_prune`** never expires an unfinished row. A request that has no working release is still a user's
+request, not a cache entry, and stays available for later source retries until the user removes it or it succeeds.
+An `announced` or last-read `ready` row also stays while unwatched. Once `watched` says its own content was watched,
+it remains as recent download history for two days from the `announced` stamp (falling back to `queuedAt` before
+that stamp is written), then is removed. `watched` is the caller's own watch state for that row's **episode or
+film**, never the series' standing: a series record left `watched` from a finished earlier season says nothing
+about a new episode still downloading, and must not prune it. A row the user removes by hand is the caller's own
+tombstone, not this op's. Past 100 live rows the oldest go too, ready or not. The holder writes `removed` for each.
 
 **`rank_releases`** is the one release ranking both clients use. A release is den-scout's stream `attributes`
 (`resolution`, `codec`, `dolbyVision`, `hdr`, `threeD`, `sizeBytes`, `seeders`, `cached`, `probed`,
