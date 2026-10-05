@@ -3111,7 +3111,7 @@
       "ok": true
     },
     {
-      "name": "download_prune: the three lifetimes, from queuedAt",
+      "name": "download_prune: unfinished requests persist; watched ready history ages out",
       "request": {
         "op": "download_prune",
         "now": 200000000,
@@ -3313,8 +3313,7 @@
       },
       "ok": {
         "remove": [
-          "download:movie:1:-1:-1",
-          "download:movie:2:-1:-1"
+          "download:movie:1:-1:-1"
         ]
       }
     },
@@ -3371,7 +3370,7 @@
       }
     },
     {
-      "name": "download_prune: a ready download is pruned once watched, not on age",
+      "name": "download_prune: a recently ready download remains visible once watched",
       "request": {
         "op": "download_prune",
         "now": 200000000,
@@ -3422,9 +3421,7 @@
         }
       },
       "ok": {
-        "remove": [
-          "download:tv:1399:2:3"
-        ]
+        "remove": []
       }
     },
     {
