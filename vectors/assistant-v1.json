@@ -15,6 +15,11 @@
           "id": "f2c2659d0191930647c09eff451941d3",
           "op": "watchlist_add",
           "setting": "f2c2659d0191930647c09eff451941d3",
+          "stamp": [
+            1789999940000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
           "value": {
             "string": "{\"applied\":1790000000000,\"at\":1789999940000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
           }
@@ -65,6 +70,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -72,22 +78,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -97,7 +103,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -123,6 +129,11 @@
           "id": "91efa8201d34f52a252c258e003a4b57",
           "op": "watchlist_remove",
           "setting": "91efa8201d34f52a252c258e003a4b57",
+          "stamp": [
+            1789999940000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
           "value": {
             "string": "{\"applied\":1790000000000,\"at\":1789999940000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
           }
@@ -173,6 +184,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -180,22 +192,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -205,7 +217,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -232,6 +244,11 @@
           "id": "d45eafd6eacaa6ced03f5ae7d76fba2f",
           "op": "seen",
           "setting": "d45eafd6eacaa6ced03f5ae7d76fba2f",
+          "stamp": [
+            1789999940000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
           "value": {
             "string": "{\"applied\":1790000000000,\"at\":1789999940000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
           }
@@ -282,6 +299,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -289,22 +307,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -314,7 +332,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -341,6 +359,11 @@
           "id": "5d256501e6abe00e04cd6046391d412c",
           "op": "seen",
           "setting": "5d256501e6abe00e04cd6046391d412c",
+          "stamp": [
+            1789999940000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
           "value": {
             "string": "{\"applied\":1790000000000,\"at\":1789999940000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
           }
@@ -391,6 +414,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -398,22 +422,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -423,7 +447,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -451,6 +475,11 @@
           "id": "eb61d8e4d75b75daadb751e0979efeba",
           "op": "seen",
           "setting": "eb61d8e4d75b75daadb751e0979efeba",
+          "stamp": [
+            1789999940000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
           "value": {
             "string": "{\"applied\":1790000000000,\"at\":1789999940000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
           }
@@ -501,6 +530,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -508,22 +538,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -533,7 +563,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -562,6 +592,11 @@
           "id": "43d118724ec23633211146a8a6431c45",
           "op": "seen",
           "setting": "43d118724ec23633211146a8a6431c45",
+          "stamp": [
+            1789999940000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
           "value": {
             "string": "{\"applied\":1790000000000,\"at\":1789999940000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
           }
@@ -612,6 +647,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -619,22 +655,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -644,7 +680,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -671,6 +707,11 @@
           "id": "86beccd37f08a19710545426e84b083e",
           "op": "rate",
           "setting": "86beccd37f08a19710545426e84b083e",
+          "stamp": [
+            1789999940000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
           "value": {
             "string": "{\"applied\":1790000000000,\"at\":1789999940000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
           }
@@ -721,6 +762,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -728,22 +770,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -753,7 +795,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -780,6 +822,11 @@
           "id": "055db8ae509b842d15b3878e80fab726",
           "op": "rate",
           "setting": "055db8ae509b842d15b3878e80fab726",
+          "stamp": [
+            1789999940000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
           "value": {
             "string": "{\"applied\":1790000000000,\"at\":1789999940000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
           }
@@ -830,6 +877,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -837,22 +885,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -862,7 +910,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -888,6 +936,11 @@
           "id": "418765d160ef8a08f527df32fae2c77c",
           "op": "watchlist_add",
           "setting": "418765d160ef8a08f527df32fae2c77c",
+          "stamp": [
+            1789999940000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
           "value": {
             "string": "{\"applied\":1790000000000,\"at\":1789999940000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
           }
@@ -948,6 +1001,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -955,22 +1009,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -980,7 +1034,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -1006,6 +1060,11 @@
           "id": "70acdfe16e51fecd2d076dcb1d04d9dd",
           "op": "watchlist_add",
           "setting": "70acdfe16e51fecd2d076dcb1d04d9dd",
+          "stamp": [
+            1789395200000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
           "value": {
             "string": "{\"applied\":1790000000000,\"at\":1789395200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
           }
@@ -1056,6 +1115,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -1063,22 +1123,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -1088,7 +1148,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -1114,6 +1174,11 @@
           "id": "45c61cff00f7578e5ffebc2d44e7808f",
           "op": "watchlist_add",
           "setting": "45c61cff00f7578e5ffebc2d44e7808f",
+          "stamp": [
+            1790000300000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
           "value": {
             "string": "{\"applied\":1790000000000,\"at\":1790000300000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
           }
@@ -1164,6 +1229,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -1171,22 +1237,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -1196,7 +1262,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -1222,6 +1288,11 @@
           "id": "058aab49ced8db6b28126fea346f8e9a",
           "op": "watchlist_add",
           "setting": "058aab49ced8db6b28126fea346f8e9a",
+          "stamp": [
+            1789999940000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
           "value": {
             "string": "{\"applied\":1790000000000,\"at\":1789999940000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
           }
@@ -1282,6 +1353,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -1289,22 +1361,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -1314,7 +1386,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -1340,6 +1412,11 @@
           "id": "7516b3de6e71eddf6b3d8efaf4bc8a0a",
           "op": "watchlist_add",
           "setting": "7516b3de6e71eddf6b3d8efaf4bc8a0a",
+          "stamp": [
+            1789999940000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
           "value": {
             "string": "{\"applied\":1790000000000,\"at\":1789999940000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
           }
@@ -1410,6 +1487,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -1417,22 +1495,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -1442,7 +1520,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -1469,6 +1547,11 @@
           "id": "a65885159171b8ab57a0a3fa5a5762bc",
           "op": "seen",
           "setting": "a65885159171b8ab57a0a3fa5a5762bc",
+          "stamp": [
+            1789999940000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
           "value": {
             "string": "{\"applied\":1790000000000,\"at\":1789999940000,\"grant\":\"0ad714db3029f1b328e84e1179ecf55e\"}"
           }
@@ -1519,6 +1602,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -1526,22 +1610,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -1551,7 +1635,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -1612,6 +1696,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -1619,22 +1704,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -1644,7 +1729,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -1705,6 +1790,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -1712,22 +1798,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -1737,7 +1823,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -1798,6 +1884,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -1805,22 +1892,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -1830,7 +1917,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -1891,6 +1978,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -1898,22 +1986,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -1923,7 +2011,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -1968,6 +2056,7 @@
           }
         },
         "assistant": null,
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -1975,22 +2064,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -2000,7 +2089,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -2061,6 +2150,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -2068,22 +2158,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -2093,7 +2183,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -2154,6 +2244,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -2161,22 +2252,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -2186,7 +2277,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -2247,6 +2338,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -2254,22 +2346,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -2279,7 +2371,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -2340,6 +2432,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -2347,22 +2440,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -2372,7 +2465,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -2433,6 +2526,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -2440,22 +2534,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -2465,7 +2559,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -2526,6 +2620,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -2533,22 +2628,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -2558,7 +2653,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -2619,6 +2714,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -2626,22 +2722,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -2651,7 +2747,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -2712,6 +2808,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -2719,22 +2816,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -2744,7 +2841,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -2805,6 +2902,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -2812,22 +2910,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -2837,7 +2935,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -2898,6 +2996,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -2905,22 +3004,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -2930,7 +3029,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -2991,6 +3090,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -2998,22 +3098,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -3023,7 +3123,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -3084,6 +3184,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -3091,22 +3192,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -3116,7 +3217,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -3177,6 +3278,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -3184,22 +3286,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -3209,7 +3311,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -3270,6 +3372,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -3277,22 +3380,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -3302,7 +3405,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -3363,6 +3466,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -3370,22 +3474,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -3395,7 +3499,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -3456,6 +3560,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -3463,22 +3568,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -3488,7 +3593,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -3549,6 +3654,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -3556,22 +3662,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -3581,7 +3687,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -3642,6 +3748,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -3649,22 +3756,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -3674,7 +3781,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -3755,6 +3862,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -3762,22 +3870,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -3787,7 +3895,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -3848,6 +3956,7 @@
             }
           }
         },
+        "device": "a1b2c3d4e5f60718",
         "grants": {
           "kind": "set",
           "name": "assistant-grants",
@@ -3855,22 +3964,22 @@
           "values": {
             "0ad714db3029f1b328e84e1179ecf55e": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "d7047d7faa4c6f77e1919c132bb6bd9f": {
               "at": [
-                1787408000000,
+                1789136000000,
                 0,
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1787408000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
               }
             },
             "fee3c42b428a8786487289d6d6ad544d": {
@@ -3880,7 +3989,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
               }
             }
           }
@@ -3889,6 +3998,1040 @@
         "now": 1790000000000,
         "op": "assistant_open",
         "sealed": "f1x1KLaQkWn5CHU9ovPlbF7lEXsyO7Yuz5j7LAl0D9p3fput9bbZ7SLU9JdXp4JKzRiLLY1AFQBSKf2W-lorIloCM9ZPdmFnZMF6W6zAyt31QMdJL-AOxF1CADI9VJjInrU2oIJMmpYDIfeCHa1wPVVPpEFdOJYAqUhFw3E5e6U3PUrqtKytXkPusPfGoR77NUqs-fEKdzVSnWwYTlxdl0iyWnQhYT5nd3oHRANc4aOqkMQyizTCUlGz7UoEdH0fQHM6OeF-iV_0UfnReflwJypKM6e9nsSOysN-hGwRd5U77pvYP-ayCeB_L9UURczU1OWA9JhvKrZ0Z97_IOSfTfSyJ6p33Ku9hhNngzffjNs1qQM09ABCaB9ZI6d9aReX5-ZZzvM9axEs0db-xVJHEh1M9hPTvvhwy6BLRlu0NOaOdzgT6CBOvw4gxGqozRAaQCkswcWLey5F-4N-5YDtAleyd6wOcfXM2rjnUIdqqK9wvYtE-Dq0A704Evyyyms_Rj1TiX3-E4caDxdcMv64UQBIOtOsBHK5S0zkpY8x3h7TvB7UKB3Ezh-H1S1dLdZPKCKVU9LJmtI4e4myoiNi92x1bgqQ5osC2zTc9GADweoWSH6TlMfnsX5L_-vs6v0p5eR39Lnn-WCq1v7-QZShowagI_nHYJycjJ5YtmNPKjQLI0UWu2r-thSdmTxvKTcRTmMdv32fR6a7Hb2t-qIp6IB2F_4rsbjFMc50Sk0Fy7nTcRnL__yxifHAPo69wITrYmc4bi6ZoJ7QyE41xj_6D4wE0i_Y5KCniiYHSK3ezy24Yhwk8BDYx77no-qMCG8YoB8f5mTPTnDw8IvSm6GBFGtR0EE5cT3tz4DbXQOWjDzHrSZDHILZuCiS_A4_3Ud7JCS_bhJjQXp118QjHmLTOUDNm9Tjlx_oi_6gkxlVq5cU8kyJqpXBuYEBnmksGcW4YK28GVwB27BYu6BWJzq9zNlSIEkw3PfssFL9o9sJRs4wwy_TFZH9JM_FxqWITI9ELqRsPrElN68wgVdT0TTO-Stt4g_2i5NctyWmxIKCYvsLCgmVzpEXS3OKgSWrhgLdEmPmjhkv6txi4xgc0g0FmvULF_7i1-mlawmQo0yDjttUnSAtUMrQ3fvMVdWq-Bct0q18MTe4gC2e3uXXXUjOPQpGPCiXsCIcYt6bv_juubynxzyi4LmxzH0pM7kKQrdTsO4BMc7L5HxBVRhB8cOCnpM2c9y9-_rFu47CQ0psNoKqz7J9MQ-A_j65IFfzMdJXoSyWgVh8mEzATHswpdH8WsO5rc8lyaQpMbvnJFPdsIjJKB5NWju11BtdJC_lZdo_PSpRcWQMEjtvjrd78-5UgtXqHJ39JUAsaXFW5D2U4CsZ1jyg2klGmW-XfAq8t2n5dsbAlwqV1VYByuQIHC09HwAvJnHDhuQk7mFpKbj3-hwYG4cl8rbGEYznIVCaa2wZB7o8u2AMdqS0Po_-P8-0aZbyi3phOsXnS_MRKDfWu0mwbkDEIsopp1Y7vRBau2JBDpzOUO1Oucc_sf7iWpsQE73F55T7D2997ovC6rWpv1yttA0lgQ12d3Wufc6jZNSLmqcM_2w0-t05uGBVIE_0bK1WgF8O6u-bWmr_EDmZEJnj-s3tKIHIgARQHN5lT5JqDhulqAVemcIwgTCPJd-5utl9c1wh-8FLCy9eySHuQ6wMelVdBY5G9Szjb5tX7FYcQQQqFsOcrq15-okqM7lSkujqh_bEM3fQ-pO2r7MD8i6UwFqJQ1ZQtQjAI7X23ecDRUZkFmqm457B69e4_J8thJ5Zp_IsLq3A0Vsbg5bl062iizRhPEMz23a-pfwVouLBuCLzPs58DLjlQzf7bHj-4_4JcvIzl-bF6T8"
+      }
+    },
+    {
+      "name": "assistant_open: a grant at its expiresAt",
+      "ok": {
+        "reject": "expired"
+      },
+      "request": {
+        "applied": {
+          "kind": "set",
+          "name": "assistant-applied",
+          "schema": 2,
+          "values": {
+            "982887bc1d545b5d3926e7538c997fb8": {
+              "at": [
+                1789992800000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789992800000,\"at\":1789989200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            },
+            "cccbf13a6a02c308ff66246eb6bef40d": {
+              "at": [
+                1789827200000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789827200000,\"at\":1789827200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            }
+          }
+        },
+        "assistant": {
+          "kind": "set",
+          "name": "assistant",
+          "schema": 2,
+          "values": {
+            "dropbox.9c264deea898d78a0a218143b016a672": {
+              "at": [
+                1786544000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "IpCMX3-h3Ti7zzcK6fh6wyalHeS6EnLhRPjJfHQbgwo"
+              }
+            }
+          }
+        },
+        "device": "a1b2c3d4e5f60718",
+        "grants": {
+          "kind": "set",
+          "name": "assistant-grants",
+          "schema": 2,
+          "values": {
+            "0ad714db3029f1b328e84e1179ecf55e": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "1a4eb72c9e30a821e8ebefa7528d492e": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1787408000000,\"expiresAt\":1790000000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"d7xmqGli5VKx3N4jGaqIZy3rXTW-EtMKJUXNunMgn1w\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "d7047d7faa4c6f77e1919c132bb6bd9f": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "fee3c42b428a8786487289d6d6ad544d": {
+              "at": [
+                1789996400000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+              }
+            }
+          }
+        },
+        "library": "4c1b7a0e9d3f2c8b5a6e1d0f7c3b9a2e",
+        "now": 1790000000000,
+        "op": "assistant_open",
+        "sealed": "bi7KUrl7LV8enNSK8HojqoV64mpz4deW-EiyrEk0bibTFxlObojwPYuVMTMtr9f1zCbsdKk9BQCj1mZGr5snxJeMC9ivNmatXVBexK5GiY4SFounL7bExUsv61j2SjoadhJQoMlXw0mbgkxiNHB2nQV-NSpSpk4lIIZLoUh7ROwCHm8HllTbHpdxZkF7vkbY1pMCXWz0jQ5GQqb-mGAMbabwMj1rVPlA_cKz8KJkg7MEJYS1p5T1fP_OutqmDSohXzVR-jROb_Jdgcs6z7ka7QK9h-JPGfV2esVpNce6Nw5FwRfIY_AYXtpPMciQHxLTGlaNQV2geT-Eqxc1VVotBdn-Z5E_Dytebo-BixhV3JG562ViQrqQS8WI5dOr_fGlgXO1cc7cG_B2sRa9CnrrnXzyK0gbuwBvwWKxGspv7kGsMyhA04eO4RkOB0Ck0NNuhF-_529gt8306IiZwLslUhhWqmOS9Ma3oAPG28OKEtHzfWMrrBieTcuzuWJH0hvSsMGhQ-Okbe4r-a_r7MqV9KwxorPfg0J7epkowZGkKwnbS2XthaMk77j_rZPkqUyC32V2iP7LlByTheGGjscCT4KGB51j8Az6Wsz5JCqjALsj6tnK1JMlikIIxSkvGKSgNiSSOwSFvKiny6D-eWctjzpohgdGCkzO47W-3F0pPnAQV75sHNC8HSIBm7h-tDXp1c9OEmDxih499U5C9Tijvdn_l4GRCwxvDQp8d19gRev7UTAkSzuSa5CurVupOnTGZAPNlqta4KhdLamT2KVkiZQ-6WockO_FFzg_VZEK8nP2tWYrOM0dGMGbiEGgcTw_kM-fWcbvCB9aYHihU1D39KrpFFo50xztoabqL0wRVsrji8y5ItpUeAQETLt4xqG4Px6Vejgpv8OP9rAnwWzM258MtGw7MWE9bTkPqkMzMq7vFClLV6119VcYdogxD2TLEKDtmKO2d-v-xXKeIJLW2Cp13b--D0Dy3OYvSOONwfp6oO-LBK6nQ2r1ZA9PC6CIuXA3OlsXFvViyIXJOYFWFoYVK3oTd6ais1XQZdAWEmNXx0YBYMBeHRh8Z8MFar7GG5HHDCo1G4R5NYwN7r3Cw1CZe_rLiv3K-Zxo-oMpm5f2B-oBpQJklG76aSz_IoIUoPvLZGzJhMpQmgSMzHv67_ryfUA_F9Prhj62mspqx8ykaID694QCWbwjLqIweWb3ZZZLb5M6NlnYl7jCQL0CTF4zQrXaPQ5SKClaAbkKk89Dr5i_MAWVE5StpZxelWVRNjoh0LSWtgAT6UB0llRVqG7nyWQp_7x3Sw60M50Xjn1C6bmRhZKWjEEKJqLmh_BWOEzhV_zGVyGVjvi19Y6xHZcIaoRaayl0bG99IWsHPY3RbuussH61hYrb5kQ_7Mwu5I2kgYOpKRzrJkuxHmz0iUyug7-K79nnZyQdwla-nvNAoYLFhpRRZvAhTw7eIymTYNfKkUTOAxV0bRPBTsWTXeHcb7J5yLV72y19_Ddh__19NH2JI7SH28uEJTVu_rNUaght_D-m8KSAOhlL58UGm-R0VD5geqM-qaOc3o8GAmfm0i0Mlp78k4ygzrfaSjTe7PjwrpQuZWpnn8rrOR5i-HtqehAwIy1cHxMKT7Oop1I1gTHXG8w3vzYtcye-IaF65wINms1JGGxoBPyjRLElVsgvFnGUBUe4vvnPT7rLXh5NdBJixBIbec7y1tmsmfcthGLmWiOQkyN0Yz3egCLtDSTV1DGquzjLI04PO5mPYdMDhZVzGk4eHUSnFC5cM-F6pu_XWtXyLDlhKXdiBVKeWheSmAbf-8PJU8XhHj4JbWXKqV0JmS8fi2Z3hxWKuYkBbrD5tqFaZ_pjKJKiPCG32ISLZ1teelqjRKc"
+      }
+    },
+    {
+      "name": "assistant_open: a grant renewed before it expired",
+      "ok": {
+        "accept": {
+          "args": {
+            "title": {
+              "id": 550,
+              "type": "movie"
+            }
+          },
+          "at": 1789999940000,
+          "grant": "1a4eb72c9e30a821e8ebefa7528d492e",
+          "id": "e2f16c0e3eb35c406ae7d0052d0a5845",
+          "op": "watchlist_add",
+          "setting": "e2f16c0e3eb35c406ae7d0052d0a5845",
+          "stamp": [
+            1789999940000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "value": {
+            "string": "{\"applied\":1790000000000,\"at\":1789999940000,\"grant\":\"1a4eb72c9e30a821e8ebefa7528d492e\"}"
+          }
+        }
+      },
+      "request": {
+        "applied": {
+          "kind": "set",
+          "name": "assistant-applied",
+          "schema": 2,
+          "values": {
+            "982887bc1d545b5d3926e7538c997fb8": {
+              "at": [
+                1789992800000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789992800000,\"at\":1789989200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            },
+            "cccbf13a6a02c308ff66246eb6bef40d": {
+              "at": [
+                1789827200000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789827200000,\"at\":1789827200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            }
+          }
+        },
+        "assistant": {
+          "kind": "set",
+          "name": "assistant",
+          "schema": 2,
+          "values": {
+            "dropbox.9c264deea898d78a0a218143b016a672": {
+              "at": [
+                1786544000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "IpCMX3-h3Ti7zzcK6fh6wyalHeS6EnLhRPjJfHQbgwo"
+              }
+            }
+          }
+        },
+        "device": "a1b2c3d4e5f60718",
+        "grants": {
+          "kind": "set",
+          "name": "assistant-grants",
+          "schema": 2,
+          "values": {
+            "0ad714db3029f1b328e84e1179ecf55e": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "1a4eb72c9e30a821e8ebefa7528d492e": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1786544000000,\"expiresAt\":1792160000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"d7xmqGli5VKx3N4jGaqIZy3rXTW-EtMKJUXNunMgn1w\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "d7047d7faa4c6f77e1919c132bb6bd9f": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "fee3c42b428a8786487289d6d6ad544d": {
+              "at": [
+                1789996400000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+              }
+            }
+          }
+        },
+        "library": "4c1b7a0e9d3f2c8b5a6e1d0f7c3b9a2e",
+        "now": 1790000000000,
+        "op": "assistant_open",
+        "sealed": "_wTGMVQWCL0Wt4G4rFdytWgNuHiiXyxixhiTjxFtKJc-uyZG3L5HTXFZzs67I7aS4cs31xEb93Wo_Sn8Ct2LnL3a2FAj0ZytZyqaExfDzDGCg1plWjtfXcEBLdpDBAS76q3srg8F6gKxKGU_2OKanBrULbtpiWmETKgXb6Mdc71rsc8sTH-sceCkcXumnJqtIVBMz9OQwI3nhSbY3Rs-cly-eUHgQpSHmjd3njZ0TloKpqzK3A7WvuMF1b_KRniF68QHprVoWjAmEpsLzQm43aJ4WeUEGD-qStHKy82o6rj9V39WFxBZGE9hJhzWk5OPu956Lmc0Py97c6JloREfSN3ckWJEr8rFt56h_tuwWL_3OHU_LthJStSW0aMiMt-H9qoqgTn3goFVzq1sbT9DmaT3-72kW5QJyI0bcWkweF6B50QlgZN3Wk_NN_vaLve8oncMezDqF_9Rkhz975Evk8Qk9kceLqXGabASZDsvHiCQLJ1Dl3R31J2Fm1u6B5vSzmjD6Tw0SARxJDW5s0kyjGbQ0T4NaYV4Qjn3eLilNzyKX2g58-ZNpbehjng6h3TLKWIXtZ4OCyIKGK58INGEWN3omLOYAkLAvjsxcCuMzpUOQgvAlE5FXJSGuw431hYosC0e6kh3E1fbIKkoK1Q6W8J-HN5e9FgG8Zm-NUt2lInMIL4ZZTuHA_DjL4RazXDn0dr5uB-pFGgRpEYXjwS1vzz_fgDdQOLNvUdJl23Wvpr1LWm3Pu4tFK1uXiiU1-fyQVPRNZlFDVa16e8JTfvfmjJ4BXJc--mcN9E1RVrWUEGHG_SV9LYB-CNBwnqEGUY8YzuK3up7sr8SPMrHRShiWjkEtJTD1asVeeg_wOLdyEjfBtxcsFN-5x7jGuQ8QyvSzVpN635t4yzVS7eI7kSO7avY5BsOHkL-pr81U3T8x8e1IIqh2clql3GLDJK3at6KdDsVOqRv1dh6N3ONKn9mlpLoxxh5NMQK49tgmWjkAfCQnSKbNyztZrkl5G1BRJgwsBdmLlQofINum1x_hqitqOuKoc9wZFi7wLiyrfPsX-n7BlXXUszHBm30XusPJJ-ldxr2tMqBHpoMxCBLkNdsBvJuF1FKvJUcSls4KA7247knRfbLF9cR6APwPziLXW2CSAWVsWpl2XytztzIga-gu9wJEpocYvo50fZTH4Oct1whKFjXcAIm3DLMZ0LdVc7YgJuy9TRbxcTxDqhiDP9mNH7jOFZKR0YDvurq8l8XwEi5mfuJkVl1TddmxWv90rbm621Smio64C8OoTgr9lbAXdg__9lbiHBxzSF1WQByw8fBqMRTbn7opNFOvPxEU-415sVzoyH9MeMwd3BIW3Jos91Qpxn6CG6OJ_W6W4tGhq9RTmKTqgxv2bSDRqITszmc8lbQnTxSpQvMQEGlA3pQFKLDXdVH-XT7SnaNH4_jl-F4dZUXwcfHbGeyEKzy4c40FMNXusXpSeQjCS1r4NyZMRYgEdPfjboeb1RVq8tDjfJ6PxA-MGHZlWwf_0OMcyl7ojeLM-BdkPaGFSUXXoi0kiobpxQa1-MJbg-RCrtwvK7_XhBfiqXWnItl7hqwDGKSo3D7mMyBbD8zVJtNfxgiISh1lRDHbAqosLhaVYX2aSeqjl3aPMPxs3lUk-IPQTt6qlqNCSkO1HEV6kqoza-t6GasyYo32wQarkUU6bX0o3DXOnDD5P5aRIb7Blgldi--EqJNxjdu0_VQqqPZaoTRehfDwYri_jZEPMM4TYQY_X6vtmwERbeLBmXH2dTMltTjXIvKNo1XLU2k7wNh7U_oFrKlLKkd1dNxmsrqybqYOivWZEm5vrkGqcozY--OJ9BllvbyrN2Pa3HR-qN-Prxk7WD_I3y-qnRFQCU"
+      }
+    },
+    {
+      "name": "assistant_open: a grant the device has seen revoked, though the row it was served is older",
+      "ok": {
+        "reject": "revoked"
+      },
+      "request": {
+        "applied": {
+          "kind": "set",
+          "name": "assistant-applied",
+          "schema": 2,
+          "values": {
+            "982887bc1d545b5d3926e7538c997fb8": {
+              "at": [
+                1789992800000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789992800000,\"at\":1789989200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            },
+            "cccbf13a6a02c308ff66246eb6bef40d": {
+              "at": [
+                1789827200000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789827200000,\"at\":1789827200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            }
+          }
+        },
+        "assistant": {
+          "kind": "set",
+          "name": "assistant",
+          "schema": 2,
+          "values": {
+            "dropbox.9c264deea898d78a0a218143b016a672": {
+              "at": [
+                1786544000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "IpCMX3-h3Ti7zzcK6fh6wyalHeS6EnLhRPjJfHQbgwo"
+              }
+            }
+          }
+        },
+        "device": "a1b2c3d4e5f60718",
+        "grants": {
+          "kind": "set",
+          "name": "assistant-grants",
+          "schema": 2,
+          "values": {
+            "0ad714db3029f1b328e84e1179ecf55e": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "d7047d7faa4c6f77e1919c132bb6bd9f": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "fee3c42b428a8786487289d6d6ad544d": {
+              "at": [
+                1789996400000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+              }
+            }
+          }
+        },
+        "library": "4c1b7a0e9d3f2c8b5a6e1d0f7c3b9a2e",
+        "localRevoked": [
+          "d7047d7faa4c6f77e1919c132bb6bd9f"
+        ],
+        "now": 1790000000000,
+        "op": "assistant_open",
+        "sealed": "TSGH32hKWqLHlmKAdKPzWc2xB_BvdWVi9hT5og2dFTuLS8BNP0SS6Cg7EerYZ9nx9XzL2dhi0h-Qn-jUx5myx_zXpSaoU4eiwm2gK-q4Wp_W_mNolAxkpsdK4uM2geESnw7dkYJ_Xn-enB0bT6QVtSzkEPYyAGVFqiehSKmZkl-tUhYi4jSy3iP90zg-pK749fxtUzsOL1itVHn_FeZ8DyvIjxdtYpgt1cJKgAakXv9kH9Ja4OHKSQDIuBfcsQSgTNnHxLz6nNb19TB44ZsxOpNjNrcITokgrk0Z9UoZAQ4YhoeWItdtzubSICVR1pktfloZ1Kdn3Rt7IGLLUvr9-GyF5K0gv4IGil6TixNwpT3lYauK0ORUh-OTbb7A73GcwSy78h2K97ypfbNMfelaa64CsBfZrCWxjQL4H0E8PDaBK_dm4eI7GZhM4q4_LzpMjcx6FRqcRSymaotzcwZagRIDk2svv3JflRAo7IuLE1SCfCcSDBywBnNoEHwGmTl5RZoJIk5psy4sqF1WoFJR3q6yrJpaLN6dJ8rHWTwFyers_FkVsd1hjIZ755HJbBbtEjnhwx01oyY0sBcRD5xm44lB5iugu3S4kE13gIESPy0bI2y4yChklnqEC_kZRINMEx1XTqKoYRApG0FDw2PDKI5qTnpPmw8uHzmTikwvql7Q937EK9v-zQY7khNWyNwx2jF4QhHGi8sHBn-cvXSi-hjmFr9RrPBlRbvuDtEU9vEAnQQAAeywqiSYxRJG6PSRxmQ-cR8FTCGXjNEcbuUz7t0XBgnvZZMh2wRN6nvAxpRdW2mQiLoKlBoBqfDL0Gi1u-BwCNbVCkXlZNSyi4xMeceXnFFsXxGzB89k5sqhxquSWWM0r_LlSaGcUUdBN8IvyK4_miuawL9wyPb0jEZmFx1IowIPqGy3j5f0AWbxH8-825a87UBvkzo2sMg54_Pau3sx1sgIdyKncz42ynCSCh1NVeNgizZCOobu6tGI_eF47V8a6eJBL6gstWxkIR2dqmrx89QsD7cjVzpt-602cmUv-XMvdFVlOmzVTQO9EAqajCDMXcxTqoLEJYQSWhP4pVHM1jtpiyF2OrzREe7-dR9KRJxc7kvAuaazm1u5JTYr_RK_Wt23rIV_CF495QM87qPDiDBdykY4OZEJy9gDvuDovg4cHrWyCjVxRI7d4s8B4nyqaNVeO50W6c-lOmCb7KGtfrDTJ6MIKkkY1Je5jDpss9CuBZfTttfWVJG8u2pUWUCdVxWSSuLhdrzbG5CCSgBvRQChb0967_eTSfbfC5tn_3tztUXQMEXYuumbMBzODHJndCSDCVkyldDlh42_zjZdXBZQO5r9qEhOXQ-5gKIc8mzx6AnTdeksSO3Tb8YrhAvLsjeByEtK3AVEOeBDwZd6wG6rwqU-T63vrg9k7UITVW91YyraZU-4fgyea6vp_F-sO-5MHuRDeKGFMTrtEIKQB6znd3DVDXCgfT49G2Oj8-ZJFg_RKVIyvd72JTYRFs-_N-GgmesOY4QhhZmFlTTpMne94euBkqABcR9dnrUBX2hNjXtp-tVxbuB-WogCfIdtDp31IijO3bhSHQMe9JX9j8c_AC2vCrdExlN6mQB6ZEcLIzLcQVA_mWNHSozOQCbbTaVexi8A5UhubeYSXj6gM7KfkReLwS4f4jfBoen50HdX2yi2A9THT32MDFR54W67xdO7Aa3JV_ObqdSlCUaUP7akxWgHH1w8ANJwr3HaeGyfXxBaTHEtTDiEuQ6rL9FtzwwlFUxzZcYsKIUEz2fFYvee4Fn7prEl1woLMwzz78FOFIXmGbgCFA0VrNbrj0Bhuo9vq8KqHgmRnitDWEEUNflRRjDue-DpesVcSJdZAD19RYnTaCA"
+      }
+    },
+    {
+      "name": "assistant_open: an id the device has applied, missing from an older row",
+      "ok": {
+        "reject": "replay"
+      },
+      "request": {
+        "applied": {
+          "kind": "set",
+          "name": "assistant-applied",
+          "schema": 2,
+          "values": {
+            "982887bc1d545b5d3926e7538c997fb8": {
+              "at": [
+                1789992800000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789992800000,\"at\":1789989200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            },
+            "cccbf13a6a02c308ff66246eb6bef40d": {
+              "at": [
+                1789827200000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789827200000,\"at\":1789827200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            }
+          }
+        },
+        "assistant": {
+          "kind": "set",
+          "name": "assistant",
+          "schema": 2,
+          "values": {
+            "dropbox.9c264deea898d78a0a218143b016a672": {
+              "at": [
+                1786544000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "IpCMX3-h3Ti7zzcK6fh6wyalHeS6EnLhRPjJfHQbgwo"
+              }
+            }
+          }
+        },
+        "device": "a1b2c3d4e5f60718",
+        "grants": {
+          "kind": "set",
+          "name": "assistant-grants",
+          "schema": 2,
+          "values": {
+            "0ad714db3029f1b328e84e1179ecf55e": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "d7047d7faa4c6f77e1919c132bb6bd9f": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "fee3c42b428a8786487289d6d6ad544d": {
+              "at": [
+                1789996400000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+              }
+            }
+          }
+        },
+        "library": "4c1b7a0e9d3f2c8b5a6e1d0f7c3b9a2e",
+        "localApplied": {
+          "43fa884f2315180e391c4cb497832782": {
+            "string": "{\"applied\":1789999880000,\"at\":1789999820000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+          }
+        },
+        "now": 1790000000000,
+        "op": "assistant_open",
+        "sealed": "7AnUTZBG_IaK81hylCx5uLbVxe6wI8gJ9r8c9wdKltWKuuxpHwJL6pwkF4tJDAFFexfQSiCgBJtjdLdx4nfhcFD1WaTqr0mBk2Lo-Gfkd_cvBa89ipe8znrqlz5w9mmK8OUJStQOkY4hiVKkbxc4sZkCrg1RweguP8ajn313581aWAYQaFf0FghxmtToDmXedhhebVJnl0db0NTODi4JY0zsEiOamjbz9_uCtUrbJOCE76L5Wos1HU4nyNL2tzZHGtPv1X-b1UCzXjsSir7wuXuz5lLQHXn83FdZfzemLjrpGBE2d6y41dzaAE8IkqBvIx0K6SZ7BALM6Jd-AtVnSTqsrkIXvPLc-xtoZqlnAnN3qi8nXxoaUPD0m1I0E7lCW99t1MmhXAVTcgWLRpyCFP2afI434YVDKZ4At-Mf6PIAH4omscJwwZYXj7AO6_s66ji1OxwcX4Eujtcf3XxvCtc6nnRR9ZXiUEG6eRSZDRCHxA-Sj35M169WM2Og9SEyKTtNuPbRrAoFIIgUugaN4fJg8itvfK1KjuWCmaeFlJok01G7L7aBhhb54-hhsTfshN_nh1tgrKSV3qx-2JFYFdbYX3iXTTNvTWh_JlCQQYl2kVzt6FGmaJap44RkXVgpOgZjzsoxXR0WjkdHI6HlK6lAwfB3Wk4boUeV4ndX7ALlbBMoPQuEEsdiKbpwUQdxaSaLmK-RGi193qtOYTmLEiGPQMm_3bCiSuX96cBdC-w-5KLEfgDjrJX5ERmFkiJBcgSD4ctPh_mBOUfyBNKwaohSShFow5wksGmjrDbHk2IHKc--WwXyruEPW5jYcWY-ykTkvC96gPWH-xuERIAf4npoVfOLIermFPYLPOhiVoF9Xy_alxh6rgtA8wAS-8av1QQXf77IFRmsjbrsPd6IDWltl0oAH7RZVeeDhb4cg2uxE2d6feYJxULTQpgxJL3H-d-Q_9Ic59jBMqfSA1YKrXAD7qrnm-JopPOpna04oDsDOVEtLdrvlXQKsRTOpX3JstwLgerO4Fkg0ZJQlV1qsDoxG2tVT9hmvJZ3l6EqQbxH4XvS25XayricetpFktWJC74ggezacvjBTbnM7jx4In1Wmo0zK4fQHo8SNTlEaqCYQySrSRWs4csWDxN7_HoAThZP7UFfFTyYqn6IFeQNbiiaT_5giBEXE573eQBLTA9T5xaNKnjuL4xYkShDO_DLFmIUIQ-mZvGtCH1xzIMHI5_49qtr711G3FYTtmQuTaOAO07sSh6L2-0g0eRNmzkDz02hkMsEbOkWmNAgPHNZZClCt7FjAo8f57iSUANs6Y-i3fOc3hkSUA04UGHjLyzzeSMZyyVVdvODy0aGwvG6MQt4jNRM1t9tIvpycS8632Zb1fx2nmEPdY3k__znn0fc9vN-1v6fFDMQ1qwdlPPqFpxUQAUxJpacypHlODwBJO6Ax0PyJryQ0xhPHftjWB6H9PMkSLOF5T2heBhbXg0mcnj9eaA2vPURqvd98p_IIBkZzw6L8BslOudAC7xBEvVvQBnFsx6I3sE7AHQNcjz9ct8CZKicabysKlElbYflnJSm4IMukgc4nW5jamzrqxV5c1i8CtKhumGcN0QpI-4IlRrjBP3E_UZOnvy1ps6R_I9262OuVQlq5NS0zsljeF8sGbH4SlsnpY-zgbro4xTgJTnHZiFhEm27E3oepqgkTg_axlCOXHdfB60qIYsyJ6lTZ-MkhS_E4mCnpXd-Z5o30namZ-z1t4stT7SkGBQEjaXyF5QoOrb2ru8iUhqv_r1ACg_zEvicOLhKxtoL_XqmwSuKX4UXBG5Q9cSoi-9HPDtA1fyeOJFSQ3MozztGyYo6bptNIt71JLPDhHJctwJWflOehUdhtiPW8Cg"
+      }
+    },
+    {
+      "name": "assistant_open: requests the device applied count toward the cap",
+      "ok": {
+        "reject": "over_daily_cap"
+      },
+      "request": {
+        "applied": {
+          "kind": "set",
+          "name": "assistant-applied",
+          "schema": 2,
+          "values": {
+            "982887bc1d545b5d3926e7538c997fb8": {
+              "at": [
+                1789992800000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789992800000,\"at\":1789989200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            },
+            "cccbf13a6a02c308ff66246eb6bef40d": {
+              "at": [
+                1789827200000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789827200000,\"at\":1789827200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            }
+          }
+        },
+        "assistant": {
+          "kind": "set",
+          "name": "assistant",
+          "schema": 2,
+          "values": {
+            "dropbox.9c264deea898d78a0a218143b016a672": {
+              "at": [
+                1786544000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "IpCMX3-h3Ti7zzcK6fh6wyalHeS6EnLhRPjJfHQbgwo"
+              }
+            }
+          }
+        },
+        "device": "a1b2c3d4e5f60718",
+        "grants": {
+          "kind": "set",
+          "name": "assistant-grants",
+          "schema": 2,
+          "values": {
+            "0ad714db3029f1b328e84e1179ecf55e": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "d7047d7faa4c6f77e1919c132bb6bd9f": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "fee3c42b428a8786487289d6d6ad544d": {
+              "at": [
+                1789996400000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+              }
+            }
+          }
+        },
+        "library": "4c1b7a0e9d3f2c8b5a6e1d0f7c3b9a2e",
+        "localApplied": {
+          "d61e506332bcb377511c1ab2f653eef1": {
+            "string": "{\"applied\":1789996400000,\"at\":1789996400000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+          },
+          "fbf200c41865f94869709b1a7a51275e": {
+            "string": "{\"applied\":1789996400000,\"at\":1789996400000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+          }
+        },
+        "now": 1790000000000,
+        "op": "assistant_open",
+        "sealed": "Q7sMLc6g1fbRqLt8S2AVHmV3cANW4tySDdkMEJ_xuGtnbaY4PP84yoFNj3XAfuSKqDz-a9b8ftZk1LE0HWRnf1r9nbkArBcA6IgAGAKtDH6fZVppDKt3bftf5RR1WMNoDs3w-sVGWOxhdS2Zsu4RFrhQLtm4p9y1pvEWEUh--FLpMUAePOlo-kG0B6SQC89ep-kHtp7rmP1cqmL-xHPN2EpKltI40GbNC1aI_82KKUDgkkVn0muqeiJTXJEKKNfYP3RgZNbPupZY-WCxtTPPxPnc1PLIJSiSKEOY4EDswqaNs0A6BseEgR370d98xkd6sYn0oae6B6tUNQ5AyFLnEyDBpf2lJzVar-pqHTkQ8Yqup05oFQlgc2W028LLsgce1ZHhFOSVLb3D40TSEG78f5_ahQ0CBef2tfwhnUJp2gl0ebOZCmgiVUJvaZ5hlUiDjIGva0Tk53QtQHvy0Jm_vbv9UqzqFokbREtx01Hl-oh2oRu3fE-Mep_vA23CqBc2HsFyQpjs4-KJPQYQGwF3_RCaBN7LJoEPm0mL9RL3y0FJ_dXA8BNvX1N0jmtspHBfHR6lcbZpKUsxtxmgA5GL5MVZVCUHWKeM7K0RKvWGyhzyLBkyzEc_sYNcHo2CTryN1vKvYMZ7EU5huPGER9uz12vVmCpvZ42rW9JozTtFbSbpbOcpkFiUTlRoNws_YjLzwWjC8_M9HKwWpek9mMl9qUkyHpf_zcQFVo3kz2Jv8ixZ9ZkjWpe28T3iL66t3wi_6Om66Jgl4tLUKyi9ZhycBwuXs62ooNb4tRnO2LZ0v4Nx8AZxbMZFzUT0L_pyivT91dbkJLztdvCEGUCAQkxyIxEOYEjnAoQllgWznuoGJPXzOT1zFaHcYrJLLr2ptoi6uja5f2cc3xpDTxFs2OONB_zONxVHoduZMTggmc8EHTE4TH38loW0t7UpJmtvrcwqY21EOMat_FYIrFj-dHL06DFvM6n-dWnckm7dt3x_RlsxiSOPXW8G-1OsgCwKO0LxMTNmWJHXl3aaZVgXeyFPSlY7ZruZuQ8ejrnKq3-r1RT2bHu_Rc55UeTbr5pEJd5AKzst16MHaMFR7wh1JvF9Kr6ncSnGkDyEHdI53TbuFbkgfwz43AAqk389FD1zGYHYfiV96fYGAvIirlXue24nDLaT76OAeky83j8DR9g7r4vkyZrighKJrOlJ8NKTPCqjU2ghAU_SBvR-9IfMd4-9EBrL0LaEDkeFiUji53jyWV0OH8zfC8RR6RX8O9wHMhFC1Gb5_tl1rNCc1koWkxHD0cre6VDzXrHcLuJcjR0D9X2Y6JNR26c-_zQmyPbXyotaSFxoJdp_eedqGW0OSIqCustNSyNh9_yQ_9xwpHU1BUig8HjO51SBKCwm5a7Vx48Ebh8izU8ItfnVdWGwiLQavXjmnEbLqIeHj2h0wvRouk4b4PUF_6CQJBGlaFImZl8rtCMGmKIzH4j9oC-WNQVKMbmuNpkVfuhDV_VIQx_OkFltrwOGTMF8IO3eN3rgE1aNjG5oEHiZIouyrP22Sc4ChoUg0a-2qjQCGYAggnS_vqpyNh4jf8n2S3v6_attggiiQFp7NYe8aZyngmwaODQqJgSdKw2skTuol3BS0oSkLzvXZnRYdF0PCOUMZxiaFJRSvqsrr1YvUdMq6vBsWKO-eswUsggTHTkban_65ew786nl07THaECjA0O7E2Y9d9pbV73IlFC9PReFi5SNW4uEo9MNBIZZ299ybJBMdgW5gqitn7Rkh2UeMulQsOn5pf05WzSU1Uumv9NNvMsiFHz7ywsjNYhvKXKDEHWShvYz_7iLoU8093unlgIepUDX842CKdrpzUmiIjDdiM8ekKetzL0SSTj7jmt44Qk"
+      }
+    },
+    {
+      "name": "assistant_open: an id whose applied entry is malformed",
+      "ok": {
+        "reject": "replay"
+      },
+      "request": {
+        "applied": {
+          "kind": "set",
+          "name": "assistant-applied",
+          "schema": 2,
+          "values": {
+            "75b29c6abde386edad81494e1cb4280b": {
+              "at": [
+                1790000000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "not json"
+              }
+            },
+            "982887bc1d545b5d3926e7538c997fb8": {
+              "at": [
+                1789992800000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789992800000,\"at\":1789989200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            },
+            "cccbf13a6a02c308ff66246eb6bef40d": {
+              "at": [
+                1789827200000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789827200000,\"at\":1789827200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            }
+          }
+        },
+        "assistant": {
+          "kind": "set",
+          "name": "assistant",
+          "schema": 2,
+          "values": {
+            "dropbox.9c264deea898d78a0a218143b016a672": {
+              "at": [
+                1786544000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "IpCMX3-h3Ti7zzcK6fh6wyalHeS6EnLhRPjJfHQbgwo"
+              }
+            }
+          }
+        },
+        "device": "a1b2c3d4e5f60718",
+        "grants": {
+          "kind": "set",
+          "name": "assistant-grants",
+          "schema": 2,
+          "values": {
+            "0ad714db3029f1b328e84e1179ecf55e": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "d7047d7faa4c6f77e1919c132bb6bd9f": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "fee3c42b428a8786487289d6d6ad544d": {
+              "at": [
+                1789996400000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+              }
+            }
+          }
+        },
+        "library": "4c1b7a0e9d3f2c8b5a6e1d0f7c3b9a2e",
+        "now": 1790000000000,
+        "op": "assistant_open",
+        "sealed": "WmuyAmZRI6bEUVGEZHjLTbVVVN8HMw6oF10Sn1TVrCtNJdwWBLqGKEdSz2fzEqXSmwWjr9cSiGO2r-FTH-hOwUNc3j027yLs3Wg6GwC-LdbTV1KQMmjlyAIEZrAmW87fhAF2s9-eFNk7OQzcJXv93sUzoFoACJGxeHIclImfG9lDiqOvvoTQ_q4wCg_9nHhsggEdWrBEP14ZoZUACCEzBlPu2ClgnvbJp1IZv76eT6RbV5noHV-7phk-vGWAp5nB_B1qKSbaVjf1esQ6L8rRJSp5l6v_qEJFOPmI75JSTrDzDR9dRLtVld9ZDZ2M7xpyT9KMuOkqALxx8oZac9c-gsE-4cmv9vW6lN2vPntsRqglwCzHdSu7sePPKExdV9nTgrGm2WzvNRNnCTiQDd4_arINyYWwjVpDi-m5gyJ4Og07uenLPQV8b6-44ZUqsSFRm4keIHtTEXWjHQWmmLeDDYuOLWozh-yBNiElqSOR8OKUfmtMYmk5Ysp5Dd4F_XmfH7fsDWXiNKmx228wpDFMREtLYNfKdt8Kj_9-ru4GB-RC48oqE5cVt5SP0Dh4OsxVDTsx3dCs7-eMni2pRex1uBZyLibsqz28c1YYf4RhTndtReBnH1Fn0JDO6JYT-8Xa7IoBXp4YPlYGYAQFNRB8KuWiIzaXswmsfXx5TdhAGnvmFs7wOmU3ql49Ei9rFcmHrB4_g3csELSKhYCq52zdJYLGK7J-tEYhoqSQASVB-k1SQnZ9y9gbIp4T-U4iu2h-TRuvhpEQeU-qG0iuuDOk9qVSu_HoUIXupExOqc0CjSsBpgGl_r-q0oP0oeOWiAQCRx1B9ynDGVToix5cnc_WumXQgO2ox0gGJz1hstgkNcYc63yhJ4r4FDVPxpkUgZnYNRJfhRVVMiB3lkrzvMDoK6SsaZEQ_-4_kBIMoi2uI8jDcMy3wdOXvy0oMYHP856GjuCf9vCqYW8SGQblgQ2kDwm621eL8TeN1kqs2Txp8ypRbFMmNLq7Vpc4rewJrX-jxan3sKTqxb1tV-f5jy_PRT_oXG49eq7ehwVw_bE-Qo7SByl5fRGhadnsslPWfqxZqgR3udc2xhm8NYnTTAfDR9wydBXJHVmLgPcNPCywJxe9WFhduuoQ5Tj_6jxbwalRIsvrxiN0Pl9HX9rC1wPNWWVp0lyvjkVSKmEiOA59_CrORMwyNfJHWWav24HiW8vtUWbbR_ptTCyPeOUh9C1sg5wbZaljLQZra0nVioXiYvRtaUFdXkcTVP-jtP_J2B9DRf9RNilSYp7TH9R0jD57Wl1la5D-bSbKpKWkvNC5WKAO3sf06LxgRk5hkVULfDJdJKOEqt9N_MIZFXX7U98Mv4yYg_TEwKZw21NPQ6GjjX430W_SchZw8g68nF8KMuzsGdBzYxMutxVRPVZcdF63OMhrl2WAVRgchryssromD9JMRDhlPK26NU6LUvsI3YfUL1mDQjw12QAy3pVJ8u7JK313NyKYOjFdvvHPkhrhZ4veIymXfG66pnhj7v6yrKhn6_YuXbyV0tUgyQagSDPhNdNNJW_0ESqXIZbpsVXULdsdjGoyfs3EqX_CxmSKyqRuK6PRqnI58L4RuikDvyzonlVEhMAlpdsl763ZBGZ0CsZXtZ1F2QgBJqv3a0fGZ2WodneUP5wJxyJQhDSutazDw6DpxEGhhUjrC1ShDyYBh7cQSVqp27ML332_QXEoZ04NAt3xmVECStcZVdmUnHMS0PeM66R0v-6ML16vWAgbtcS86egS0Z04hx5RY9kOPhJCapZTpsM4hTB0jqlLxicm8zz73DRMOCdsVpOw8Fj2Ojckoocu536XiKsFr4_f6fbgRr7g6da_VqJPioJKOT1Psb3Ocvi5x_rFqPM"
+      }
+    },
+    {
+      "name": "assistant_open: entries applied by a clock ahead count toward the cap",
+      "ok": {
+        "reject": "over_daily_cap"
+      },
+      "request": {
+        "applied": {
+          "kind": "set",
+          "name": "assistant-applied",
+          "schema": 2,
+          "values": {
+            "982887bc1d545b5d3926e7538c997fb8": {
+              "at": [
+                1789992800000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789992800000,\"at\":1789989200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            },
+            "b25ca4c4167fa263e861c07a47fb3331": {
+              "at": [
+                1790172800000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1790172800000,\"at\":1789996400000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            },
+            "cccbf13a6a02c308ff66246eb6bef40d": {
+              "at": [
+                1789827200000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789827200000,\"at\":1789827200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            },
+            "e4a358ea3414b3b5210bd849de64335b": {
+              "at": [
+                1790086400000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1790086400000,\"at\":1789740800000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            }
+          }
+        },
+        "assistant": {
+          "kind": "set",
+          "name": "assistant",
+          "schema": 2,
+          "values": {
+            "dropbox.9c264deea898d78a0a218143b016a672": {
+              "at": [
+                1786544000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "IpCMX3-h3Ti7zzcK6fh6wyalHeS6EnLhRPjJfHQbgwo"
+              }
+            }
+          }
+        },
+        "device": "a1b2c3d4e5f60718",
+        "grants": {
+          "kind": "set",
+          "name": "assistant-grants",
+          "schema": 2,
+          "values": {
+            "0ad714db3029f1b328e84e1179ecf55e": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "d7047d7faa4c6f77e1919c132bb6bd9f": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "fee3c42b428a8786487289d6d6ad544d": {
+              "at": [
+                1789996400000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+              }
+            }
+          }
+        },
+        "library": "4c1b7a0e9d3f2c8b5a6e1d0f7c3b9a2e",
+        "now": 1790000000000,
+        "op": "assistant_open",
+        "sealed": "AJPpwHxF2bXLckAlEqqYlmcv3xpQ6GSxvgrI7XuejnYJvLxGk7lrQAiNlgoVztyyOWe0PSJ4RR3pf2p_iQhPQqvYzI8lEpd5jJMWID5VdffXm2tWXar99C9r1mvzzf5BGB4KEe7MQZRhUQm5ZCiNoniZDgAPjyIXVRWYJAjphceIjgSFX37tJmzyE7CBd0IwwewxuvTNd8onX1zB3ECCz5MfroncKw3ONd3tcWeWYVoUEJ7vToN9RB_A_9DU2A9JqmFjJntb78dv857F4KrFZIODZKbUN33pHBR3Sa3Ma1il11MVjyN5eltSS3sjge67ZrIAwS2oAsS3-G48haz5ivIr61UCXxvUQHwaj-uA5ij94Xjb6X90VwNruMBxvL7caIDlQyYLgUNULOkMAf6PgB8_MLKZJTJKp9XyTE6blOgk0FPkiR2BbH1xqYCHajhjfCiIq2d3Tf_nZzfWbs19M1BFc0dIXgWAAXY5SwNSYhvcwcg5UsThLc-T6whUc8HzZ_L1aFRPVaHR4RZX8p2SAfmfXm9X8v_scr2botUTXw5XnCaW_DEzddMKrPqyh_YGpaxipK-V0RXyH2zmoxAw90Pc7E4JvI9U60Ck9er0ofXKEawdIANnjbrYMgJUE-IdbYvjPorP1_qqSStOxdg6q2KgUdjpPjFKAO3F-KQ9_ifQxq4HaSBMoQ48TWdZfSHGjrlLB37s7oIPVScJV0uCAE5wmW8x33LOpGYHpMeCL3_hH_jVrfLvGig_YWM8_q95HDMai7jUpbDup9uAMeg6ycuAh-n6ZqtMWhOC9lNxK5rxlUMX6CKddkFaa3RuwoChRlFJYR8PNz0a9EsHj6l8_RBSlySG6qQTR61KhgP6smpU71tYfpaITDuEEXdqQpSTNxlBFLDJJLQoAjTGjpcSAYmvWoBjwcKDXo_-hpelPk6LN6rYdBCQEBp7ZDi-_M_YfTpjj-uRwkkZTrZllqSoRxcaVFt1TAM4Eol93UoCsGrWEjQd6Z5iFysTk3BrhsT7KXCR4qFVoAYhjTDqFMSzq1Sz5zPAQbVecnuGfNcbm8Z5YuVIMmq-AwKz8WLIPyIIzd5DzbE2tZf1Totj9rv0FpIZZ_9XuirqWrDhYwEDe1O-4Hhk0JzvlbgIo6pVM2QBerSfm6aB_5pgEm09esLZXmEdvQJMsEedHTKQV7gOiPqaQpe6VUb-oHTtLNJLlWmx28NUXibZlI8lwi-1OV-uQey-ktnQNouH8OvKhMKAh6EKLninCActalBmEfkreOXt1OEA-v0fatbEbSB0Y2Ry9Oscgi6-EzRg2eX36UCghri_hSSFaXkLddliMGfZ-FImn7NGNKNmCzMFKZ0AUC2db3TVpVgbj5bGoOSllspef9j1pZr-40ga0zFpRev-2vNc52grzWjkPFOYu54W7cE68n6VxvZ8Ex10Yfrb5ru32yra6XXjgz8zAHM1sSx1CgnDSxCTQ1Xt9Kv85Ui3ZWt-ZW3viocQg63UR44Hu3BhRnzWplZeOPR0RYNtYDnkTtGtjsfRSfbJn7FSZCNd_I7wooqXIooHA-WXzSsEO8gsTwhShLWdyTuNKThs4hsGF56yCwA1u4vB9JWXY9YC5IdAi3CFumL_YRYREmHT_B1n8irK22I4QvaZH72lm4cKV6p6Zqz8SDPlc_fet0DOhyVfLcRwDnc9a_1mNOMK1eeG8b1v5iCr486RxVfc-BzVxBaQEMaW_DjXr1DBNXBdHLDPRKgced90Gu8ja4C8QJd1L2xncjCfoGDtqJ8CI6BFb59mzAo7gBOosKRTZ9aFcLzNQhJoUSugnQtG1J7ESQV6hr6IbQO5HU6iwNmWfX7bvxVcThZDatsqk2LVHk8UQhKGWxEjWTY-5b3aD8Q"
+      }
+    },
+    {
+      "name": "assistant_open: a request sealed with the token claim's info",
+      "ok": {
+        "reject": "does_not_open"
+      },
+      "request": {
+        "applied": {
+          "kind": "set",
+          "name": "assistant-applied",
+          "schema": 2,
+          "values": {
+            "982887bc1d545b5d3926e7538c997fb8": {
+              "at": [
+                1789992800000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789992800000,\"at\":1789989200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            },
+            "cccbf13a6a02c308ff66246eb6bef40d": {
+              "at": [
+                1789827200000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789827200000,\"at\":1789827200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            }
+          }
+        },
+        "assistant": {
+          "kind": "set",
+          "name": "assistant",
+          "schema": 2,
+          "values": {
+            "dropbox.9c264deea898d78a0a218143b016a672": {
+              "at": [
+                1786544000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "IpCMX3-h3Ti7zzcK6fh6wyalHeS6EnLhRPjJfHQbgwo"
+              }
+            }
+          }
+        },
+        "device": "a1b2c3d4e5f60718",
+        "grants": {
+          "kind": "set",
+          "name": "assistant-grants",
+          "schema": 2,
+          "values": {
+            "0ad714db3029f1b328e84e1179ecf55e": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "d7047d7faa4c6f77e1919c132bb6bd9f": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "fee3c42b428a8786487289d6d6ad544d": {
+              "at": [
+                1789996400000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+              }
+            }
+          }
+        },
+        "library": "4c1b7a0e9d3f2c8b5a6e1d0f7c3b9a2e",
+        "now": 1790000000000,
+        "op": "assistant_open",
+        "sealed": "QYZjzi0IsVjjJVa_o-3ahMIcl7cDeKPmYQSpbhpST5HC5VErj01GOfrXU2QbC05tsUceT11y7ZWszfVngFeltP7H2qpZD3DPtsOF7KmqjD8tTn_cafWhoio2GpHadxgrseYuGzxKSpg4xu9fTWDD2oUnwzmlkR3ceQGLCWWhUCBLr3hJYTjH4FhusqZ3bji2FBOEkk948QHdSkAYl4XN_t59DMqSukAkwdSTmpUUYWM4U_uOKAp4rAQYTIplXAoUHvGgs3ot4NxEPQtsgtFqbCbqeZMfyIBDQ0MetNVY8IVnhLX-zhX21OHfN7l8AVUji90-JA7CpRTPGfY41J351PodBsQ_K3dcoo0WU8UBizI4a_p_v6dLf1vZVcQvRW9abXE-hEoWhofq_vFXra-OZcWWC8rI3Tj4CoZgctYk93lUU1nk0jrIauGi6isKpN7ZDD-iOsF7TO_1u8es6Kw1QCmfwPwv68EuHnFUjBk9JueFxoXojNBGHCxKaD8Bqz29ECeOdHs5XIU0dcjVTITU33Qn7O8ONqUx5jt9_4yWHg_6FPr1xVvkF78fh9wjYSCg0RYcGgDMY6szK80kueVCJZJhhFmbqfqmI_JYC2hQKQegGCECCfpPzJW5ubkf2WuPNRovg_4c5ROQcvY4KLEYZKYjB01MhsRAY0rVbq_gS11mQKKlv17BJWdm1hFZgmNyebxtcyi_OsEz1z9S4X309i9oMARwJVRUchxwajBF3Y2OF-qPUCwyd8Ri-Bk-_l1YE_cT3d-KWBecB_L_QrNqdL-oTkLPSmg-GEn-G_1AX9XUoW68HNjVUjHHfkq_NHSsvN0zwViraXpM4Q8A3G9iJh7lJ5asSQn8cq6r2ppaIVpyLrMXB4dQ86Xghn8Pi1EsO23-vVUnGp3vRv4fjXcUBBmTgGQAqtUZSaD_018jjALvugr34NsxRAOTLOs0zPxpxXjZjQT7B94MRBI4auOUg00B34YMsj7U1r78SoptQm58ReJhGcoBFDe4sMGMECDyNEkO6JVIwW5coNj7IMWM3NVUHoz9NrC3KktYevwu3QAptSKUSroPMCYdRqh27CHmdYzgLlKhmOq12B6bYY62rN1J8KMWdSIL4HeFZSuk8Myv1q0MW1glW1gJUUMPvUEdr5Qh1xpD4kCEiyy6v6G5Dp51ifRUek1MnPLq6cYYrWtQ5VAU2S2VtNLCua9-98VqGtrvsWWs68mc5UwNTUmYuYaCjYEZwLVtkJiruGz0iQ6jKcWzQlkqE1dlyEh-YbGmi4TQa3XRzBkNPKCOlMBHo33i_avpgd9wWcMKu1R9bUpLL8JXbvw0l8YrtTEWzYg4-KBzguWhpfn3q9O9EqvATTSSWjyZIUVhS96mZH61uhbqvG8RDsydT2LI7v_Vs6Y6Gu4jaT3V9LPyilcHO_G6y_3VWZzNTtcT7ctX2tByjRbNHd-L6CrFKdDfIVMGfKyyqpzjuVKQ48jLPEpKKz4ZCUZpfpR8Q8VVwMbqPrX4bJ1b5OL9YEYyIUjS57P3Z89b7wCd_OnPZqbV2g7n61GLv1-POBA1B7MBZ2B14QUb4OxggL4C-skjfKV2BWDUILs-5gmHMJmkbvPcMXLZDCJj0ElZ5VFKUvOvyBKnz-_wf3Lair3ftECRI2K35jh5gO8brABcKu4xqp9eBeY1SgnIJXOQQ8Ub3UL2m1c-NjvXGzXDWCt3ygbtU0kavTdy92T1yc96xDiWfQWCeMxc7E5TJFVmJi3o4tNbaXZKEBFNLxHl6oZfZeOI3_UgrlB0d-ghpxbD1UzqxCUG7TtvOX6tmoluaUpaCsemAconygjnKdoSkrFATAMZJoStLzh_mnpclnVKWaG49IwPYKO8vlUidrqJ-7Dj6LOZ-K8"
+      }
+    },
+    {
+      "name": "assistant_open: a grant whose key is no curve point",
+      "ok": {
+        "reject": "bad_signature"
+      },
+      "request": {
+        "applied": {
+          "kind": "set",
+          "name": "assistant-applied",
+          "schema": 2,
+          "values": {
+            "982887bc1d545b5d3926e7538c997fb8": {
+              "at": [
+                1789992800000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789992800000,\"at\":1789989200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            },
+            "cccbf13a6a02c308ff66246eb6bef40d": {
+              "at": [
+                1789827200000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789827200000,\"at\":1789827200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            }
+          }
+        },
+        "assistant": {
+          "kind": "set",
+          "name": "assistant",
+          "schema": 2,
+          "values": {
+            "dropbox.9c264deea898d78a0a218143b016a672": {
+              "at": [
+                1786544000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "IpCMX3-h3Ti7zzcK6fh6wyalHeS6EnLhRPjJfHQbgwo"
+              }
+            }
+          }
+        },
+        "device": "a1b2c3d4e5f60718",
+        "grants": {
+          "kind": "set",
+          "name": "assistant-grants",
+          "schema": 2,
+          "values": {
+            "0ad714db3029f1b328e84e1179ecf55e": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "75877bb41d393b5fb8455ce60ecd8dda": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "d7047d7faa4c6f77e1919c132bb6bd9f": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "fee3c42b428a8786487289d6d6ad544d": {
+              "at": [
+                1789996400000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+              }
+            }
+          }
+        },
+        "library": "4c1b7a0e9d3f2c8b5a6e1d0f7c3b9a2e",
+        "now": 1790000000000,
+        "op": "assistant_open",
+        "sealed": "EHgzeOAhDYXOB-dWgz0h0Vwrm0rshlk76rvUAxFm5UW96rpJmD9o2AMNeTE96DH1xuUeSm2FRj5winMm1ujRjAW8Zir6omB2EmyIh5jBjSex353b_Lmo2LdvJ-iFLR0_1iaH8oUsR7olriIAYkfGztQXfEd2dGkakILmgzAyzpoJ2lzzESh4OChb53tBXHMQmUynk1OsvDWWUg_z-5CjDkB_mXo7KT6ZFuVRERAlhHOIXG5ySyzbm1M_FacFarliJNWSsBCBrAoUwzvcNUKbnevrvWgurw6KSBhgOZGqcY9GJsnDJUsqN8pdhpe458sQNW_AvqVclyVG73cDhwht47o_N7JNYVxVvKNqg2-C-vuDec9DhxLUhqNCWawV2KVK31VA3ud1-X35vnvWRnKZjE05zCp4LU4yuSazxuxvOS6-SFsZnjcIh74Ufgk7qATDJ4GMFZyyOFNqMpEvbm22v-Hkw8Xlv_-xpveMNMU2Ix9NMOiQdgXMxEQxzuSUxXxOhvcOwcIiFchha-M0wBnV1Vr67T51RVIWO_Yhi0bPpD57MzWQKJ4MMfxqwNCjwMsl9PADqbZSHz0QD6ge7xdQumJ42TijIKlh0ei7dDuLC9HkPSRA-vt1AtAI16MEGQKV-TZHsVTEbcBihvZ_r06BeLJNeG9q15oXyvMGqADww5MtbVGjUmjJTC7Y-LASesaRQSs4PLyW3lCxhmIRwmpCnfiiDuXz9YcNMzk3_W3XywVIjYAAevhIIsCKgbouvR3XKTh2wHey2FJ92RW7V3EzaUVnTpsIyHtGx1XSNFbiiXnAyEvn904x0WJCHRbHOHUW7OpHfWQwTqsggVpdmSlMFLpM5CQwXJp0f2eRvcTvDCz-enqxGovfe6WkMatvWmEIUOsfYfpn9KCnOvExLnuoxLt5bovp8jU2C2lExZOEP7hvkUJ-lQ5tJtxWD_oNQeq9FW0tQ5NFQauONgTKeHOXHdmVdTIc25cQN7gjAzNMwlQskHyDNkMyttOGBNd2knoeLw1Sfy3Sb4jpmjpFcPvDi4D25LEydGR8OxWrlOG1j_6UWs1z6-hgBl8Evo7URwTek-jiSL4loX5NtB2_4iIzId-NmB_0O2_bFneFfPQLUgMIYdru7GjVU7hfZeC4VKpWyms88Pem5yr0z7fuzraAbgr_wKMvTnvgNRi4F5AYwFOnEfrFtMdGP8ZtCrNyW2AgAoPoaC8xdXXobZo4RycTGCluHP5csjzeUUKN4rvd2hFJrRTXlDSW625R09gOLyetuqJovsEiaS5L1tJjH8vHjQjgGh-K372d31l4zjQyxYwsbxnKfoR9IRKptBsOqWRtEBlgRnIfnbH8gxxJcADkCLaXVSXv6qRjOERWvcg8TVFrtRcsI4nwCo_e1kxTnlTT7Tr08YKqdsI_gMeLIJRbXadqEpUqgmMtvYh2TXiCir8ZZ8Zj217dXkid92ltiNl5WCEb9J0EcHBp8_StJk0zKFC1YuvBCwZSCnaimuDkx38ktBsjXE_AATJieeTGFEH7Mv66272Hpn0uWm0RY_8heJnWLBEmuWg7QBSCVcyJc63CfZBA43LOIV6vuEKBKCEkSDGuJcGmgS27c0FiSV3KwFqZGyOilArZ2h8YlAvhWSYsejUKCHynUh0PHRujtJb4yWGJ9vN3jJ3AM5PFYr9dOMvfinhzjmHfpt04Jf1TMone5Io_muNgqmwyxvAGx34EnJMOEuRH-rSS9g5CXlwcLPaFaHqMB5_ZKqGBk8Tr1UrhnTSr_Jzeo7btADzsRp8lSWzt45nChKaR_T4p53cyeOPpadLLACUgzL7ta0s3VupdWGOxpvvI0Al5bhiyizYDaF3Nw-BguAUxa7Edlk0VV0P4SDH9uahSx2U"
+      }
+    },
+    {
+      "error": "invalid_device",
+      "name": "assistant_open: a device id that is not one",
+      "request": {
+        "applied": {
+          "kind": "set",
+          "name": "assistant-applied",
+          "schema": 2,
+          "values": {
+            "982887bc1d545b5d3926e7538c997fb8": {
+              "at": [
+                1789992800000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789992800000,\"at\":1789989200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            },
+            "cccbf13a6a02c308ff66246eb6bef40d": {
+              "at": [
+                1789827200000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1789827200000,\"at\":1789827200000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            }
+          }
+        },
+        "assistant": {
+          "kind": "set",
+          "name": "assistant",
+          "schema": 2,
+          "values": {
+            "dropbox.9c264deea898d78a0a218143b016a672": {
+              "at": [
+                1786544000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "IpCMX3-h3Ti7zzcK6fh6wyalHeS6EnLhRPjJfHQbgwo"
+              }
+            }
+          }
+        },
+        "device": "TV",
+        "grants": {
+          "kind": "set",
+          "name": "assistant-grants",
+          "schema": 2,
+          "values": {
+            "0ad714db3029f1b328e84e1179ecf55e": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"ChatGPT\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\",\"watchlist_add\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "d7047d7faa4c6f77e1919c132bb6bd9f": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "fee3c42b428a8786487289d6d6ad544d": {
+              "at": [
+                1789996400000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":50,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":1789996400000,\"v\":1}"
+              }
+            }
+          }
+        },
+        "library": "4c1b7a0e9d3f2c8b5a6e1d0f7c3b9a2e",
+        "now": 1790000000000,
+        "op": "assistant_open",
+        "sealed": "Jd_nB_zIXvia9FrSS4vFy6mG_dAvdFPXxGWDASJ0_f9t8U1Dfc8yBGtBZ6VBuI38V1dOb9xQ0430xficcliijxDKMu1uBijQIgCV0X471V_8GC0NMQ2n9CJBXpK9nJVq_CpJOJ-3vDU3fZ2pdqcJYJLknSEKMYo1Fac8jkSdI18hiILKewBFy8fh7CtZIarNBB6imlvmVQWMI3beYRMgUEMLzsQXcoJIh5l5K2xbdJRJUeLshD4uwS1PtsDwWZ4ocL-81xtQb-5JP7z0mudalAiW4NVI99-GxwN-uwAVvE89Dsx4NELrmwQkQVZSFqlrEmyxXieeX8unPXEXyJsgVrkEur79rXcj0J6qYdur0NnbzwN9zDXPFw0Q0WeLmhKtH7XTCOcSzKtNx9Y4NRvZkPhAUlgNZpf9Y3xXNTlDrvmGN3HQ6kBKeLJnw15Qufus1wUx_PXfRrJoOtWXsDGl1MQoTKK9LRAhEB1QVhPuc7XaE55huUdqXsX1GYwqkOXWbXF8YkYdBD4iBj8oIST_kqX0Tpyu3xTGDq8fl5bJAQp7CKTn5ezQETh0Qz_k4Y5He-mhgf8mMETs-MEZxRxSYY3s8cJv_WJ94oVWs1aIJ5nCXD3X8QEm_ECVZdHRNtjihIGoiumE0Vqj22Po6Hadu6b2Fd7W9B7QrmjXxnX9iuS091cHBgJ0iqGf2xqf-NBlLe3fTo70xcHi3UpFbh5Sib363lzdNCCbfnEn00qu_msCH5tuTNmDTmCV9tRervWvAAkZ39cCUGVbJctQrvbMEJJNQTtLLv5KhDzM4raxZMt5fvuRpM2wNI3kXXGzuLRhMrLBdQxUSybUyKBSlnn4RGUAgip_ExkKgu_JUEtve2UMTpLjovAwvGfxDxIvf-W0hJQl0FoUkh7ffpMBZBE743axLV8yb9M0_Kt7uSFauZSZiETu1F4glsny0j2xkt7_WiathGVba65CeywWDonkh-ck7ac4zPnayIXRYTYrNnev9bfSKBRTWtWQcSBzY_8Zk9F7WMqNZzxgUNS-t2AzX8gbS_fXJoqnqBMc7aGvqLeeAwleqn935UdVIPtbK916WYJHV5V-nxyH0X7wUVt7pM-dpdGV5D8ELEBXiAA4Ymws3z3VIcWWAvZltfk1hbt1_Cq7kQgh_qvVyKMpKL8cx4QbdvH92EyxteXsLb-EHwIn-_0Xchcjj12tUGT5pnGFrYDsUI3ejwFiOIgOg-4fNe79It12K4VSEU4Q1qJMN0bjxxeRjoS1FVgAXTmeJONEkLatrmSUBVbNrlKX_8orakhwmDpjqpdtyTcLyvqbAChaTW2vyK5muS0PwuTwvjOVyYIGEVdItNYYM0iuTmuoOYxTvijOQG2nyVSU8isDC9td7Px8txVxDSIwYYlPPt3LJBY5u6MZkU5Qmo6AnJqln2ypnXrNpPJvOxmx8iXjfgFPmMlPJM0-HRNt7605N-dSZXuD3Qk9MvMgxeq-WBNeK4Rs6_KT8k0Z0BkvRtBUtArS_g-brsTr3eA4IIX-a7mmou8nIquMLVJQUsxPREMpk30F1cNwaBTWtvisz6XUcOsgQ4UZSTS8iotAgcLcv0WVHFYDmAe4R2xPp_8j9JmokNlPltFumfK_hxuprsZw4NHYjOiThteYE4Z1GYQnTDkeK8ZN8pHaTNex_BVZGC3Zq0NiSZp0bLEBOvXrte4uc8TBzNtZdjrR5Y_tO7J7mtLf1yl4Mldc7MMxWcdZtbP8NS3gyxkH2qK24NZPyVQTfrPCpNppB11l8wLoetC-H1tNZhXoWzawTGD-D6B7-P7M2_YoxOWkdCWtmF-NvGyBtRzCm21tfCnJtUJ4Q3JVhHVQA3Mv-aUrt27xpngbU1EYSlYs8_mjLxiU2a0"
       }
     },
     {
@@ -3965,20 +5108,20 @@
       }
     },
     {
-      "name": "assistant_keygen_grant: ops sorted and deduplicated",
+      "name": "assistant_keygen_grant: ops sorted and deduplicated, expiring in 30 days",
       "ok": {
         "grant": "d7047d7faa4c6f77e1919c132bb6bd9f",
         "public": "jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0",
         "secret": "JGYTiPC5L6x-kuOb8CAxkAY9vspXKoQtHHpC3rKwCFM",
         "setting": "d7047d7faa4c6f77e1919c132bb6bd9f",
         "value": {
-          "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+          "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
         }
       },
       "request": {
         "cap": 3,
         "client": "Claude",
-        "now": 1787408000000,
+        "now": 1789136000000,
         "op": "assistant_keygen_grant",
         "ops": [
           "watchlist_add",
@@ -4076,7 +5219,7 @@
       "name": "assistant_revoke: sets revokedAt",
       "ok": {
         "value": {
-          "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":1790000000000,\"v\":1}"
+          "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":1790000000000,\"v\":1}"
         }
       },
       "request": {
@@ -4084,7 +5227,7 @@
         "now": 1790000000000,
         "op": "assistant_revoke",
         "value": {
-          "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+          "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
         }
       }
     },
@@ -4092,7 +5235,7 @@
       "name": "assistant_revoke: an earlier revocation stands",
       "ok": {
         "value": {
-          "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":1789913600000,\"v\":1}"
+          "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":1789913600000,\"v\":1}"
         }
       },
       "request": {
@@ -4100,19 +5243,35 @@
         "now": 1790000000000,
         "op": "assistant_revoke",
         "value": {
-          "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":1789913600000,\"v\":1}"
+          "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":1789913600000,\"v\":1}"
         }
       }
     },
     {
-      "error": "invalid_grant",
-      "name": "assistant_revoke: under another grant's id",
+      "name": "assistant_revoke: a malformed grant can still be revoked",
+      "ok": {
+        "value": {
+          "string": "{\"revokedAt\":1790000000000,\"v\":1}"
+        }
+      },
       "request": {
         "grant": "0ad714db3029f1b328e84e1179ecf55e",
         "now": 1790000000000,
         "op": "assistant_revoke",
         "value": {
-          "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+          "string": "{\"v\":1}"
+        }
+      }
+    },
+    {
+      "error": "invalid_grant",
+      "name": "assistant_revoke: a value that is no JSON object",
+      "request": {
+        "grant": "d7047d7faa4c6f77e1919c132bb6bd9f",
+        "now": 1790000000000,
+        "op": "assistant_revoke",
+        "value": {
+          "string": "[]"
         }
       }
     },
@@ -4130,7 +5289,7 @@
               "a1b2c3d4e5f60718"
             ],
             "value": {
-              "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":1500,\"v\":1}"
+              "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":1500,\"v\":1}"
             }
           }
         }
@@ -4148,7 +5307,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":2000,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":2000,\"v\":1}"
               }
             }
           }
@@ -4165,7 +5324,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":1500,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":1500,\"v\":1}"
               }
             }
           }
@@ -4187,7 +5346,7 @@
               "a1b2c3d4e5f60718"
             ],
             "value": {
-              "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+              "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
             }
           }
         }
@@ -4205,7 +5364,7 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1787408000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
               }
             }
           }
@@ -4231,10 +5390,334 @@
       }
     },
     {
-      "name": "assistant_prune: requests over 8 days old, and malformed entries",
+      "name": "merge: a revocation in a malformed version still revokes the grant",
+      "ok": {
+        "kind": "set",
+        "name": "assistant-grants",
+        "schema": 2,
+        "values": {
+          "d7047d7faa4c6f77e1919c132bb6bd9f": {
+            "at": [
+              5,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": {
+              "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":1234,\"v\":1}"
+            }
+          }
+        }
+      },
+      "request": {
+        "a": {
+          "kind": "set",
+          "name": "assistant-grants",
+          "schema": 2,
+          "values": {
+            "d7047d7faa4c6f77e1919c132bb6bd9f": {
+              "at": [
+                5,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+              }
+            }
+          }
+        },
+        "b": {
+          "kind": "set",
+          "name": "assistant-grants",
+          "schema": 2,
+          "values": {
+            "d7047d7faa4c6f77e1919c132bb6bd9f": {
+              "at": [
+                9,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"revokedAt\":1234}"
+              }
+            }
+          }
+        },
+        "op": "merge"
+      }
+    },
+    {
+      "name": "merge: a newer grant version beats v1, keeping v1's revocation",
+      "ok": {
+        "kind": "set",
+        "name": "assistant-grants",
+        "schema": 2,
+        "values": {
+          "d7047d7faa4c6f77e1919c132bb6bd9f": {
+            "at": [
+              5,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": {
+              "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":1500,\"v\":2}"
+            }
+          }
+        }
+      },
+      "request": {
+        "a": {
+          "kind": "set",
+          "name": "assistant-grants",
+          "schema": 2,
+          "values": {
+            "d7047d7faa4c6f77e1919c132bb6bd9f": {
+              "at": [
+                9,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":1500,\"v\":1}"
+              }
+            }
+          }
+        },
+        "b": {
+          "kind": "set",
+          "name": "assistant-grants",
+          "schema": 2,
+          "values": {
+            "d7047d7faa4c6f77e1919c132bb6bd9f": {
+              "at": [
+                5,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":2}"
+              }
+            }
+          }
+        },
+        "op": "merge"
+      }
+    },
+    {
+      "name": "merge: the later expiresAt, a revocation still standing",
+      "ok": {
+        "kind": "set",
+        "name": "assistant-grants",
+        "schema": 2,
+        "values": {
+          "d7047d7faa4c6f77e1919c132bb6bd9f": {
+            "at": [
+              6,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": {
+              "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1792592000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":1500,\"v\":1}"
+            }
+          }
+        }
+      },
+      "request": {
+        "a": {
+          "kind": "set",
+          "name": "assistant-grants",
+          "schema": 2,
+          "values": {
+            "d7047d7faa4c6f77e1919c132bb6bd9f": {
+              "at": [
+                6,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1792592000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+              }
+            }
+          }
+        },
+        "b": {
+          "kind": "set",
+          "name": "assistant-grants",
+          "schema": 2,
+          "values": {
+            "d7047d7faa4c6f77e1919c132bb6bd9f": {
+              "at": [
+                5,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":1500,\"v\":1}"
+              }
+            }
+          }
+        },
+        "op": "merge"
+      }
+    },
+    {
+      "name": "assistant_renew: expires 30 days from now",
+      "ok": {
+        "value": {
+          "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1792592000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+        }
+      },
+      "request": {
+        "grant": "d7047d7faa4c6f77e1919c132bb6bd9f",
+        "now": 1790000000000,
+        "op": "assistant_renew",
+        "value": {
+          "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+        }
+      }
+    },
+    {
+      "name": "assistant_renew: a later expiresAt stands",
+      "ok": {
+        "value": {
+          "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+        }
+      },
+      "request": {
+        "grant": "d7047d7faa4c6f77e1919c132bb6bd9f",
+        "now": 1789049600000,
+        "op": "assistant_renew",
+        "value": {
+          "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+        }
+      }
+    },
+    {
+      "name": "assistant_renew: a revoked grant stays revoked",
+      "ok": {
+        "value": {
+          "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1792592000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":1789913600000,\"v\":1}"
+        }
+      },
+      "request": {
+        "grant": "d7047d7faa4c6f77e1919c132bb6bd9f",
+        "now": 1790000000000,
+        "op": "assistant_renew",
+        "value": {
+          "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":1789913600000,\"v\":1}"
+        }
+      }
+    },
+    {
+      "name": "assistant_grants: every grant with its state, the device's own revocations counting",
+      "ok": {
+        "grants": [
+          {
+            "cap": 5,
+            "client": "ChatGPT",
+            "createdAt": 1787321600000,
+            "expiresAt": 1789913600000,
+            "grant": "0ad714db3029f1b328e84e1179ecf55e",
+            "ops": [
+              "seen"
+            ],
+            "revokedAt": null,
+            "state": "expired"
+          },
+          {
+            "grant": "b022f916e009de3d52089206f3695532",
+            "state": "malformed"
+          },
+          {
+            "cap": 3,
+            "client": "Claude",
+            "createdAt": 1789136000000,
+            "expiresAt": 1791728000000,
+            "grant": "d7047d7faa4c6f77e1919c132bb6bd9f",
+            "ops": [
+              "rate",
+              "seen",
+              "watchlist_add",
+              "watchlist_remove"
+            ],
+            "revokedAt": null,
+            "state": "active"
+          },
+          {
+            "cap": 5,
+            "client": "Claude",
+            "createdAt": 1789136000000,
+            "expiresAt": 1791728000000,
+            "grant": "fee3c42b428a8786487289d6d6ad544d",
+            "ops": [
+              "seen"
+            ],
+            "revokedAt": null,
+            "state": "revoked"
+          }
+        ]
+      },
+      "request": {
+        "grants": {
+          "kind": "set",
+          "name": "assistant-grants",
+          "schema": 2,
+          "values": {
+            "0ad714db3029f1b328e84e1179ecf55e": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":5,\"client\":\"ChatGPT\",\"createdAt\":1787321600000,\"expiresAt\":1789913600000,\"ops\":[\"seen\"],\"pk\":\"_TnKJLgVq12UdAbQ0imPsV7mszV50f0_2cg2e4QKVM4\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "b022f916e009de3d52089206f3695532": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{}"
+              }
+            },
+            "d7047d7faa4c6f77e1919c132bb6bd9f": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":3,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"rate\",\"seen\",\"watchlist_add\",\"watchlist_remove\"],\"pk\":\"jftOjtUEDF6Jm8aGfb7qQZsWQBTKy8ED5zIpdrgtmk0\",\"revokedAt\":null,\"v\":1}"
+              }
+            },
+            "fee3c42b428a8786487289d6d6ad544d": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"cap\":5,\"client\":\"Claude\",\"createdAt\":1789136000000,\"expiresAt\":1791728000000,\"ops\":[\"seen\"],\"pk\":\"l2YsPJsOJOLBjjcMzL2nBcAR4PvpUKTr611TcMNJC-0\",\"revokedAt\":null,\"v\":1}"
+              }
+            }
+          }
+        },
+        "localRevoked": [
+          "fee3c42b428a8786487289d6d6ad544d"
+        ],
+        "now": 1790000000000,
+        "op": "assistant_grants"
+      }
+    },
+    {
+      "name": "assistant_prune: both times over 14 days old, a skewed clock keeping the rest",
       "ok": {
         "remove": [
           "373e0431e42eccad12c238eb38de6362",
+          "39f8b401afa0fa37e2b2c4e4594cb360",
           "9b12341b0fd57ef9a91a79f285db0d66"
         ]
       },
@@ -4244,6 +5727,16 @@
           "name": "assistant-applied",
           "schema": 2,
           "values": {
+            "14adfc6e2525e0f071e4e1b919251d9f": {
+              "at": [
+                1789827200000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1788790400000,\"at\":1788790400000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            },
             "373e0431e42eccad12c238eb38de6362": {
               "at": [
                 1790000000000,
@@ -4261,7 +5754,17 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"applied\":1789827200000,\"at\":1789308799999,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+                "string": "{\"applied\":1788707600000,\"at\":1788704000000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+              }
+            },
+            "f7db778baef1a112daf05fc0d6200bd5": {
+              "at": [
+                1789827200000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "string": "{\"applied\":1788272000000,\"at\":1789913600000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
               }
             },
             "fd33912e4b5b6efdbf9e6ca4868014ef": {
@@ -4271,9 +5774,17 @@
                 "a1b2c3d4e5f60718"
               ],
               "value": {
-                "string": "{\"applied\":1789827200000,\"at\":1789308800000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+                "string": "{\"applied\":1789827200000,\"at\":1788704000000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
               }
             }
+          }
+        },
+        "localApplied": {
+          "37845047090c81c635bfdb69f2dcc884": {
+            "string": "{\"applied\":1789913600000,\"at\":1788272000000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
+          },
+          "39f8b401afa0fa37e2b2c4e4594cb360": {
+            "string": "{\"applied\":1788272000000,\"at\":1788272000000,\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\"}"
           }
         },
         "now": 1790000000000,
@@ -4284,6 +5795,7 @@
       "error": "invalid_library",
       "name": "assistant_open: a library id that is not one",
       "request": {
+        "device": "a1b2c3d4e5f60718",
         "library": "LIBRARY",
         "now": 1790000000000,
         "op": "assistant_open",

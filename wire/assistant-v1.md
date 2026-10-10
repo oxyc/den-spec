@@ -7,7 +7,7 @@ den-core ops a person's tap uses, so tracker delivery and the removals latch (li
 
 [`../vectors/assistant-v1.json`](../vectors/assistant-v1.json) pins every byte below. The rules are implemented
 once, in den-core: the crate `den-assistant` (keys, sealing, claims, wraps, the accept rules), which den-edge and
-den-mcp depend on by git tag, and den-sync's `assistant_*` ops (§10), which the clients call.
+den-mcp depend on by git tag, and den-sync's `assistant_*` ops (§11), which the clients call.
 
 Words: *MUST* is a rule a party breaks at the cost of the household's library or secrets; *should* is advice.
 
@@ -15,10 +15,11 @@ Words: *MUST* is a rule a party breaks at the cost of the household's library or
 
 | Step | Who | What |
 |---|---|---|
-| Consent | Den Web, a **member** | On den-edge's consent page the member ticks "Allow changes to my library". Den Web makes sure the library has a drop-box key (§5), makes a grant key, writes the grant row (§5), then approves with the grant key (§9). |
+| Consent | Den Web, a **member** | On den-edge's consent page the member ticks "Allow changes to my library". Den Web makes sure the library has a drop-box key (§5), makes a grant key, writes the grant row (§5), then approves with the grant key (§9). If the approval does not succeed, Den Web MUST revoke the grant it wrote. |
 | Token | den-edge | At code exchange it wraps the grant key under the new refresh secret (§8). Every access token for the session carries the grant key sealed to den-mcp (§7). |
 | Write | den-mcp | Opens the claim, fetches the library's drop-box public key, builds, signs and seals a request (§4), appends it to the library's queue (§9). |
-| Apply | the TV, Den Web | Drain the queue, open and check each request (§6), apply what is accepted through the tap path, record it as applied, acknowledge. |
+| Apply | the TV, Den Web | Drain the queue, open and check each request against the rows and the device's own records (§6), apply what is accepted through the tap path as of the request's time, record it as applied, acknowledge. |
+| Keep | Den Web | Renews each grant while its connection stands (§5); Settings on Den Web and the TV lists every grant and revokes any of them. |
 
 ## 2. Primitives
 
@@ -37,8 +38,9 @@ reference vectors (hpkewg/hpke-pq at `6433c8f`) for X-Wing with HKDF-SHA256, who
 ChaCha20-Poly1305; the AEAD changes only the suite id the key schedule hashes.
 
 **Randomness.** Every key seed, request id, `eseed` and nonce MUST come from the platform's CSPRNG, fresh for each
-use. den-core takes them as inputs (it is pure, like den-sync), so one input always gives one output and the vectors
-can pin it. Reusing an `eseed` reuses the HPKE key; reusing a wrap nonce under one key breaks AES-GCM.
+use. den-edge and den-mcp call `den-assistant`'s `*_with_rng` functions with their CSPRNG; the forms that take the
+bytes exist for the vectors. den-sync takes random bytes as input (it is pure), so one input always gives one output.
+Reusing an `eseed` reuses the HPKE key; reusing a wrap nonce under one key breaks AES-GCM.
 
 ## 3. Keys
 
@@ -69,7 +71,7 @@ The message is the UTF-8 **JCS** (RFC 8785) of one object, at most **1,024 bytes
 | `library` | the library id (library v2 §1: 32 hex characters) |
 | `grant` | the grant id |
 | `id` | 16 random bytes, hex: the request's identity, for replay (§6) |
-| `at` | when den-mcp made it, Unix ms, an integer `0 ≤ at ≤ 2^53 − 1` |
+| `at` | when den-mcp made it, Unix ms, an integer `0 ≤ at ≤ 2^53 − 1`. It is also the time the change is applied at (§6). |
 | `op` | one of the ops below |
 | `args` | the op's arguments |
 
@@ -85,9 +87,10 @@ id>}`, the id an integer `1 ≤ id ≤ 2^53 − 1`. A season is an integer `≥ 
 | `rate` | `{"title", "value": "dislike" \| "like" \| "love" \| null}` | the person's rating (the `reaction`, library v2 §3); `null` clears it |
 
 A message is **valid** only if it is byte for byte the JCS of its own parse (so: no whitespace, sorted members, no
-duplicate member, integers written as integers), has exactly the members above, and its `args` has exactly the
-members its op allows (`season` and `episode` only on a `tv` title, `episode` only with `season`). Every string in a
-valid message is ASCII, so its JCS is the sorted, compact JSON any serializer writes for it.
+duplicate member, every number a plain integer — no fraction, exponent or minus sign), has exactly the members
+above, and its `args` has exactly the members its op allows (`season` and `episode` only on a `tv` title, `episode`
+only with `season`). Every string in a valid message is ASCII, so its JCS is the sorted, compact JSON any serializer
+writes for it.
 
 ### Signing and sealing
 
@@ -102,8 +105,8 @@ sealed    = base64url(enc (1,120) ‖ ct)
 Its length is `1,120 + 64 + len(message) + 16` bytes. The vectors' 243-byte message seals to 1,443 bytes, **1,924
 characters**; a 1,024-byte message, the longest, to 2,224 bytes, **2,966 characters** — under den-edge's 4,096 (§9).
 
-den-mcp MUST build requests with den-core's `den_assistant::seal_request` (it checks the message is valid before it
-signs) and a fresh `id` and `eseed` for each.
+den-mcp MUST build requests with `den_assistant::seal_request_with_rng` (it checks the message is valid before it
+signs) and a fresh `id` (`request_id_with_rng`) for each.
 
 ## 5. Library rows
 
@@ -121,14 +124,14 @@ One setting per key: `dropbox.<kid>` → `{"string": "<base64url of the 32-byte 
 - **den-edge holds one public key**: the one `assistant_dropbox` names, the key whose setting has the latest stamp.
   A device that reads a row whose `assistant_dropbox` answer differs from the one it last PUT for that library PUTs it
   again. den-edge converges on the merged row's key; a request sealed to the other key in the meantime still opens.
-- v1 never clears or rotates a key; a `null` setting is not tried.
+- v1 never clears or rotates a key in place; a `null` setting is not tried. A library key reset starts over (§10).
 
 ### `set:assistant-grants` — the grants
 
 One setting per grant, keyed by grant id: `<grant id>` → `{"string": "<JCS of the grant>"}`:
 
 ```json
-{"cap":3,"client":"Claude","createdAt":1787408000000,"ops":["rate","seen","watchlist_add","watchlist_remove"],"pk":"<base64url, 32 bytes>","revokedAt":null,"v":1}
+{"cap":3,"client":"Claude","createdAt":1789136000000,"expiresAt":1791728000000,"ops":["rate","seen","watchlist_add","watchlist_remove"],"pk":"<base64url, 32 bytes>","revokedAt":null,"v":1}
 ```
 
 | Member | Value |
@@ -139,19 +142,30 @@ One setting per grant, keyed by grant id: `<grant id>` → `{"string": "<JCS of 
 | `ops` | the ops allowed, a non-empty list of distinct v1 ops, sorted |
 | `cap` | requests a day, `1 ≤ cap ≤ 1000` |
 | `createdAt` | consent time, Unix ms |
-| `revokedAt` | null, or when the connection was revoked, Unix ms |
+| `expiresAt` | from this time on the grant accepts nothing (§6), Unix ms: `createdAt` + 30 days, moved by renewal |
+| `revokedAt` | null, or when the grant was revoked, Unix ms |
 
 - A grant is written once, by Den Web at consent (`assistant_keygen_grant`), **before** it approves at den-edge, so
-  a request can never reach a device before its grant. It changes only by revocation (`assistant_revoke`), which
-  Den Web writes whenever it disconnects that assistant (§9 *Revoking*).
+  a request can never reach a device before its grant. If the approval fails or is abandoned, Den Web MUST revoke it.
+- **Renewal.** A grant lasts 30 days, den-edge's idle limit for a session. While `GET /oauth/connections` lists the
+  grant's session, Den Web renews it (`assistant_renew`: `expiresAt` = `now` + 30 days, never earlier, never
+  un-revoking) — at most once a day, whenever it is open. A grant whose connection is gone simply expires.
+- **Revocation** (`assistant_revoke`) is written when a person disconnects an assistant (§9 *Revoking*), from
+  Settings on either client, or by a key reset (§10). **Settings on Den Web and the TV list grants from this row**
+  (`assistant_grants`), not from den-edge's connections, and can revoke any of them, whatever their state.
 - A value that breaks any rule above — another member, `v` other than 1, a `pk` whose id is not the setting's — is
-  **malformed**: it is no grant, and a request naming it is `unknown_grant`. A newer grant version therefore fails
-  closed on a v1 device.
-- **Merge** (den-core `merge` of a `set:assistant-grants` row): a well-formed version beats a malformed one; two
-  malformed ones go by the later stamp. Two well-formed ones keep the byte-greater JCS of every member but
-  `revokedAt` (the versions agree on them, since a grant is written once), the **earlier non-null `revokedAt`** (a
-  revocation is never undone, and an earlier one stands), and the later stamp. Each part is a join, so the merge is
-  commutative, associative and idempotent.
+  **malformed**: it is no grant, and a request naming it is `unknown_grant`. A newer grant version (`v` > 1) also
+  reads as no grant on a v1 device, so it fails closed.
+- **Merge** (den-core `merge` of a `set:assistant-grants` row), each part a join, so the merge is commutative,
+  associative and idempotent:
+  - The higher **rank** wins: a newer version (`v` an integer > 1) over a v1 grant over a JSON object that is
+    neither over anything else. Rank is read with `revokedAt` set aside.
+  - Two v1 grants keep the byte-greater JCS of every member but `revokedAt` and `expiresAt` (a grant is written
+    once, so they agree), the **later `expiresAt`**, and the later stamp. Two values of another rank: the later
+    stamp, then the byte-greater JCS without `revokedAt`.
+  - Then the winner's `revokedAt` is the join of **both** sides': any time beats `null`, and the **earlier** time
+    beats a later one. A revocation is kept even when it sits in a version that lost — a malformed one, or a v1
+    version a newer one replaced. A revocation is never undone.
 
 ### `set:assistant-applied` — the requests applied
 
@@ -159,14 +173,28 @@ One setting per applied request, keyed by request id: `<id>` → `{"string": "<J
 `grant` the grant id, `at` the request's own `at`, `applied` when the device that applied it did (its `now`).
 
 - Merge: by the later stamp, per setting, so the row is the union of every device's entries.
-- A malformed value still names an id that was applied (it refuses a replay), counts toward no grant's cap, and is
-  pruned at once.
-- **Pruning.** An entry whose request's `at` is more than **8 days** before `now` can no longer guard anything: §6
-  refuses such a request as `stale`. A device may drop the entries `assistant_prune` names and write the row by
-  compare-and-set — no tombstone. An entry another device's older copy merges back is harmless and pruned again.
-  Pruning should run at most once a day.
+- A reader takes `applied` as at least `at`. A malformed value still names an id that was applied (it refuses a
+  replay), counts toward no grant's cap, and is pruned at once.
+- **Pruning.** An entry may go once **both** its `at` and its `applied` are more than **14 days** before `now` —
+  twice the window in which §6 accepts a request, so a clock skewed on either side never drops an entry that still
+  guards one. A device drops the entries `assistant_prune` names, from the row (written by compare-and-set, with no
+  tombstone) and from its own record (§6). An entry an older copy merges back is harmless and pruned again. Pruning
+  should run at most once a day.
 
 ## 6. Applying
+
+### The device's own records
+
+den-edge serves the rows, and a live den-edge can serve an **older** version of one — a grants row from before a
+revocation, an applied row from before a request — or withhold a write. So every device MUST keep, durably and only
+ever growing (until pruned, §5):
+
+- **its revoked set**: every grant id it has seen revoked — any `revokedAt` in a grants row it read
+  (`assistant_grants` answers `"state": "revoked"`), and every grant it revoked itself;
+- **its applied set**: every applied entry it recorded or read, as request id → the entry's tagged value.
+
+It passes both to every `assistant_open` (`localRevoked`, `localApplied`), which unions them with the rows. A
+revocation or an applied request a device has seen therefore holds for that device whatever den-edge serves later.
 
 ### Opening and checking
 
@@ -176,45 +204,52 @@ den-core's `assistant_open` decides, in this order, and the first rule a request
 |---|---|---|
 | 1 | `does_not_open` | `sealed` is longer than 4,096 characters, is not base64url, or opens under none of the row's drop-box keys with `aad` = this library's id |
 | 2 | `malformed` | the plaintext is 64 bytes or fewer, or the message is not a JSON object with a string `grant` |
-| 3 | `unknown_grant` | the grants row holds no well-formed grant under that id |
-| 4 | `bad_signature` | the signature does not verify, strictly, under the grant's `pk` |
+| 3 | `unknown_grant` | the grants row holds no well-formed v1 grant under that id |
+| 4 | `bad_signature` | the grant's `pk` is not a valid key, or the signature does not verify under it, strictly |
 | 5 | `malformed` | the message is not valid (§4) |
 | 6 | `wrong_library` | the message's `library` is not this library |
-| 7 | `revoked` | the grant has a `revokedAt` — whatever the request's `at`: a revocation stops everything still queued |
-| 8 | `from_future` | `at` > `now` + 5 minutes |
-| 9 | `stale` | `at` < `now` − 7 days |
-| 10 | `replay` | the applied row already holds `id` |
-| 11 | `op_not_allowed` | the grant's `ops` does not hold `op` |
-| 12 | `over_daily_cap` | the applied row already holds `cap` or more entries of this grant whose `applied` is after `now` − 24 hours |
+| 7 | `revoked` | the grant has a `revokedAt`, or is in the device's revoked set — whatever the request's `at` |
+| 8 | `expired` | `now` ≥ the grant's `expiresAt` |
+| 9 | `from_future` | `at` > `now` + 5 minutes |
+| 10 | `stale` | `at` < `now` − 7 days |
+| 11 | `replay` | the applied row or the device's applied set holds `id` |
+| 12 | `op_not_allowed` | the grant's `ops` does not hold `op` |
+| 13 | `over_daily_cap` | the applied entries (row and device, by id) already hold `cap` or more of this grant whose `applied` is after `now` − 24 hours — one applied "in the future" by a clock ahead counts |
 
 Only signed content is judged after rule 4: rule 2 reads the `grant` member only to find the key that checks it. The
-cap counts by when requests were **applied**, not by their `at`, which the signer chooses.
-
-`now` is the device's clock. A request exactly 7 days old, or exactly 5 minutes ahead, is accepted.
+cap counts by when requests were **applied**, not by their `at`, which the signer chooses. `now` is the device's
+clock. A request exactly 7 days old, or exactly 5 minutes ahead, is accepted.
 
 ### Performing
 
 A device **MUST** perform an accepted request through exactly the path the person's own action takes on that client
-— the same den-core `apply_write` (library v4 §8), stamped by the device as a fresh write, and the same tracker
-delivery (library v4 §9), the removals latch included. No other path exists for it: an accepted request is treated as
-the person's tap and nothing more. A request whose action would change nothing (adding a title already on the
-watchlist) is still accepted and recorded.
+— den-core's `apply_write` (library v4 §8) and the same tracker delivery (library v4 §9), the removals latch included.
+No other path exists for it.
 
-In the same write as its effect, or straight after it, the device records it: the accept's `setting` and `value`
-written into `set:assistant-applied` with a fresh stamp.
+- **As of the request's time.** The write's stamp is the accept's `stamp`, `[at, 0, <this device's stamp device id>]`,
+  not a freshly issued one. `apply_write`'s replay rule (library v4 §8 *Replays write nothing*) then writes nothing to
+  a field or register that already holds a later stamp: a request never overrides a change made after it was made,
+  whatever order it arrives in. A request whose effect is therefore nothing (or that changes nothing anyway) is still
+  accepted and recorded.
+- **Recorded in the same batch.** The accept's `setting` and `value` MUST be written into `set:assistant-applied`, with
+  a fresh stamp, in the **same** `/lib` batch as the request's effect, and added to the device's applied set before
+  the batch is sent. A conflict re-derives and resends both together (library v4 §8 *Protocol*).
 
 ### Draining
 
 - A device drains only after reading the library log to its head, so it holds the current drop-box keys, grants and
   applied set.
-- It handles a drain's messages in `seq` order: open and check each against the rows as they stand, apply and record
-  the accepted ones, then **acknowledge** (§9) up to the last `seq` it handled. A rejected request is acknowledged
-  too, after logging its reason (never its content). A device that fails before recording a request does not
-  acknowledge it; it is delivered again and the applied set decides.
+- It sorts a drain's messages by request `at` — opening each to learn it; one that does not open sorts by `seq` —
+  then by `seq`, and handles them in that order against the rows as they stand.
+- **Acknowledging** (§9): every message is acknowledged once handled — applied and recorded, or rejected (logged with
+  its reason, never its content) — **except `from_future`**, which a device MUST NOT acknowledge and MUST log loudly:
+  a clock ahead or behind by more than 5 minutes is a fault the household should see, and the request becomes good
+  once the clocks agree. A device acknowledges up to the `seq` before the lowest `from_future` message (or the last it
+  handled); a message it handled past that point is delivered again and the applied set refuses it as `replay`. A
+  device that fails before recording a request does not acknowledge it.
 - Two devices draining at once may both apply one request before either sees the other's entry. Every op is an
-  idempotent set, so the library ends the same; the applied row keeps one entry per id; the cap may be passed by one
-  request per extra device. A device should still drain only while it is in the foreground (the TV) or open (Den
-  Web).
+  idempotent set at one stamp, so the library ends the same; the applied row keeps one entry per id; the cap may be
+  passed by one request per extra device.
 - Den Web and the TV should drain on open, and then with `wait` (§9) while open, as for the inbox (inbox v1 §3).
 
 ## 7. The token claim
@@ -227,7 +262,7 @@ enc, ct = SealBase(pkR = den-mcp's token public key, info = UTF-8("den/assistant
 dw      = base64url(enc ‖ ct)                                       (1,184 bytes, 1,579 characters)
 ```
 
-- den-edge seals a fresh claim, with a fresh `eseed`, for every access token it issues.
+- den-edge seals a fresh claim (`seal_claim_with_rng`) for every access token it issues.
 - den-mcp opens `dw` with `MCP_WRITE_KEY` and `aad` = the `sub` of the token it already verified, and checks the
   blob (§3). The scope claim is space-separated: a write session's token has `"scope": "den:search
   den:library.write"`. A token without the write scope, or whose `dw` does not open or whose blob fails, gets no
@@ -247,7 +282,8 @@ wrapped = base64url(nonce (12) ‖ AES-256-GCM(K, nonce, aad = UTF-8(session id)
   `<sid>.<secret>`, `secret` the base64url of 32 random bytes. den-edge keeps only its SHA-256, so at rest it cannot
   unwrap.
 - **Approval → exchange.** The grant blob lives only in the in-memory pending and code entries (as den-edge's codes
-  already do) until the code is exchanged; then den-edge wraps it under the first refresh secret and forgets it.
+  already do) until the code is exchanged; then den-edge wraps it (`wrap_with_rng`) under the first refresh secret and
+  forgets it.
 - **Refresh.** den-edge unwraps with the presented refresh secret, mints the access token with a fresh `dw`, makes the
   new refresh secret, and re-wraps under it with a fresh nonce. It keeps the wrap under the replaced secret beside the
   replaced secret's hash for as long as that hash is taken again (the refresh grace), so a client retrying a lost
@@ -274,13 +310,14 @@ wrapped = base64url(nonce (12) ‖ AES-256-GCM(K, nonce, aad = UTF-8(session id)
 
   den-edge checks that `grant` is the key's id; a mismatch is `400 invalid_grant_key`, a guest's proof with `write`
   is `403 write_not_for_guests`, `write` when the request cannot have the scope is `400 invalid_scope`. Without
-  `write` the approval grants `den:search` alone, as today.
+  `write` the approval grants `den:search` alone, as today. Any answer but success — an error, a timeout, a closed
+  page — and Den Web revokes the grant it wrote (§5).
 - **Tokens.** A write session's token answer has `"scope": "den:search den:library.write"`, its access tokens the
   same scope and `dw` (§7). The session record keeps the grant id and the wrap (§8).
-- **Connections.** `GET /oauth/connections` names each write session's `grant`.
+- **Connections.** `GET /oauth/connections` names each write session's `grant`. Den Web renews those grants (§5).
 - **Revoking.** When Den Web disconnects a write session (`DELETE /oauth/connections/{sid}`), it MUST also write that
-  grant's `revokedAt` (`assistant_revoke`) into the library. den-edge's deletion stops new appends at once; the
-  grant row is what every device enforces, and what a compromised den-edge cannot undo.
+  grant's `revokedAt` (`assistant_revoke`) into the library and add it to its own revoked set. den-edge's deletion
+  stops new appends at once; the grant row, and every device's revoked set, is what devices enforce.
 
 ### Endpoints
 
@@ -315,48 +352,66 @@ answer is possible, so a client MUST NOT drain again straight after one, and its
 
 - One per library: entries `{seq, sealed, receivedAt}`, `seq` increasing and never reused for that library, kept for
   **7 days** (a request older than that is `stale` anyway) and at most **200**.
-- den-edge cannot open an entry and does not try. It learns when an assistant writes and how much, not what.
-- Re-delivery is always safe: the applied set (§5) dedupes, so den-edge may hand a message out any number of times.
+- den-edge does not store anything that opens an entry. Re-delivery is always safe: the applied set (§5) dedupes.
 
-## 10. den-core
+## 10. Library key reset
+
+A key reset (library v2 §1, v4 §12) shuts out a device that held the old key. Grants and drop-box keys MUST NOT
+survive it, since the shut-out device knew them:
+
+- The device resetting **does not copy `set:assistant`**: the new library has no drop-box key until one is made
+  (§5) and PUT under the new library id. Requests sealed to the old key never open there.
+- It copies `set:assistant-grants` with **every grant revoked** (`assistant_revoke` at the reset's `now`), so
+  Settings still shows which assistants were connected, and it adds them to its revoked set. `set:assistant-applied`
+  is copied as is.
+- den-edge already ends every session of a library whose key is reset (the member proof behind it no longer stands);
+  write sessions end with the rest, and den-edge drops the old library's drop-box key and queue with it. The owner
+  reconnects each assistant, which makes new grants.
+
+## 11. den-core
 
 `den-assistant` (no dependency on den-sync) is what den-edge and den-mcp use: `kem_public`, `key_id`, `grant_public`,
-`grant_id`, `GrantKey` (from a seed; its blob), `message`, `sign`, `seal_request`, `parse_message`, `check`,
-`prune`, `seal_claim` / `open_claim`, `wrap_key` / `wrap` / `unwrap`, `b64url` / `b64url_decode`. Each random input
-is an argument.
+`grant_id`, `GrantKey` (from a seed; its blob), `message`, `sign`, `parse_message`, `check`, `prune`,
+`seal_request_with_rng`, `seal_claim_with_rng`, `wrap_with_rng`, `request_id_with_rng`, `open_claim`, `wrap_key`,
+`unwrap`, `b64url` / `b64url_decode`. `seal_request`, `seal_claim` and `wrap` take their random bytes as arguments, for
+the vectors.
 
 The clients call den-sync's `evaluate` (the versioned JSON envelope every op shares). Every number is an integer;
-`random` is 32 bytes of hex from the platform's CSPRNG; rows are the opened settings rows (`{"kind": "set", "schema":
-2, "name", "values"}`), and an absent or `null` row is an empty one.
+`random` is 32 bytes of hex from the platform's CSPRNG; `device` the device's 16-hex stamp device id; rows are the
+opened settings rows (`{"kind": "set", "schema": 2, "name", "values"}`), and an absent or `null` row is an empty one.
 
 | Op | Request | `ok` |
 |---|---|---|
 | `assistant_keygen_dropbox` | `random` | `{kid, public, setting: "dropbox.<kid>", value: {"string": <private key>}}` |
 | `assistant_dropbox` | `assistant` (row) | `{kid, public}` of the key den-edge should hold, or `null` |
 | `assistant_keygen_grant` | `random`, `client`, `ops`, `cap`, `now` | `{grant, public, secret, setting: <grant id>, value: {"string": <JCS grant>}}`; `secret` (base64url seed) goes to den-edge's approval and nowhere else |
-| `assistant_revoke` | `grant` (id), `value` (the setting's tagged value), `now` | `{value}` with `revokedAt` set, or kept when earlier |
-| `assistant_open` | `library`, `sealed`, `assistant`, `grants`, `applied` (rows), `now` | `{"accept": {grant, id, at, op, args, setting, value}}` — `setting`/`value` are the applied entry to record — or `{"reject": "<reason>"}` |
-| `assistant_prune` | `applied` (row), `now` | `{"remove": [<request id>, …]}`, sorted |
+| `assistant_revoke` | `grant` (id), `value` (the setting's tagged value), `now` | `{value}` with `revokedAt` set, or kept when earlier; any JSON object can be revoked |
+| `assistant_renew` | `grant`, `value`, `now` | `{value}` with `expiresAt` = max(its own, `now` + 30 days) |
+| `assistant_grants` | `grants` (row), `localRevoked`, `now` | `{"grants": [{grant, client?, ops?, cap?, createdAt?, expiresAt?, revokedAt?, state}]}`, `state` one of `active`, `expired`, `revoked`, `newer`, `malformed` |
+| `assistant_open` | `library`, `device`, `sealed`, `assistant`, `grants`, `applied` (rows), `localRevoked` (grant ids), `localApplied` (request id → tagged value), `now` | `{"accept": {grant, id, at, op, args, stamp, setting, value}}` — `stamp` the write's stamp (§6), `setting`/`value` the applied entry to record — or `{"reject": "<reason>"}` |
+| `assistant_prune` | `applied` (row), `localApplied`, `now` | `{"remove": [<request id>, …]}`, sorted, from either |
 | `merge` | two `set:assistant-grants` rows | the merged row (§5) |
 
 Errors: `invalid_seed`, `invalid_client`, `invalid_ops`, `invalid_cap`, `invalid_time`, `invalid_grant` (a value
-that is no grant under that id), `invalid_library`, `invalid_row` (a row that is not the named settings row),
-`invalid_request`. A reject is an answer, not an error.
+that is not a JSON object, or for `assistant_renew` no v1 grant under that id), `invalid_library`, `invalid_device`,
+`invalid_row` (a row that is not the named settings row), `invalid_request`. A reject is an answer, not an error.
 
-## 11. Threat model
+## 12. Threat model
 
 | Threat | What holds |
 |---|---|
-| **den-edge at rest** (its disk, backups, operator, a stolen copy) | It holds drop-box public keys, sealed queue entries it cannot open, refresh-secret hashes, and grant keys wrapped under refresh secrets it does not hold. Nothing usable: it cannot read the library or the queue, and cannot sign a request. |
-| **A fully compromised live den-edge** | It sees each grant key at the session's next refresh, so it can forge requests **within that grant's ops and daily cap** until the grant is revoked. It cannot read the library (it never has the library key) or the queue (only the library holds a drop-box private key); cannot exceed ops or cap (devices enforce both from the sealed grants row); cannot undo a revocation (the row is sealed under the library key and `revokedAt` is sticky); cannot bypass the removals latch (an accepted request takes the tap path). It can withhold, delay or re-deliver requests: availability only, and re-delivery is deduped. It can hand den-mcp another library's public key, but a request signed by this grant fails there as `unknown_grant`. Den Web is served by den-edge, so a den-edge serving a modified page reads what a browser holds — today, with or without this feature (recovery code §1). |
-| **A compromised den-mcp** | `MCP_WRITE_KEY` opens the claims in the tokens it is sent: the same forging power as den-edge, for live sessions, within ops and cap. It never holds the library key or a drop-box private key. |
-| **An AI client, or a prompt injection steering it** | It holds an access token. It cannot open `dw`. It can ask for any write its grant allows, up to the cap: what the person consented to. Every write is an idempotent set the household sees in the library, a removal is held by the latch past its threshold, and revoking stops the rest. |
-| **A replayed or reordered request** | The applied set refuses a repeated id for 8 days, and `stale` refuses anything older than 7. Order does not matter: every op is a set. |
+| **den-edge at rest** (its disk, backups, operator, a stolen copy) | It holds drop-box public keys, sealed queue entries, refresh-secret hashes, and grant keys wrapped under refresh secrets it does not hold. It cannot read the library, open the queue, or sign a request. **`MCP_WRITE_KEY` sits at rest too** — in the box's environment and its backups (den-mcp and den-edge share the box): with it, the `dw` claims in any captured access token open, but a token is short-lived and forging with its grant key still needs a live, unexpired bearer token or a live compromise. |
+| **A fully compromised live den-edge** | It sees each grant key at approval and at every refresh, so it can forge requests **within that grant's ops and daily cap** until the grant is revoked or expires. It also relays `/mcp` in plaintext, so it sees what den-mcp is asked to write, and it can serve den-mcp a drop-box key of its own and read those requests: **the queue is confidential at rest, not against a live den-edge.** It cannot read the library (it never has the library key); cannot exceed ops or cap (devices enforce both from the sealed grants row); cannot bypass the removals latch (an accepted request takes the tap path); cannot override a later change (requests apply at their own `at`). It can serve an older grants or applied row, or withhold a revocation's write, so it can **delay a revocation for devices that have never seen it**, but cannot undo one for a device that has (§6 *The device's own records*). It can withhold, delay or re-deliver requests: availability, and re-delivery is deduped. Den Web is served by den-edge, so a den-edge serving a modified page reads what a browser holds — today, with or without this feature (recovery code §1). |
+| **A compromised den-mcp** | With `MCP_WRITE_KEY` it opens the claims in the tokens it is sent: the same forging power as den-edge, for live sessions, within ops and cap. It never holds the library key or a drop-box private key. |
+| **An AI client, or a prompt injection steering it** | It holds an access token. It cannot open `dw`. It can ask for any write its grant allows, up to the cap: what the person consented to. Every write is an idempotent set the household sees, a removal is held by the latch past its threshold, and revoking stops the rest. |
+| **A replayed or reordered request** | The applied set refuses a repeated id for at least 14 days, and `stale` refuses anything older than 7. Order does not matter: every op is a set, applied at its own `at`. |
 | **A request made for another library, or by another grant** | The AAD binds the library id into the seal, and the message carries both: it does not open, or fails `wrong_library`, `unknown_grant` or `bad_signature`. |
-| **A clock** | `at` is den-mcp's; a device refuses one more than 5 minutes ahead or 7 days behind its own clock. A device with a wrong clock may refuse good requests; the cap counts by the device's own `applied` times. |
+| **A forgotten connection** | A grant expires 30 days after consent or its last renewal, and Den Web renews only grants whose connection den-edge still lists. |
+| **A key reset** | Drop-box keys are not carried over and every grant is revoked (§10), so a device shut out by the reset cannot use one it knew. |
+| **A clock** | `at` is den-mcp's; a device refuses one more than 5 minutes ahead (and keeps it queued, §6) or 7 days behind its own clock. The cap counts by applied times, failing closed for times ahead. |
 | **Quantum adversary recording traffic** | X-Wing is hybrid: a sealed request or claim stays confidential while either ML-KEM-768 or X25519 holds. Signatures (Ed25519) are not post-quantum; forging one needs a quantum computer at the time, not later. |
 
-## 12. Limits
+## 13. Limits
 
 | | |
 |---|---|
@@ -367,10 +422,11 @@ that is no grant under that id), `invalid_library`, `invalid_row` (a row that is
 | Queue | 200 messages, 7 days, per library |
 | Appends | 30 a minute per session, 300 a day per library |
 | Daily cap | 1–1,000 per grant, by applied time over 24 hours |
+| Grant lifetime | 30 days from consent or renewal |
 | Freshness | `at` within [now − 7 days, now + 5 minutes] |
-| Applied entries | pruned 8 days after their request's `at` |
+| Applied entries | pruned once `at` and `applied` are both over 14 days old |
 
-## 13. Vectors
+## 14. Vectors
 
 `../vectors/assistant-v1.json`, generated by den-core (`cargo test -p den-sync --test assistant
 write_assistant_vectors -- --ignored`, with `DEN_SPEC_DIR` set), where every case is also asserted. Every random input
@@ -379,8 +435,13 @@ is derived from a label (the file's `notes` say how).
 - `fixed`: every key from its seed; one request (fields, message, signed bytes, signature, `eseed`, sealed); one
   `dw` claim; one wrap with its refresh token, secret and key. den-edge and den-mcp check these through
   `den-assistant` (den-core `crates/den-assistant/tests/vectors.rs`).
-- `cases`: `evaluate` requests with their exact answers: an accept for every op and shape, a request sealed to the
-  library's second drop-box key, the 7-day and 5-minute boundaries, the cap counted by applied time, each reject in
-  §6 (several `malformed` shapes, a signature by another key in a grant's name, a message for another library sealed
-  for this one, a revoked grant whose request predates the revocation), the keygens and their refusals, revocation,
-  the grants merge, and pruning. den-core's `policy-v1.json` carries a sample of them, unchanged, for the bindings.
+- `cases`: `evaluate` requests with their exact answers: an accept for every op and shape (with its stamp), a
+  request sealed to the library's second drop-box key, the 7-day and 5-minute boundaries, the cap counted by applied
+  time (a clock ahead counting), each reject in §6 (several `malformed` shapes, a key that is no curve point, a seal
+  under the token info, a signature by another key in a grant's name, a message for another library sealed for this
+  one, a revoked grant whose request predates the revocation, an expired and a renewed grant), the device's own
+  revoked and applied sets against an older row, malformed applied entries, the keygens and their refusals,
+  revocation and renewal, Settings' list, the grants merge (a revocation in a malformed version, a newer version, the
+  later expiry), and pruning with skewed clocks. `crates/den-assistant/tests/rules.rs` covers the message encoding
+  (unsorted keys, duplicate members, fractions, exponents, `-0`), a non-canonical `S`, a small-order key and seals
+  across infos. den-core's `policy-v1.json` carries a sample of the cases, unchanged, for the bindings.
