@@ -89,6 +89,8 @@ id>}`, the id an integer `1 ≤ id ≤ 2^53 − 1`. A season is an integer `≥ 
 | `watchlist_remove` | `{"title"}` | the person's "Remove from Watchlist" on that title |
 | `seen` | `{"title", "value": true \| false}`, and for a series optionally `"season"`, or `"season"` and `"episode"` | the person's Seen / Unseen on that film, series, season or episode |
 | `rate` | `{"title", "value": "dislike" \| "like" \| "love" \| null}` | the person's rating (the `reaction`, library v2 §3); `null` clears it |
+| `play` | `{"title"}`, and for a series optionally `"season"`, or `"season"` and `"episode"` | plays it on the TV (§16) |
+| `play_trailer` | `{"title"}` | plays its trailer on the TV (§16) |
 
 A message is **valid** only if it is byte for byte the JCS of its own parse (so: no whitespace, sorted members, no
 duplicate member, every number a plain integer — no fraction, exponent or minus sign), has exactly the members
@@ -212,6 +214,7 @@ den-core's `assistant_open` decides, in this order, and the first rule a request
 | 4 | `bad_signature` | the grant's `pk` is not a valid key, or the signature does not verify under it, strictly |
 | 5 | `malformed` | the message is not valid (§4) |
 | 6 | `wrong_library` | the message's `library` is not this library |
+| 6a | `wrong_queue` | the op belongs in the other queue than the one it was drained from (§16) |
 | 7 | `revoked` | the grant has a `revokedAt`, or is in the device's revoked set — whatever the request's `at` |
 | 8 | `expired` | `now` ≥ the grant's `expiresAt` |
 | 9 | `from_future` | `at` > `now` + 5 minutes |
@@ -395,17 +398,19 @@ opened settings rows (`{"kind": "set", "schema": 2, "name", "values"}`), and an 
 | `assistant_keygen_grant` | `random`, `client`, `ops`, `cap`, `now` | `{grant, public, secret, setting: <grant id>, value: {"string": <JCS grant>}}`; `secret` (base64url seed) goes to den-edge's approval and nowhere else |
 | `assistant_revoke` | `grant` (id), `value` (the setting's tagged value), `now` | `{value}` with `revokedAt` set, or kept when earlier; any JSON object can be revoked |
 | `assistant_renew` | `grant`, `value`, `now` | `{value}` with `expiresAt` = max(its own, `now` + 30 days); a grant or a read record (§15) |
-| `assistant_grants` | `grants` (row), `read` (row, §15), `localRevoked`, `now` | `{"grants": [{grant, client?, ops?, cap?, createdAt?, expiresAt?, revokedAt?, state}], "reads": [{grant, client?, createdAt?, expiresAt?, revokedAt?, state}]}`, `state` one of `active`, `expired`, `revoked`, `newer`, `malformed`; a read record is `revoked` also when its grant is |
+| `assistant_grants` | `grants` (row), `read` (row, §15), `play` (row, §16), `localRevoked`, `now` | `{"grants": [{grant, client?, ops?, cap?, createdAt?, expiresAt?, revokedAt?, state}], "reads": [{grant, client?, createdAt?, expiresAt?, revokedAt?, state}], "plays": [same as reads]}`, `state` one of `active`, `expired`, `revoked`, `newer`, `malformed`; a read or play record is `revoked` also when its grant is |
+| `assistant_keygen_play` | `grant`, `client`, `now` | `{setting: <grant id>, value: {"string": <JCS play record>}}` (§16) |
 | `assistant_grant_key` | `random` | `{grant, public, secret}`: a grant key with no grants row setting, for a read-only connection (§15) |
 | `assistant_keygen_read` | `grant`, `random`, `client`, `now` | `{key, setting: <grant id>, value: {"string": <JCS read record>}}`; `key` (base64url) goes to den-edge's approval |
 | `assistant_projection` | `library`, `documents`, `layouts`, `head`, `read` (row), `grants` (row), `localRevoked`, `random`, `now` | `{publish: [{grant, set, parts}], delete: [<grant id>], digest, counts: {watchlist, continue, seen}, skipped}` (§15) |
-| `assistant_open` | `library`, `device`, `sealed`, `assistant`, `grants`, `applied` (rows), `localRevoked` (grant ids), `localApplied` (request id → tagged value), `now` | `{"accept": {grant, id, at, op, args, stamp, setting, value}}` — `stamp` the write's stamp (§6), `setting`/`value` the applied entry to record — or `{"reject": "<reason>"}` |
+| `assistant_open` | `library`, `device`, `sealed`, `assistant`, `grants`, `applied` (rows), `localRevoked` (grant ids), `localApplied` (request id → tagged value), `now`; for §16 `play` (row), `queue` (`"library"`, the default, or `"tv"`) and, for `"tv"`, `awakeSince` (ms) | `{"accept": {grant, id, at, op, args, stamp, setting, value}}` — `stamp` the write's stamp (§6), `setting`/`value` the applied entry to record — or `{"reject": "<reason>"}` |
 | `assistant_prune` | `applied` (row), `localApplied`, `now` | `{"remove": [<request id>, …]}`, sorted, from either |
-| `merge` | two `set:assistant-grants` or two `set:assistant-read` rows | the merged row (§5, §15) |
+| `merge` | two `set:assistant-grants`, `set:assistant-read` or `set:assistant-play` rows | the merged row (§5, §15, §16) |
 
 Errors: `invalid_seed`, `invalid_client`, `invalid_ops`, `invalid_cap`, `invalid_time`, `invalid_grant` (a value
 that is not a JSON object, or for `assistant_renew` no v1 grant under that id), `invalid_library`, `invalid_device`,
-`invalid_row` (a row that is not the named settings row), `invalid_layout`, `too_large`, `invalid_request`. A reject is
+`invalid_row` (a row that is not the named settings row), `invalid_layout`, `too_large`, `invalid_queue`,
+`invalid_awake` (the TV's queue with no `awakeSince`), `invalid_request`. A reject is
 an answer, not an error.
 
 ## 12. Threat model
@@ -424,6 +429,7 @@ an answer, not an error.
 | **Quantum adversary recording traffic** | X-Wing is hybrid: a sealed request or claim stays confidential while either ML-KEM-768 or X25519 holds. Signatures (Ed25519) are not post-quantum; forging one needs a quantum computer at the time, not later. A projection is AES-256-GCM under a 32-byte key carried only by X-Wing seals and wraps, so it is as safe. |
 | **Projections at rest** (§15) | den-edge stores each read grant's projection sealed under its read key, which it holds only wrapped under a refresh secret it does not keep: unreadable at rest. Captured `dr` claims open with `MCP_WRITE_KEY`, as `dw` claims do. **Known limit**: the sealed size, compressed, tells den-edge roughly how large the library's lists are and when they change. An assistant's writes do put chosen titles beside the rest, so a den-edge watching sizes while an assistant writes could guess whether a title is already listed — but a den-edge that live already reads the projection outright (below), so compression exposes nothing more than that. |
 | **A live den-edge or den-mcp, and reads** | Either can read a projection while serving a request — den-edge unwraps the read key at every refresh, den-mcp opens `dr` on every call — so a live compromise reads **the watchlist, Continue Watching and Seen history** of connections that may read, as fresh as the last publish. Never the library itself, its settings, credentials (`set:keys`, tracker tokens), devices, or anything a projection does not carry (§15 lists all of it). A forged or stale projection is possible for a live den-edge (it holds the key); it misleads an assistant, never a device, which only writes projections. |
+| **Playing on the TV** (§16) | A forged `play` needs what a forged write needs (a live grant key) and a live play record, and is applied only by a TV that is awake with Den open, within 120 s. den-edge cannot move a play into the library's queue or a library op into the TV's: the queue is the signed op's, so either is `wrong_queue`. den-edge learns when a TV is awake and drains the TV queue — which it already learns from drains — and whether an appended request was taken, never whether it was applied or refused. |
 | **A revoked or expired read** | Devices stop publishing for it and ask den-edge to delete it at once (§15); den-edge also deletes it when the session ends. A revocation in either the read record or the grant with its id counts, so a client that knows nothing of reads still revokes them by revoking the grant. |
 
 ## 13. Limits
@@ -444,6 +450,8 @@ an answer, not an error.
 | Wrap with a read key | 144 characters (80-byte blob) |
 | Projection | every entry of every list; ≤ 64 MiB of plaintext, ≤ 64 parts of ≤ 262,144 characters (16 MiB) per grant; 5,000 / 500 / 50,000 entries measured at 2 parts, 392,412 characters |
 | Projection publishes | on change, debounced 30 s; a heartbeat every 15 minutes; den-edge takes 60 an hour per grant |
+| TV queue (§16) | 20 messages, 10 minutes, per library; 10 appends a minute per session |
+| Play freshness | `at` within [max(now − 120 s, the TV's wake time), now + 5 minutes] |
 
 ## 14. Vectors
 
@@ -640,3 +648,90 @@ parts from the answer), and answers `den_watchlist`, `den_continue_watching` and
 the view, naming titles through den-atlas and saying how fresh it is from `at`. The view is the whole library;
 `limit` is den-mcp's own paging, never a gap in the data. A `404 no_projection` means no device has published since
 the connection was made: the tool says to open Den on a device.
+
+## 16. Play on the TV
+
+An assistant may ask the TV to play a title, an episode, or a trailer. Only a TV applies these, and only while Den is
+open on it. Like reads, this is additive: v1 grants, messages, claims and wraps are unchanged.
+
+### Ops
+
+`play` and `play_trailer` (§4's table) are request ops like the others: same message, signature and seal. A `play` of
+a series with no `episode` plays it where it stands — the TV picks the episode exactly as its Continue Watching row
+does, with den-core's `continue_entry` (a series it has no layout for resumes its last mark, or starts at S1E1).
+
+### Who may play
+
+- **Not the grants row.** A grant's `ops` stays the four library ops (`GRANT_OPS`). Clients deployed before play read
+  `ops` strictly, so a grant listing `play` would be no grant to them, and every write by that connection would be
+  refused there as `unknown_grant`. `assistant_keygen_grant` refuses a TV op (`invalid_ops`).
+- **A play record**, in a row of its own, under the connection's grant id:
+
+  `set:assistant-play`: `<grant id>` → `{"string": "<JCS of {client, createdAt, expiresAt, revokedAt, v: 1}>"}`.
+
+  It merges as a grant does (§5), is renewed (`assistant_renew`) and revoked (`assistant_revoke`) with its grant, and
+  listed by `assistant_grants` (`plays`). A connection may play while its grant stands (a play needs the grant's key
+  and signature) **and** its play record is live: not revoked, not expired, its grant not revoked, not in the device's
+  revoked set. Otherwise a TV op is `op_not_allowed`. Old clients carry the row untouched (library v2 §3), and revoking
+  the grant, as they do, ends the play too.
+- **Consent.** Den Web words the write checkbox "Allow changes to my library and playing on my TV" and, ticked, writes
+  the play record (`assistant_keygen_play`) with the grant row. Grants made before play have no play record: their
+  TV ops are `op_not_allowed` until the owner reconnects the assistant.
+- A play counts toward its grant's daily cap like any request.
+
+### Queues
+
+A library has two queues at den-edge: the **library** queue (§9, every device drains it) and the **TV** queue (only a
+TV drains it). A TV op belongs in the TV queue and every other op in the library queue — `den_assistant::Queue::of`
+— so a TV-only request never sits in Den Web's way, and Den Web's contiguous acknowledgements never wait on a TV.
+
+**The queue is bound by the signature.** It is a function of the signed `op`, so nothing new is signed and the
+message stays v1 (a strict v1 parser on an old client refuses a TV op as `malformed`, which is the right outcome
+there). A request drained from the other queue — den-edge moving a play into the library queue, or a write into the
+TV's — is refused `wrong_queue` (§6, rule 6a) and acknowledged; it is never applied from the wrong queue.
+
+### Applying on the TV
+
+- The TV drains both queues. It drains the TV queue only while Den is open on it (in the foreground), with `wait`
+  while open, and opens each request with `assistant_open` and `"queue": "tv"`, `"play"` (the play row) and
+  **`"awakeSince"`**: when the TV last woke or came to the foreground, ms. Den Web drains only the library queue.
+- **Freshness.** A TV op is `stale` when its `at` is more than **120 s** before `now`, or before `awakeSince`: a play is
+  never applied after the TV slept, however recent. `from_future` is as §6 (5 minutes). Library ops keep their 7 days.
+- **Applying.** An accepted `play` plays through the same path as the person's own Play (the release choice, resume
+  position and player), and `play_trailer` as the title page's trailer. It writes nothing to the library but the
+  applied entry (`setting`/`value`, recorded as §6 says, so a replay is refused); playback then writes progress as any
+  playback does.
+- **Acknowledging** is as §6: every request handled — applied, or refused (`stale`, `wrong_queue`, …) — is acked,
+  except `from_future`. The TV queue's acks are its own (`?queue=tv`).
+
+### den-edge
+
+The library queue's endpoints (§9) take a queue: `queue` in the append body, `?queue=` on drain and ack; absent is
+`library`, so every request made before this section is unchanged.
+
+- **`POST /assistant/append`** — `{"sealed": "…", "queue": "tv"}` appends to the TV queue: `200 {"seq", "queued"}`, seqs
+  of its own. Caps: **20** waiting (`409 queue_full`), kept **10 minutes** (a play older than 120 s is stale anyway),
+  **10 appends a minute per session** (`429`). `400 invalid_queue` for another value. den-mcp appends `play` and
+  `play_trailer` to the TV queue and everything else to the library queue; den-edge does not read the op.
+- **`POST /assistant/drain?queue=tv[&wait=S]`** and **`POST /assistant/ack?queue=tv {"upTo"}`** — member, as §9. Only a TV
+  drains the TV queue; den-edge records the time of every TV-queue drain for the library.
+- **`GET /assistant/tv`** — Bearer, write scope. `200 {"online": <bool>, "lastSeenAt": <ms | null>}`: `online` when the TV
+  queue was drained within the last **40 s** (a TV draining with `wait=25` drains at least that often), `lastSeenAt`
+  the last such drain, `null` if never.
+- **`GET /assistant/request/{seq}?queue=library|tv`** — Bearer, write scope, for the session's library. `200 {"state":
+  "queued" | "taken"}`: `queued` while the message waits, `taken` once a device acknowledged it. `404 unknown_request`
+  for a seq this library's queue never issued or has expired. `taken` says nothing of whether the request was applied
+  or refused: devices tell den-edge only what they acknowledge.
+
+### den-mcp
+
+`play` and `play_trailer` tools build and seal requests as §4 (`seal_request_with_rng`) and append them with `"queue":
+"tv"`. Before appending they may check `GET /assistant/tv` and say the TV is off or asleep rather than queue a play
+that will go stale; after appending, `GET /assistant/request/{seq}?queue=tv` tells whether a TV took it.
+
+### den-core
+
+`den-assistant`: `OPS` (six ops), `GRANT_OPS` (the four a grant lists), `PLAY_OPS`, `PLAY_STALE_MS`, `Queue { Library,
+Tv }` with `Queue::of(op)`, `Reject::WrongQueue`, `check_queue(…, queue, awake_since)` (`check` is `check_queue` on the
+library queue), and `Grant.play`. `den-sync`: `assistant_keygen_play`, `assistant_open`'s `play` / `queue` /
+`awakeSince`, `assistant_grants`' `plays`, `assistant_renew` and `merge` for the play row (§11).
