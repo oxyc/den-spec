@@ -379,7 +379,9 @@ survive it, since the shut-out device knew them:
 `seal_request_with_rng`, `seal_claim_with_rng`, `wrap_with_rng`, `request_id_with_rng`, `open_claim`, `wrap_key`,
 `unwrap`, `b64url` / `b64url_decode`. `seal_request`, `seal_claim` and `wrap` take their random bytes as arguments, for
 the vectors. For reads (§15): `GrantKey::with_read_key` / `read_key`, `seal_read_claim_with_rng`, `open_read_claim`
-(→ `ReadKey { grant(), key() }`), `projection_aad`, `seal_projection`, `open_projection`; `unwrap` returns the read key
+(→ `ReadKey { grant(), key() }`), `projection_plaintext(view)`, `projection_aad(library, grant, set, index, count)`,
+`seal_projection(read key, view, random) -> SealedProjection { set, parts }`, `open_projection(read key, library,
+grant, set, parts) -> view`, the limits `MAX_PART`, `PART_BYTES`, `MAX_PARTS`, `MAX_PROJECTION_PLAINTEXT`; `unwrap` returns the read key
 too when the wrap holds one.
 
 The clients call den-sync's `evaluate` (the versioned JSON envelope every op shares). Every number is an integer;
@@ -396,7 +398,7 @@ opened settings rows (`{"kind": "set", "schema": 2, "name", "values"}`), and an 
 | `assistant_grants` | `grants` (row), `read` (row, §15), `localRevoked`, `now` | `{"grants": [{grant, client?, ops?, cap?, createdAt?, expiresAt?, revokedAt?, state}], "reads": [{grant, client?, createdAt?, expiresAt?, revokedAt?, state}]}`, `state` one of `active`, `expired`, `revoked`, `newer`, `malformed`; a read record is `revoked` also when its grant is |
 | `assistant_grant_key` | `random` | `{grant, public, secret}`: a grant key with no grants row setting, for a read-only connection (§15) |
 | `assistant_keygen_read` | `grant`, `random`, `client`, `now` | `{key, setting: <grant id>, value: {"string": <JCS read record>}}`; `key` (base64url) goes to den-edge's approval |
-| `assistant_projection` | `library`, `documents`, `layouts`, `head`, `read` (row), `grants` (row), `localRevoked`, `random`, `now` | `{publish: [{grant, sealed}], delete: [<grant id>], digest, counts: {watchlist, continue, seen}, skipped}` (§15) |
+| `assistant_projection` | `library`, `documents`, `layouts`, `head`, `read` (row), `grants` (row), `localRevoked`, `random`, `now` | `{publish: [{grant, set, parts}], delete: [<grant id>], digest, counts: {watchlist, continue, seen}, skipped}` (§15) |
 | `assistant_open` | `library`, `device`, `sealed`, `assistant`, `grants`, `applied` (rows), `localRevoked` (grant ids), `localApplied` (request id → tagged value), `now` | `{"accept": {grant, id, at, op, args, stamp, setting, value}}` — `stamp` the write's stamp (§6), `setting`/`value` the applied entry to record — or `{"reject": "<reason>"}` |
 | `assistant_prune` | `applied` (row), `localApplied`, `now` | `{"remove": [<request id>, …]}`, sorted, from either |
 | `merge` | two `set:assistant-grants` or two `set:assistant-read` rows | the merged row (§5, §15) |
@@ -420,7 +422,7 @@ an answer, not an error.
 | **A key reset** | Drop-box keys are not carried over and every grant is revoked (§10), so a device shut out by the reset cannot use one it knew. |
 | **A clock** | `at` is den-mcp's; a device refuses one more than 5 minutes ahead (and keeps it queued, §6) or 7 days behind its own clock. The cap counts by applied times, failing closed for times ahead. |
 | **Quantum adversary recording traffic** | X-Wing is hybrid: a sealed request or claim stays confidential while either ML-KEM-768 or X25519 holds. Signatures (Ed25519) are not post-quantum; forging one needs a quantum computer at the time, not later. A projection is AES-256-GCM under a 32-byte key carried only by X-Wing seals and wraps, so it is as safe. |
-| **Projections at rest** (§15) | den-edge stores each read grant's projection sealed under its read key, which it holds only wrapped under a refresh secret it does not keep: unreadable at rest. Captured `dr` claims open with `MCP_WRITE_KEY`, as `dw` claims do. |
+| **Projections at rest** (§15) | den-edge stores each read grant's projection sealed under its read key, which it holds only wrapped under a refresh secret it does not keep: unreadable at rest. Captured `dr` claims open with `MCP_WRITE_KEY`, as `dw` claims do. **Known limit**: the sealed size, compressed, tells den-edge roughly how large the library's lists are and when they change. An assistant's writes do put chosen titles beside the rest, so a den-edge watching sizes while an assistant writes could guess whether a title is already listed — but a den-edge that live already reads the projection outright (below), so compression exposes nothing more than that. |
 | **A live den-edge or den-mcp, and reads** | Either can read a projection while serving a request — den-edge unwraps the read key at every refresh, den-mcp opens `dr` on every call — so a live compromise reads **the watchlist, Continue Watching and Seen history** of connections that may read, as fresh as the last publish. Never the library itself, its settings, credentials (`set:keys`, tracker tokens), devices, or anything a projection does not carry (§15 lists all of it). A forged or stale projection is possible for a live den-edge (it holds the key); it misleads an assistant, never a device, which only writes projections. |
 | **A revoked or expired read** | Devices stop publishing for it and ask den-edge to delete it at once (§15); den-edge also deletes it when the session ends. A revocation in either the read record or the grant with its id counts, so a client that knows nothing of reads still revokes them by revoking the grant. |
 
@@ -440,7 +442,7 @@ an answer, not an error.
 | Applied entries | pruned once `at` and `applied` are both over 14 days old |
 | `dr` claim | 1,579 characters |
 | Wrap with a read key | 144 characters (80-byte blob) |
-| Projection | 500 watchlist, 100 Continue Watching, 1,000 Seen entries; ≤ 262,144 characters sealed (the largest possible, every id and time at its bound, measured at 213,679) |
+| Projection | every entry of every list; ≤ 64 MiB of plaintext, ≤ 64 parts of ≤ 262,144 characters (16 MiB) per grant; 5,000 / 500 / 50,000 entries measured at 2 parts, 392,412 characters |
 | Projection publishes | on change, debounced 30 s; a heartbeat every 15 minutes; den-edge takes 60 an hour per grant |
 
 ## 14. Vectors
@@ -462,8 +464,10 @@ is derived from a label (the file's `notes` say how).
   later expiry), and pruning with skewed clocks. `crates/den-assistant/tests/rules.rs` covers the message encoding
   (unsorted keys, duplicate members, fractions, exponents, `-0`), a non-canonical `S`, a small-order key and seals
   across infos. den-core's `policy-v1.json` carries a sample of the cases, unchanged, for the bindings.
-- `fixed.read` (§15): the same grant with a read key — its `dr` claim, its 80-byte wrap, and a projection with its
-  additional data, nonce, plaintext and seal. Every earlier `fixed` value is byte-for-byte what it was before reads.
+- `fixed.read` (§15): the same grant with a read key — its `dr` claim, its 80-byte wrap, and a projection: its
+  random bytes, view, compact plaintext, set, first part's additional data and parts. Every earlier `fixed` value is
+  byte-for-byte what it was before reads. den-core's tests also cover a decompression bomb, and a large library
+  (5,000 / 500 / 50,000) sealed in parts that refuse to open mixed, reordered or short.
 - Read `cases`: `assistant_grant_key`, `assistant_keygen_read`, renewing a read record, Settings' read list (a
   revoked grant revoking its read record), the read records' merge, and one `assistant_projection` over a small
   library — a watchlisted film, a deleted one, a film watched with a play and one with none, a film in progress, a
@@ -524,43 +528,71 @@ it. Nothing about reads changes a v1 grant, request, claim or wrap.
 
 ### The projection
 
-The plaintext is the JCS of one object:
+A projection is the **whole** library's lists — no list is cut short, whatever its length. As den-mcp reads it (the
+**view**, what `open_projection` returns):
 
 ```json
 {"v": 1, "library": "<library id>", "grant": "<grant id>", "at": <publish time, ms>, "head": <library log head>,
  "watchlist": [{"title": {"type", "id"}, "addedAt": <ms | null>}],
  "continue": [{"title", "action": "resume" | "next", "season"?, "episode"?, "fraction", "at": <ms | null>}],
- "seen": [{"title", "season"?, "episode"?, "at": <ms | null>}],
- "omitted": {"watchlist": <n>, "continue": <n>, "seen": <n>}}
+ "seen": [{"title", "season"?, "episode"?, "at": <ms | null>}]}
 ```
 
 - Titles are ids only (`{"type": "movie" | "tv", "id": <TMDB id>}`); den-mcp names them through den-atlas.
 - **`watchlist`**: every title document whose `status` is `watchlist`, not `deleted`; `addedAt`, else the status's
-  time. Newest first, at most **500**.
+  time. Newest first.
 - **`continue`**: den-core's Continue Watching, built as both clients build their row: per series, the episode mark
   touched last, the furthest finished episode and the furthest episode watched with no mark (an import), handed with
   the series' layout to `continue_entry`; a series whose answer is `none` is left out. `layouts` is the season layout
   the client knows, by TMDB id — `{"seasons": [{season, episodes}], "last_aired": {season, episode} | null}` — and a
   series with none can still resume, but not move on to its next episode. Series by their latest mark (one known only
   by an import last), then films `inProgress` and not dismissed since, latest first. `at` is the latest mark's time.
-  At most **100**.
 - **`seen`**: one entry per visible play of a film or an episode (`film_state_v4` / `episode_state_v4`'s `plays`), at
-  its time; one entry with `at` null for something watched with no play to date it. Newest first, untimed last; at
-  most **1,000**. Deleted titles are left out of every list.
-- `omitted` counts what each cap left out. `head` is the library log's head the documents were read at (library v2 §2),
-  so den-mcp can say "as of" both by time and by change.
+  its time; one entry with `at` null for something watched with no play to date it. Newest first, untimed last.
+  Deleted titles are left out of every list.
+- `head` is the library log's head the documents were read at (library v2 §2), so den-mcp can say "as of" both by
+  time and by change.
 
-### Sealing
+### The compact form
+
+On the wire each title is written once, in a table, and each entry is an array that indexes it. The plaintext is the
+JCS of:
+
+```json
+{"v": 1, "library", "grant", "at", "head",
+ "titles": [["movie" | "tv", <id>], …],
+ "watchlist": [[<title index>, <addedAt | null>], …],
+ "continue": [[<title index>, <action>, <season | null>, <episode | null>, <fraction>, <at | null>], …],
+ "seen": [[<title index>, <season | null>, <episode | null>, <at | null>], …]}
+```
+
+`titles` is every title the lists name, once, sorted by type then id; a `null` season or episode is one the entry does
+not have. Lists keep the view's order. `projection_plaintext` writes it; `open_projection` reads it back to the view.
+
+### Sealing in parts
 
 ```
-aad    = UTF-8("den/assistant/projection/v1") ‖ 0x00 ‖ UTF-8(library id) ‖ 0x00 ‖ UTF-8(grant id)
-nonce  = HKDF-SHA256(ikm = 32 random bytes, info = UTF-8("den/assistant/projection/nonce/v1") ‖ UTF-8(grant id))[0..12]
-sealed = base64url(nonce ‖ AES-256-GCM(read key, nonce, aad, plaintext))
+plaintext = the compact form's JCS                                  (at most 64 MiB)
+deflated  = raw DEFLATE (RFC 1951) of plaintext, miniz_oxide level 9 (as library v4 §4)
+chunks    = deflated cut into pieces of 196,580 bytes, the last shorter; count = their number (1 to 64)
+set       = hex(HKDF-SHA256(ikm = random, info = UTF-8("den/assistant/projection/set/v1"))[0..16])
+nonce_i   = HKDF-SHA256(ikm = random, info = UTF-8("den/assistant/projection/nonce/v1") ‖ 0x00 ‖ UTF-8(decimal i))[0..12]
+aad_i     = UTF-8("den/assistant/projection/v1") ‖ 0x00 ‖ library id ‖ 0x00 ‖ grant id ‖ 0x00 ‖ set
+            ‖ 0x00 ‖ decimal i ‖ 0x00 ‖ decimal count
+part_i    = base64url(nonce_i ‖ AES-256-GCM(read key, nonce_i, aad_i, chunk_i))      (≤ 262,144 characters)
 ```
 
-The random bytes are fresh for every `assistant_projection` call; the grant id in the derivation keeps one call's
-nonces apart. `open_projection` checks the seal, then that the plaintext's `v`, `library` and `grant` are this
-projection's.
+- `random` is 32 bytes fresh for every publish of every grant: `assistant_projection` derives each grant's from the
+  call's 32 random bytes with HKDF-SHA256 (info `den/assistant/projection/grant/v1` ‖ 0x00 ‖ grant id).
+- Every part names its publish (`set`), its place and the number of parts, so den-mcp opens a set only whole, in
+  order, and from one publish: a part of another publish, a part moved, a part missing or an extra one does not open.
+- `open_projection` opens every part, joins the chunks, inflates them with a hard limit of **64 MiB** (a set that
+  inflates further is refused, however small it is sealed — a decompression bomb), and reads the compact form,
+  which must be `v` 1 and name this library and grant.
+- Nothing is cut: a library too large for 64 parts (about 12.6 MB compressed) or 64 MiB of plaintext is refused
+  (`too_large`) rather than published short. A real library is far below either: 5,000 watchlist entries, 500 in
+  Continue Watching and 50,000 Seen plays seal into 2 parts, 392,412 characters (den-core's
+  `a_large_library_projects_whole`).
 
 ### Publishing
 
@@ -569,7 +601,8 @@ projection's.
 - **When**: when `digest` (the SHA-256 of the lists, not of `at` or `head`) differs from the one it last published
   for that grant, debounced **30 s**; and as a heartbeat every **15 minutes** while running, so `at` stays fresh.
   Two devices publishing replace each other; both publish the same lists once both have read the same log.
-- **What**: `PUT` every entry of `publish`; `DELETE` every grant in `delete` — read records revoked (in the record, in
+- **What**: `PUT` every entry of `publish` (its `set` and `parts`, as they are); `DELETE` every grant in `delete` —
+  read records revoked (in the record, in
   the grant with their id, or in the device's revoked set), expired, or malformed — once, and again whenever one
   reappears.
 - A read record expires 30 days after consent or its last renewal; Den Web renews it with its grant (§5) while
@@ -579,10 +612,12 @@ projection's.
 
 Every answer is JSON; errors `{"error": "<code>"}` as §9.
 
-**`PUT /assistant/projection/{grant}`** — member. Body `{"sealed": "<base64url>"}`, at most 300 KiB. Replaces the
-grant's projection: `204`.
-- `400 invalid_sealed` when `sealed` is not unpadded base64url, is over **262,144 characters**, or decodes to fewer
-  than 28 bytes.
+**`PUT /assistant/projection/{grant}`** — member. Body `{"set": "<32 hex>", "parts": ["<base64url>", …]}`, at most
+17 MiB. Replaces the grant's projection with the whole set, **atomically**: a reader gets the old set or the new one,
+never a mix. `204`.
+- `400 invalid_set` when `set` is not 32 lowercase hex.
+- `400 invalid_sealed` when there are no parts or more than **64**, a part is not unpadded base64url, is over
+  **262,144 characters** or decodes to 28 bytes or fewer, or the parts come to more than **16 MiB** of characters.
 - `404 unknown_grant` when no session with the read scope of the member's library names that grant (den-edge never
   stores a projection nobody can read; a device drops it from its next publish until the connection is made).
 - `429 rate_limited` past **60 an hour per grant**.
@@ -591,8 +626,8 @@ grant's projection: `204`.
 none.
 
 **`GET /assistant/projection`** — Bearer, with the `den:library.read` scope, the session standing (§9). `200
-{"library": "<id>", "grant": "<grant id>", "sealed": "…", "storedAt": <ms>}` for the token's session; `404
-no_projection` when no device has published one yet; `401`/`403` as §9.
+{"library": "<id>", "grant": "<grant id>", "set": "<32 hex>", "parts": ["…", …], "storedAt": <ms>}` — one stored set,
+whole — for the token's session; `404 no_projection` when no device has published one yet; `401`/`403` as §9.
 
 den-edge deletes a grant's projection when its last read session ends (revoked, expired, idle) and when its library's
 key is reset (§10). It stores nothing that opens one at rest.
@@ -600,7 +635,8 @@ key is reset (§10). It stores nothing that opens one at rest.
 ### den-mcp
 
 On a call with the read scope it opens `dr` (`open_read_claim`, checking the `grant` matches the session's), `GET`s
-the projection, opens it with `open_projection` and the library and grant from the answer, and answers
-`den_watchlist`, `den_continue_watching` and `den_history(since?, limit?)` from it, naming titles through den-atlas
-and saying how fresh it is from `at` (and that `omitted` entries exist). A `404 no_projection` means no device has
-published since the connection was made: the tool says to open Den on a device.
+the projection, opens it with `open_projection(read key, library, grant, set, parts)` (the library, grant, set and
+parts from the answer), and answers `den_watchlist`, `den_continue_watching` and `den_history(since?, limit?)` from
+the view, naming titles through den-atlas and saying how fresh it is from `at`. The view is the whole library;
+`limit` is den-mcp's own paging, never a gap in the data. A `404 no_projection` means no device has published since
+the connection was made: the tool says to open Den on a device.
