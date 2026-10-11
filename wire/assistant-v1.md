@@ -402,7 +402,7 @@ opened settings rows (`{"kind": "set", "schema": 2, "name", "values"}`), and an 
 | `assistant_keygen_play` | `grant`, `client`, `now` | `{setting: <grant id>, value: {"string": <JCS play record>}}` (§16) |
 | `assistant_grant_key` | `random` | `{grant, public, secret}`: a grant key with no grants row setting, for a read-only connection (§15) |
 | `assistant_keygen_read` | `grant`, `random`, `client`, `now` | `{key, setting: <grant id>, value: {"string": <JCS read record>}}`; `key` (base64url) goes to den-edge's approval |
-| `assistant_projection` | `library`, `documents`, `layouts`, `head`, `read` (row), `grants` (row), `localRevoked`, `random`, `now` | `{publish: [{grant, set, parts}], delete: [<grant id>], digest, counts: {watchlist, continue, seen}, skipped}` (§15) |
+| `assistant_projection` | `library`, `documents`, `layouts`, `head`, `read` (row), `grants` (row), `prefs` (the `set:prefs` row), `localRevoked`, `random`, `now` | `{publish: [{grant, set, parts}], delete: [<grant id>], digest, counts: {watchlist, continue, seen, rated}, skipped}` (§15) |
 | `assistant_open` | `library`, `device`, `sealed`, `assistant`, `grants`, `applied` (rows), `localRevoked` (grant ids), `localApplied` (request id → tagged value), `now`; for §16 `play` (row), `queue` (`"library"`, the default, or `"tv"`) and, for `"tv"`, `awakeSince` (ms) | `{"accept": {grant, id, at, op, args, stamp, setting, value}}` — `stamp` the write's stamp (§6), `setting`/`value` the applied entry to record — or `{"reject": "<reason>"}` |
 | `assistant_prune` | `applied` (row), `localApplied`, `now` | `{"remove": [<request id>, …]}`, sorted, from either |
 | `merge` | two `set:assistant-grants`, `set:assistant-read` or `set:assistant-play` rows | the merged row (§5, §15, §16) |
@@ -543,7 +543,9 @@ A projection is the **whole** library's lists — no list is cut short, whatever
 {"v": 1, "library": "<library id>", "grant": "<grant id>", "at": <publish time, ms>, "head": <library log head>,
  "watchlist": [{"title": {"type", "id"}, "addedAt": <ms | null>}],
  "continue": [{"title", "action": "resume" | "next", "season"?, "episode"?, "fraction", "at": <ms | null>}],
- "seen": [{"title", "season"?, "episode"?, "at": <ms | null>}]}
+ "seen": [{"title", "season"?, "episode"?, "at": <ms | null>}],
+ "rated": [{"title", "value": "dislike" | "like" | "love", "at": <ms | null>}],
+ "hide": {"minYear": <year | null>, "genres": [<TMDB genre id>], "languages": [<ISO 639-1>], "anime": <bool>}}
 ```
 
 - Titles are ids only (`{"type": "movie" | "tv", "id": <TMDB id>}`); den-mcp names them through den-atlas.
@@ -558,8 +560,18 @@ A projection is the **whole** library's lists — no list is cut short, whatever
 - **`seen`**: one entry per visible play of a film or an episode (`film_state_v4` / `episode_state_v4`'s `plays`), at
   its time; one entry with `at` null for something watched with no play to date it. Newest first, untimed last.
   Deleted titles are left out of every list.
+- **`rated`**: every title document whose `reaction` is a rating — `dislike` (shown as "Not for me"), `like` or
+  `love`; a `seen` reaction or a cleared one is no rating — not `deleted`, at the reaction's time (`null` when it is
+  timeless, an import's). Newest first, untimed last, whole.
+- **`hide`**: the household's hide rules, exactly what Den Web sends as `/recommend`'s `hide`, read from the `set:prefs`
+  row the client passes (`prefs`): `minYear` `den.minReleaseYear` (`{"int"}`), `genres` `den.excludedGenreIDs`
+  (`{"ints"}`, TMDB genre ids), `languages` `den.excludedLanguages` (`{"strings"}`, original-language codes), `anime`
+  `den.hideAnime` (`{"bool"}`). A setting absent, cleared or of another tag is no rule (`null`, `[]`, `false`).
+  den-mcp's `den_recommend` applies them as Den Web does (`prefs.ts` `isHidden`; anime is TMDB genre 16 in Japanese).
 - `head` is the library log's head the documents were read at (library v2 §2), so den-mcp can say "as of" both by
   time and by change.
+- `rated` and `hide` came after the first projections. A projection without them is valid, and reads without them;
+  a reader MUST ignore members it does not know, so a later addition reaches an older den-mcp harmlessly.
 
 ### The compact form
 
@@ -571,11 +583,13 @@ JCS of:
  "titles": [["movie" | "tv", <id>], …],
  "watchlist": [[<title index>, <addedAt | null>], …],
  "continue": [[<title index>, <action>, <season | null>, <episode | null>, <fraction>, <at | null>], …],
- "seen": [[<title index>, <season | null>, <episode | null>, <at | null>], …]}
+ "seen": [[<title index>, <season | null>, <episode | null>, <at | null>], …],
+ "rated": [[<title index>, <"dislike" | "like" | "love">, <at | null>], …],
+ "hide": {"minYear": <year | null>, "genres": […], "languages": […], "anime": <bool>}}
 ```
 
-`titles` is every title the lists name, once, sorted by type then id; a `null` season or episode is one the entry does
-not have. Lists keep the view's order. `projection_plaintext` writes it; `open_projection` reads it back to the view.
+`titles` is every title the lists name (`rated` included), once, sorted by type then id; a `null` season or episode is
+one the entry does not have. Lists keep the view's order; `hide` is carried as the view has it. `projection_plaintext` writes it; `open_projection` reads it back to the view.
 
 ### Sealing in parts
 
@@ -605,8 +619,9 @@ part_i    = base64url(nonce_i ‖ AES-256-GCM(read key, nonce_i, aad_i, chunk_i)
 ### Publishing
 
 - The TV publishes whenever it runs; Den Web while it is open. Each builds with `assistant_projection` from the
-  documents it holds read to the log's head, the layouts it knows, its revoked set (§6) and fresh random bytes.
-- **When**: when `digest` (the SHA-256 of the lists, not of `at` or `head`) differs from the one it last published
+  documents it holds read to the log's head, the layouts it knows, the `set:prefs` row (`prefs`), its revoked set (§6)
+  and fresh random bytes.
+- **When**: when `digest` (the SHA-256 of the lists and `hide`, not of `at` or `head`) differs from the one it last published
   for that grant, debounced **30 s**; and as a heartbeat every **15 minutes** while running, so `at` stays fresh.
   Two devices publishing replace each other; both publish the same lists once both have read the same log.
 - **What**: `PUT` every entry of `publish` (its `set` and `parts`, as they are); `DELETE` every grant in `delete` —
