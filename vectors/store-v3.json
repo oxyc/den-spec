@@ -183,14 +183,14 @@
   }
  ],
  "header": {
-  "bytes": 16795,
-  "contentHash": 511447346463431713,
+  "bytes": 17027,
+  "contentHash": 15325703307644373664,
   "datasetVersion": "fixture",
   "endianness": 16909060,
   "formatVersion": 3,
   "magic": "DENSTOR1",
   "rowCount": 3,
-  "sectionCount": 156
+  "sectionCount": 160
  },
  "iconicStudios": [
   {
@@ -231,7 +231,8 @@
   "premise_tag_v/premise_tag_o are OPTIONAL: a store without them has no premise tags, which is not an error. Each row's tags are string ids in the order the tags file lists them, most defining first; a row with none owns an empty span.",
   "versions_v/versions_k/versions_o are OPTIONAL: a store without them has no other versions, which is not an error. Each row's versions are other rows, ascending, with a kind beside each (0 shared source, 1 remake); links are symmetric. movie:1 and tv:10 share a curated franchise and are NOT versions of each other: a reader leaves a title's own franchise members out anyway.",
   "jev_like_v/jev_like_p/jev_like_o are OPTIONAL: a store without them has no Jev More Like This scores, which is not an error. Each row's candidates are other rows in the file's order, with Jev's overall Noul in hundredths beside each; an unscored row owns an empty span. Not symmetric.",
-  "fan_picks_v/fan_picks_o/fan_picks_a are OPTIONAL: a store without them has no fan picks, which is not an error. Each row's picks are other rows in the model's order; fan_picks_a is 1 for a title that was asked, so an asked title with no picks (tv:10) differs from one never asked (movie:2)."
+  "fan_picks_v/fan_picks_o/fan_picks_a are OPTIONAL: a store without them has no fan picks, which is not an error. Each row's picks are other rows in the model's order; fan_picks_a is 1 for a title that was asked, so an asked title with no picks (tv:10) differs from one never asked (movie:2).",
+  "wd_name_key/wd_name_title/wd_name_orig/wd_name_year are OPTIONAL: a store without them names no title it does not hold, which is not an error. Keys are packed like `keys`, ascending, and never a store row's; they are names only, never rows to search, browse, rank or count."
  ],
  "rows": [
   {
@@ -536,5 +537,25 @@
    "writers": []
   }
  ],
- "store": "store-v3.store"
+ "store": "store-v3.store",
+ "wikidataNames": [
+  {
+   "key": "movie:3",
+   "originalTitle": "D\u00e9lta",
+   "title": "Delta",
+   "year": 2001
+  },
+  {
+   "key": "tv:11",
+   "originalTitle": null,
+   "title": "Epsilon",
+   "year": null
+  },
+  {
+   "key": "tv:12",
+   "originalTitle": null,
+   "title": "Zeta",
+   "year": 1950
+  }
+ ]
 }
