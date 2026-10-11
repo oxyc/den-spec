@@ -5,6 +5,10 @@ marks seen or unseen, rates — while no Den is open (oxyc/den#217). den-mcp **s
 never **open** anything. Devices (the TV, Den Web) drain the requests, check them, and apply them through the same
 den-core ops a person's tap uses, so tracker delivery and the removals latch (library v4 §9) apply unchanged.
 
+A connection may also **read** (§15): devices publish a projection of the watchlist, Continue Watching and Seen
+history, sealed under a key only the household and den-mcp hold. Reads are additive: every v1 grant, session, token,
+claim and wrap issued before them keeps working unchanged.
+
 [`../vectors/assistant-v1.json`](../vectors/assistant-v1.json) pins every byte below. The rules are implemented
 once, in den-core: the crate `den-assistant` (keys, sealing, claims, wraps, the accept rules), which den-edge and
 den-mcp depend on by git tag, and den-sync's `assistant_*` ops (§11), which the clients call.
@@ -363,10 +367,10 @@ survive it, since the shut-out device knew them:
   (§5) and PUT under the new library id. Requests sealed to the old key never open there.
 - It copies `set:assistant-grants` with **every grant revoked** (`assistant_revoke` at the reset's `now`), so
   Settings still shows which assistants were connected, and it adds them to its revoked set. `set:assistant-applied`
-  is copied as is.
+  is copied as is. `set:assistant-read` (§15) is copied with **every read record revoked**, the same way.
 - den-edge already ends every session of a library whose key is reset (the member proof behind it no longer stands);
-  write sessions end with the rest, and den-edge drops the old library's drop-box key and queue with it. The owner
-  reconnects each assistant, which makes new grants.
+  write and read sessions end with the rest, and den-edge drops the old library's drop-box key, queue and
+  projections with it. The owner reconnects each assistant, which makes new grants and read keys.
 
 ## 11. den-core
 
@@ -374,7 +378,9 @@ survive it, since the shut-out device knew them:
 `grant_id`, `GrantKey` (from a seed; its blob), `message`, `sign`, `parse_message`, `check`, `prune`,
 `seal_request_with_rng`, `seal_claim_with_rng`, `wrap_with_rng`, `request_id_with_rng`, `open_claim`, `wrap_key`,
 `unwrap`, `b64url` / `b64url_decode`. `seal_request`, `seal_claim` and `wrap` take their random bytes as arguments, for
-the vectors.
+the vectors. For reads (§15): `GrantKey::with_read_key` / `read_key`, `seal_read_claim_with_rng`, `open_read_claim`
+(→ `ReadKey { grant(), key() }`), `projection_aad`, `seal_projection`, `open_projection`; `unwrap` returns the read key
+too when the wrap holds one.
 
 The clients call den-sync's `evaluate` (the versioned JSON envelope every op shares). Every number is an integer;
 `random` is 32 bytes of hex from the platform's CSPRNG; `device` the device's 16-hex stamp device id; rows are the
@@ -386,15 +392,19 @@ opened settings rows (`{"kind": "set", "schema": 2, "name", "values"}`), and an 
 | `assistant_dropbox` | `assistant` (row) | `{kid, public}` of the key den-edge should hold, or `null` |
 | `assistant_keygen_grant` | `random`, `client`, `ops`, `cap`, `now` | `{grant, public, secret, setting: <grant id>, value: {"string": <JCS grant>}}`; `secret` (base64url seed) goes to den-edge's approval and nowhere else |
 | `assistant_revoke` | `grant` (id), `value` (the setting's tagged value), `now` | `{value}` with `revokedAt` set, or kept when earlier; any JSON object can be revoked |
-| `assistant_renew` | `grant`, `value`, `now` | `{value}` with `expiresAt` = max(its own, `now` + 30 days) |
-| `assistant_grants` | `grants` (row), `localRevoked`, `now` | `{"grants": [{grant, client?, ops?, cap?, createdAt?, expiresAt?, revokedAt?, state}]}`, `state` one of `active`, `expired`, `revoked`, `newer`, `malformed` |
+| `assistant_renew` | `grant`, `value`, `now` | `{value}` with `expiresAt` = max(its own, `now` + 30 days); a grant or a read record (§15) |
+| `assistant_grants` | `grants` (row), `read` (row, §15), `localRevoked`, `now` | `{"grants": [{grant, client?, ops?, cap?, createdAt?, expiresAt?, revokedAt?, state}], "reads": [{grant, client?, createdAt?, expiresAt?, revokedAt?, state}]}`, `state` one of `active`, `expired`, `revoked`, `newer`, `malformed`; a read record is `revoked` also when its grant is |
+| `assistant_grant_key` | `random` | `{grant, public, secret}`: a grant key with no grants row setting, for a read-only connection (§15) |
+| `assistant_keygen_read` | `grant`, `random`, `client`, `now` | `{key, setting: <grant id>, value: {"string": <JCS read record>}}`; `key` (base64url) goes to den-edge's approval |
+| `assistant_projection` | `library`, `documents`, `layouts`, `head`, `read` (row), `grants` (row), `localRevoked`, `random`, `now` | `{publish: [{grant, sealed}], delete: [<grant id>], digest, counts: {watchlist, continue, seen}, skipped}` (§15) |
 | `assistant_open` | `library`, `device`, `sealed`, `assistant`, `grants`, `applied` (rows), `localRevoked` (grant ids), `localApplied` (request id → tagged value), `now` | `{"accept": {grant, id, at, op, args, stamp, setting, value}}` — `stamp` the write's stamp (§6), `setting`/`value` the applied entry to record — or `{"reject": "<reason>"}` |
 | `assistant_prune` | `applied` (row), `localApplied`, `now` | `{"remove": [<request id>, …]}`, sorted, from either |
-| `merge` | two `set:assistant-grants` rows | the merged row (§5) |
+| `merge` | two `set:assistant-grants` or two `set:assistant-read` rows | the merged row (§5, §15) |
 
 Errors: `invalid_seed`, `invalid_client`, `invalid_ops`, `invalid_cap`, `invalid_time`, `invalid_grant` (a value
 that is not a JSON object, or for `assistant_renew` no v1 grant under that id), `invalid_library`, `invalid_device`,
-`invalid_row` (a row that is not the named settings row), `invalid_request`. A reject is an answer, not an error.
+`invalid_row` (a row that is not the named settings row), `invalid_layout`, `too_large`, `invalid_request`. A reject is
+an answer, not an error.
 
 ## 12. Threat model
 
@@ -409,7 +419,10 @@ that is not a JSON object, or for `assistant_renew` no v1 grant under that id), 
 | **A forgotten connection** | A grant expires 30 days after consent or its last renewal, and Den Web renews only grants whose connection den-edge still lists. |
 | **A key reset** | Drop-box keys are not carried over and every grant is revoked (§10), so a device shut out by the reset cannot use one it knew. |
 | **A clock** | `at` is den-mcp's; a device refuses one more than 5 minutes ahead (and keeps it queued, §6) or 7 days behind its own clock. The cap counts by applied times, failing closed for times ahead. |
-| **Quantum adversary recording traffic** | X-Wing is hybrid: a sealed request or claim stays confidential while either ML-KEM-768 or X25519 holds. Signatures (Ed25519) are not post-quantum; forging one needs a quantum computer at the time, not later. |
+| **Quantum adversary recording traffic** | X-Wing is hybrid: a sealed request or claim stays confidential while either ML-KEM-768 or X25519 holds. Signatures (Ed25519) are not post-quantum; forging one needs a quantum computer at the time, not later. A projection is AES-256-GCM under a 32-byte key carried only by X-Wing seals and wraps, so it is as safe. |
+| **Projections at rest** (§15) | den-edge stores each read grant's projection sealed under its read key, which it holds only wrapped under a refresh secret it does not keep: unreadable at rest. Captured `dr` claims open with `MCP_WRITE_KEY`, as `dw` claims do. |
+| **A live den-edge or den-mcp, and reads** | Either can read a projection while serving a request — den-edge unwraps the read key at every refresh, den-mcp opens `dr` on every call — so a live compromise reads **the watchlist, Continue Watching and Seen history** of connections that may read, as fresh as the last publish. Never the library itself, its settings, credentials (`set:keys`, tracker tokens), devices, or anything a projection does not carry (§15 lists all of it). A forged or stale projection is possible for a live den-edge (it holds the key); it misleads an assistant, never a device, which only writes projections. |
+| **A revoked or expired read** | Devices stop publishing for it and ask den-edge to delete it at once (§15); den-edge also deletes it when the session ends. A revocation in either the read record or the grant with its id counts, so a client that knows nothing of reads still revokes them by revoking the grant. |
 
 ## 13. Limits
 
@@ -425,6 +438,10 @@ that is not a JSON object, or for `assistant_renew` no v1 grant under that id), 
 | Grant lifetime | 30 days from consent or renewal |
 | Freshness | `at` within [now − 7 days, now + 5 minutes] |
 | Applied entries | pruned once `at` and `applied` are both over 14 days old |
+| `dr` claim | 1,579 characters |
+| Wrap with a read key | 144 characters (80-byte blob) |
+| Projection | 500 watchlist, 100 Continue Watching, 1,000 Seen entries; ≤ 262,144 characters sealed (the largest possible, every id and time at its bound, measured at 213,679) |
+| Projection publishes | on change, debounced 30 s; a heartbeat every 15 minutes; den-edge takes 60 an hour per grant |
 
 ## 14. Vectors
 
@@ -445,3 +462,145 @@ is derived from a label (the file's `notes` say how).
   later expiry), and pruning with skewed clocks. `crates/den-assistant/tests/rules.rs` covers the message encoding
   (unsorted keys, duplicate members, fractions, exponents, `-0`), a non-canonical `S`, a small-order key and seals
   across infos. den-core's `policy-v1.json` carries a sample of the cases, unchanged, for the bindings.
+- `fixed.read` (§15): the same grant with a read key — its `dr` claim, its 80-byte wrap, and a projection with its
+  additional data, nonce, plaintext and seal. Every earlier `fixed` value is byte-for-byte what it was before reads.
+- Read `cases`: `assistant_grant_key`, `assistant_keygen_read`, renewing a read record, Settings' read list (a
+  revoked grant revoking its read record), the read records' merge, and one `assistant_projection` over a small
+  library — a watchlisted film, a deleted one, a film watched with a play and one with none, a film in progress, a
+  series resumed mid-episode, a series known only by an imported play with its layout — published for the live grant
+  and deleted for three dead ones (revoked grant, expired record, the device's own revoked set).
+
+## 15. Reads
+
+A connection may read the watchlist, Continue Watching and Seen history. Devices publish a **projection** of them for
+each connection that may read, sealed under that connection's **read key**; den-edge stores the latest; den-mcp opens
+it. Nothing about reads changes a v1 grant, request, claim or wrap.
+
+### Consent and keys
+
+- **Scope** `den:library.read`, granted only to a **member** who ticks "Allow reading my watchlist and history" — a
+  checkbox of its own, independent of "Allow changes to my library". A connection may read, write, or both.
+  den-edge's metadata lists the scope when `MCP_WRITE_PUBLIC_KEY` is set; `GET /oauth/request/{id}` adds `"read":
+  true` when it can be granted.
+- Every connection that may read or write has a **grant key** (§3). A write connection writes its grant row as
+  today; a **read-only** connection gets its key from `assistant_grant_key` and writes **no** grants row setting, so
+  it can never write.
+- The **read key** is 32 random bytes, made by Den Web at consent (`assistant_keygen_read`), and recorded in the
+  library under the connection's grant id, in a row of its own:
+
+  `set:assistant-read`: `<grant id>` → `{"string": "<JCS of {client, createdAt, expiresAt, key, revokedAt, v: 1}>"}`,
+  `key` the base64url read key, `expiresAt` `createdAt` + 30 days, the other members as a grant's (§5).
+
+  It merges exactly as a grant does (§5: rank, the later `expiresAt`, a revocation from either side sticking), is
+  renewed with `assistant_renew` and revoked with `assistant_revoke` together with the grant, and shown by
+  `assistant_grants` (`reads`).
+- **Why a row of its own, not a grant v2.** Clients deployed before reads (Den Web 0.265.0 and the TV on den-sync v3.6
+  and v3.7) read the grants row strictly: a value with a new member, or `v: 2`, is no grant to them, so a write
+  connection made with one would have every request refused on those devices as `unknown_grant`. A new row costs them
+  nothing: a client keeps every settings row it does not manage as it read it (library v2 §3), so they carry
+  `set:assistant-read` untouched, and every grant value stays exactly v1. Such a client revoking a connection writes
+  only the grant's `revokedAt`; a read record is dead whenever the grant with its id is revoked, so that revokes the
+  read too.
+- **Approval.** Den Web, after writing the read record (and the grant row for a write connection), approves with
+  `{"read": {"grant": "<grant id>", "key": "<base64url grant seed>", "readKey": "<base64url read key>"}}`, beside or
+  instead of v1's `"write"` object; when both are present they MUST name the same grant and key, else `400
+  invalid_grant_key`. A guest's proof with `read` is `403 read_not_for_guests`; `read` when the request cannot have
+  the scope is `400 invalid_scope`. If the approval does not succeed, Den Web revokes the read record (and the grant).
+- **Wrap.** den-edge wraps the grant blob with the read key appended — 80 bytes, the 48-byte blob of §3 then the read
+  key — exactly as §8 says; a wrap of a session with no read scope stays the 48-byte v1 blob. `unwrap` reads either,
+  so every wrap made before reads keeps working.
+- **The `dr` claim.** An access token whose session has the read scope carries, beside `scope` (which lists
+  `den:library.read`), a claim **`dr`**:
+
+  ```
+  enc, ct = SealBase(pkR = den-mcp's token public key, info = UTF-8("den/assistant/read/v1"),
+                     aad = UTF-8(the token's sub), pt = grant id (16) ‖ read key (32))
+  dr      = base64url(enc ‖ ct)                                     (1,184 bytes, 1,579 characters)
+  ```
+
+  `dw` is unchanged: still the 48-byte blob, still present only for the write scope. A den-mcp from before reads
+  ignores `dr`; its `dw` handling is untouched. A session with both scopes carries both claims (about 4.3 KB of token
+  in all).
+
+### The projection
+
+The plaintext is the JCS of one object:
+
+```json
+{"v": 1, "library": "<library id>", "grant": "<grant id>", "at": <publish time, ms>, "head": <library log head>,
+ "watchlist": [{"title": {"type", "id"}, "addedAt": <ms | null>}],
+ "continue": [{"title", "action": "resume" | "next", "season"?, "episode"?, "fraction", "at": <ms | null>}],
+ "seen": [{"title", "season"?, "episode"?, "at": <ms | null>}],
+ "omitted": {"watchlist": <n>, "continue": <n>, "seen": <n>}}
+```
+
+- Titles are ids only (`{"type": "movie" | "tv", "id": <TMDB id>}`); den-mcp names them through den-atlas.
+- **`watchlist`**: every title document whose `status` is `watchlist`, not `deleted`; `addedAt`, else the status's
+  time. Newest first, at most **500**.
+- **`continue`**: den-core's Continue Watching, built as both clients build their row: per series, the episode mark
+  touched last, the furthest finished episode and the furthest episode watched with no mark (an import), handed with
+  the series' layout to `continue_entry`; a series whose answer is `none` is left out. `layouts` is the season layout
+  the client knows, by TMDB id — `{"seasons": [{season, episodes}], "last_aired": {season, episode} | null}` — and a
+  series with none can still resume, but not move on to its next episode. Series by their latest mark (one known only
+  by an import last), then films `inProgress` and not dismissed since, latest first. `at` is the latest mark's time.
+  At most **100**.
+- **`seen`**: one entry per visible play of a film or an episode (`film_state_v4` / `episode_state_v4`'s `plays`), at
+  its time; one entry with `at` null for something watched with no play to date it. Newest first, untimed last; at
+  most **1,000**. Deleted titles are left out of every list.
+- `omitted` counts what each cap left out. `head` is the library log's head the documents were read at (library v2 §2),
+  so den-mcp can say "as of" both by time and by change.
+
+### Sealing
+
+```
+aad    = UTF-8("den/assistant/projection/v1") ‖ 0x00 ‖ UTF-8(library id) ‖ 0x00 ‖ UTF-8(grant id)
+nonce  = HKDF-SHA256(ikm = 32 random bytes, info = UTF-8("den/assistant/projection/nonce/v1") ‖ UTF-8(grant id))[0..12]
+sealed = base64url(nonce ‖ AES-256-GCM(read key, nonce, aad, plaintext))
+```
+
+The random bytes are fresh for every `assistant_projection` call; the grant id in the derivation keeps one call's
+nonces apart. `open_projection` checks the seal, then that the plaintext's `v`, `library` and `grant` are this
+projection's.
+
+### Publishing
+
+- The TV publishes whenever it runs; Den Web while it is open. Each builds with `assistant_projection` from the
+  documents it holds read to the log's head, the layouts it knows, its revoked set (§6) and fresh random bytes.
+- **When**: when `digest` (the SHA-256 of the lists, not of `at` or `head`) differs from the one it last published
+  for that grant, debounced **30 s**; and as a heartbeat every **15 minutes** while running, so `at` stays fresh.
+  Two devices publishing replace each other; both publish the same lists once both have read the same log.
+- **What**: `PUT` every entry of `publish`; `DELETE` every grant in `delete` — read records revoked (in the record, in
+  the grant with their id, or in the device's revoked set), expired, or malformed — once, and again whenever one
+  reappears.
+- A read record expires 30 days after consent or its last renewal; Den Web renews it with its grant (§5) while
+  `/oauth/connections` lists the session.
+
+### den-edge
+
+Every answer is JSON; errors `{"error": "<code>"}` as §9.
+
+**`PUT /assistant/projection/{grant}`** — member. Body `{"sealed": "<base64url>"}`, at most 300 KiB. Replaces the
+grant's projection: `204`.
+- `400 invalid_sealed` when `sealed` is not unpadded base64url, is over **262,144 characters**, or decodes to fewer
+  than 28 bytes.
+- `404 unknown_grant` when no session with the read scope of the member's library names that grant (den-edge never
+  stores a projection nobody can read; a device drops it from its next publish until the connection is made).
+- `429 rate_limited` past **60 an hour per grant**.
+
+**`DELETE /assistant/projection/{grant}`** — member, for a grant of the member's library. `204`, also when there was
+none.
+
+**`GET /assistant/projection`** — Bearer, with the `den:library.read` scope, the session standing (§9). `200
+{"library": "<id>", "grant": "<grant id>", "sealed": "…", "storedAt": <ms>}` for the token's session; `404
+no_projection` when no device has published one yet; `401`/`403` as §9.
+
+den-edge deletes a grant's projection when its last read session ends (revoked, expired, idle) and when its library's
+key is reset (§10). It stores nothing that opens one at rest.
+
+### den-mcp
+
+On a call with the read scope it opens `dr` (`open_read_claim`, checking the `grant` matches the session's), `GET`s
+the projection, opens it with `open_projection` and the library and grant from the answer, and answers
+`den_watchlist`, `den_continue_watching` and `den_history(since?, limit?)` from it, naming titles through den-atlas
+and saying how fresh it is from `at` (and that `omitted` entries exist). A `404 no_projection` means no device has
+published since the connection was made: the tool says to open Den on a device.
