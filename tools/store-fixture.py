@@ -328,6 +328,18 @@ def main():
         "tv:10": [],
     }})
 
+    # Wikidata names, as den-dataset's `pipeline/names.py` writes them: [media, tmdbId, name, year, original].
+    # movie:1 is a store row, so its own card names it and it is left out. Listed out of key order, which the
+    # store does not keep. movie:3's label carries a disambiguator; tv:11's original title is its name; tv:12's
+    # original title is longer than the dictionary's bound and is left off while the name stays.
+    names = dump("names.json", {"schema": 1, "source": {"name": "wikidata", "license": "CC0-1.0"},
+                                "counts": {}, "rows": [
+        ["tv", 11, "Epsilon", None, "Epsilon"],
+        ["movie", 1, "Alpha", 1999, None],
+        ["movie", 3, "Delta (2001 film)", 2001, "Délta"],
+        ["tv", 12, "Zeta", 1950, "Z" * 300],
+    ]})
+
     os.makedirs(args.out_dir, exist_ok=True)
     store = os.path.join(args.out_dir, "store-v3.store")
     result = subprocess.run(
@@ -335,7 +347,7 @@ def main():
          "--vectors", plot_bin, "--vector-labels", plot_labels,
          "--premise-vectors", premise_bin, "--premise-labels", premise_labels,
          "--franchises", franchises, "--premise-tags", premise_tags, "--jev-more-like", jev_more_like,
-         "--fan-picks", fan_picks,
+         "--fan-picks", fan_picks, "--names", names,
          "--dataset-version", "fixture", "--out", store, *args.writer_args],
         capture_output=True, text=True)
     if result.returncode != 0:
@@ -504,6 +516,13 @@ def main():
              ]},
         ],
         "curatedUmbrellas": {"tv:10": {"id": "fixture:world", "name": "Fixture World"}},
+        # The Wikidata names the store keeps, by key: movie:1 is a store row and is not here. A lookup of a
+        # key the store holds, or of one Wikidata does not name, finds nothing.
+        "wikidataNames": [
+            {"key": "movie:3", "title": "Delta", "originalTitle": "Délta", "year": 2001},
+            {"key": "tv:11", "title": "Epsilon", "originalTitle": None, "year": None},
+            {"key": "tv:12", "title": "Zeta", "originalTitle": None, "year": 1950},
+        ],
         "notes": [
             "Scores are u16 HUNDREDTHS of a 0..4 axis: 321 is 3.21. They are not twentieths.",
             "Probabilities and confidences are u8 hundredths.",
@@ -552,6 +571,9 @@ def main():
             "fan_picks_v/fan_picks_o/fan_picks_a are OPTIONAL: a store without them has no fan picks, which is "
             "not an error. Each row's picks are other rows in the model's order; fan_picks_a is 1 for a title "
             "that was asked, so an asked title with no picks (tv:10) differs from one never asked (movie:2).",
+            "wd_name_key/wd_name_title/wd_name_orig/wd_name_year are OPTIONAL: a store without them names no "
+            "title it does not hold, which is not an error. Keys are packed like `keys`, ascending, and never "
+            "a store row's; they are names only, never rows to search, browse, rank or count.",
         ],
     }
     with open(os.path.join(args.out_dir, "store-v3.json"), "w", encoding="utf-8") as fh:

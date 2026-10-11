@@ -151,7 +151,8 @@ what an unenforced contract is worth.
 | `card_year` | `i16` | R — `i16::MIN` = none. The year of Wikidata's release date |
 | ~~`votes`~~ | | **REMOVED — see below** |
 
-**`card_poster` is optional**, as are the role lists, `ent_imdb`, and the studio and award sections below;
+**`card_poster` is optional**, as are the role lists, `ent_imdb`, and the studio, award and Wikidata-name
+sections below;
 nothing else is. A reader must treat its
 absence as "no poster paths", never as an error: the producer stopped writing it under oxyc/den#118,
 because a poster path is licensed vendor content and the store is a public artifact. A reader wanting
@@ -502,6 +503,34 @@ answer ("nothing a fan would love that we hold"), from a title nobody has asked 
 treats as having no fan picks at all. A title that was not asked owns an empty span.
 
 **Absent means no fan picks, never an error**, as with the studio sections. The three are written together.
+
+### Wikidata names — OPTIONAL
+
+`W` = named titles the store does not hold.
+
+| name | type | length | meaning |
+|---|---|---|---|
+| `wd_name_key` | `u64` | W | `(media << 32) \| tmdb_id`, as `keys` packs it, **sorted ascending**, none of them in `keys` |
+| `wd_name_title` | `u32` | W | string id: the title's name, a Wikipedia disambiguator stripped as from `card_title` |
+| `wd_name_orig` | `u32` | W | string id of its original title where that differs from the name, `u32::MAX` = none |
+| `wd_name_year` | `i16` | W | the year it came out, `i16::MIN` = none |
+
+A name for every film and series Wikidata gives a TMDB id (P4947, P4983) that the store has no row for: a
+title a household watched that never cleared the corpus, or one released since the last build. It lets a
+reader say what such a title is called rather than show a bare id. It is **not** a title row: no section
+above covers these keys, and a reader must not search, browse, rank or count them. A key the store holds is
+never here — its own card is the name.
+
+den-dataset builds it from Wikidata alone (CC0), never from a catalogue vendor (`pipeline/names.py`). The
+name is the English label, else the multilingual (`mul`) one, else the title (P1476), else the label in the
+work's original language (P364). The original title is the title (P1476) in that language, or the only one
+the item states. The year is the earliest publication date (P577) of a film, and the earliest start time
+(P580) of a series, else its earliest publication date. An id two items claim with nothing to choose between
+them, and an item with no name, are left out. The strings share `strings` and its length bound, so an
+original title over that bound is left off and a name over it leaves its row out.
+
+**Absent means no Wikidata names, never an error**, as with the studio sections. The four are written
+together; present, they have one length and the keys are strictly ascending.
 
 ### Vectors
 
