@@ -5854,6 +5854,7 @@
       "ok": {
         "counts": {
           "continue": 3,
+          "rated": 3,
           "seen": 4,
           "watchlist": 1
         },
@@ -5862,12 +5863,12 @@
           "b022f916e009de3d52089206f3695532",
           "fee3c42b428a8786487289d6d6ad544d"
         ],
-        "digest": "c5a38f3235a7946095af19d9d2d47ec8968d24dd4969b24c88b2f2eee8f6d07c",
+        "digest": "ecb81b80ff57a67cc0952b390069e4ad8f44244459565cd36804592847032d0e",
         "publish": [
           {
             "grant": "d7047d7faa4c6f77e1919c132bb6bd9f",
             "parts": [
-              "TyxKmk_SE_RAdnVbQtUIiEbn4mJtge_NwAJ_Pjov7OAaOp2VvkHX5wuUg9rn8uvvB3NTAxxLT9MPuZ9Fg93_bqA6fqcM2R2Hldu1XDug79LqODkJd-05-H80QpWML87dfSWu5Jj9Vcz-Xr8kLLiIX_k8DNl-3RLb0HmEn9tzAvfKUx633b9bfVAtnrB4cDEPS72a0pQAWjMBcqEoiOKdkzGYsqv5gTH1nmpjNtsljUxL8odh8cQI3OUa2uSbzpE_RoiIWeCKRTutrJ9NXxjWw38inJCTBXQ8rwSc5coWMx4PgrYmKhbLtWk_C19O7LHoLh8-RaBML7nqs8_lyYX6m1plAhyH1YI1C4vBH8sGqU272oHcf4hM_eppMaex"
+              "TyxKmk_SE_RAdnVbatQIaAHn-gMtw2TV8M333w5s8MAr7g29zDk22OSMZErppD3sM9a9ROv6zb2Na9VEDklXx-7XS8v4hYr_bj6iRHMNcdskPdIEqa-Ggnlxs4zsBnteEWeEUPYwKEJrIyd9kExjSm42mw8Wfpkzk8vKblVJqyHaJnBb66dZ1EGa83CwNAPTSmnlTj20Tdz65kPpKzn-9JtzJSvdo-68EoyKEIidlAXfPvz9_plkHW0GcKc2C6TZxdjVkC1q-1l5IrQSIwgdIdQT6aA7vhaQK-LijiA70cOYYWWuWCfiIARkAM5q8uYIk646p6ZfueC9ohCNXeYGNn55uKcU_KR0FiPyyVG7Z6pQDr0uxOug4l8KYswHuAVjO5hOg9HgZ26LAtNTt5LGTICA3zcsG5uzhtMuOUSInyqWjGMnQOGCdAXdGrVLfxuyf2EEyF1KGKI0I62ziAqk-h5l_g"
             ],
             "set": "fa55fe2ae16c6d338a484d1b247bb6f6"
           }
@@ -5880,6 +5881,14 @@
             "addedAt": 1789964000000,
             "format": 4,
             "kind": "title",
+            "reaction": {
+              "at": [
+                1789964000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "seen"
+            },
             "status": {
               "at": [
                 1789964000000,
@@ -5905,6 +5914,14 @@
             },
             "format": 4,
             "kind": "title",
+            "reaction": {
+              "at": [
+                1789960400000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "love"
+            },
             "status": {
               "at": [
                 1789960400000,
@@ -5921,6 +5938,14 @@
           {
             "format": 4,
             "kind": "title",
+            "reaction": {
+              "at": [
+                1789967600000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "love"
+            },
             "resume": {
               "at": [
                 1789967600000,
@@ -5952,6 +5977,14 @@
           {
             "format": 4,
             "kind": "title",
+            "reaction": {
+              "at": [
+                0,
+                1,
+                ""
+              ],
+              "value": "like"
+            },
             "status": {
               "at": [
                 0,
@@ -5994,6 +6027,14 @@
           {
             "format": 4,
             "kind": "title",
+            "reaction": {
+              "at": [
+                1789985600000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "dislike"
+            },
             "status": {
               "at": [
                 1789978400000,
@@ -6127,6 +6168,68 @@
         ],
         "now": 1790000000000,
         "op": "assistant_projection",
+        "prefs": {
+          "kind": "set",
+          "name": "prefs",
+          "schema": 2,
+          "values": {
+            "den.excludedGenreIDs": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "ints": [
+                  27,
+                  16
+                ]
+              }
+            },
+            "den.excludedLanguages": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "strings": [
+                  "tr"
+                ]
+              }
+            },
+            "den.hideAnime": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "bool": true
+              }
+            },
+            "den.hideWatched": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "bool": true
+              }
+            },
+            "den.minReleaseYear": {
+              "at": [
+                1789136000000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": {
+                "int": 1970
+              }
+            }
+          }
+        },
         "random": "9c8b51a6e9216e23b1f472ea4d41c1f6bb32c18762ca965ae3cb4b9420ccf3fd",
         "read": {
           "kind": "set",
@@ -8760,9 +8863,9 @@
         "aad0": "64656e2f617373697374616e742f70726f6a656374696f6e2f763100346331623761306539643366326338623561366531643066376333623961326500643730343764376661613463366637376531393139633133326262366264396600373330396330323530316233336534336639643964313331333666666163353700300031",
         "library": "4c1b7a0e9d3f2c8b5a6e1d0f7c3b9a2e",
         "parts": [
-          "MYBwDjAHq3nmFJgjMzve5CsNbFyArlKM5fRh8qes4dS1B1_S3G6b8pu10KxFYWaGeMZ1SE_YZ_wJ5iegqKRxJ2AZKX8nO40zbXdHRlp7d6gY13ombNy7JrwsbPWWCCCoR_pcLBJLYxyg5Oxa_IchZ8x72_qi9EyphHwub5wmzXXHRQomnQsEg-e26M8tE2Hk2mxTuLWrLi_4qn3v_VoV-Ctq9dAmLRDezCs6zrfh23wmcA2a9LUvyr5FqAIdkzWmgSMwvYoF2doMPmi6qaBp-RKObv-BMjrYLA1ZTuMgvX7ICDtu6wkW1TVSoIiTDxJnPGWMudAX8XTUpFQNAjgFhlJyZt5vBN8-aRddrMfu8D-ClTUnz8PzC6c12PlR"
+          "MYBwDjAHq3nmFJgjGzreBGwNdD3A7NmU1TvpE5Pv_fSE08_6rhZ6zXStNzxLN7CFTGObD7hp5ZKLNG2hJTDZji70HBPTZxpLlpJQXhLW6aHW0pErsp4EXLppnez2IZUrK7h2mHyGHpI1mXQDQHPKcltxTCzKV8dBx85gnhIcZKPXMGTKqxMGKvYBhQ_lV1M427gsJBwfOcADPp8uXoF2n4GBYlACD8-XQM3T6ORZwjWyvHYG--hDCzZZAkGwVgBAAnNtdEflZ7jYsEPl1bCiG7m_G88piVh0qOsnJQkNX6Nf6-jmmTg_QFgJqxm3EUWHgdSIW9YEZy2DtYtlllv5K3Zu3GX8Lfl_dL9uel3Jipi502LuXsuUFopcGMpOq5IPyfhPxSIi13b7jh2kA0cpXq2MDVUezEZ2AsQAybPxELUWZYzaiQymmNqtdKL0fGuELwwIPQUY0RPGAkvO2xoiNP4eTA"
         ],
-        "plaintext": "{\"at\":1790000000000,\"continue\":[[5,\"resume\",1,2,0.5,1789978400000],[4,\"next\",1,2,0.0,null],[2,\"resume\",null,null,0.4,1789971200000]],\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\",\"head\":4711,\"library\":\"4c1b7a0e9d3f2c8b5a6e1d0f7c3b9a2e\",\"seen\":[[4,1,1,1789982000000],[5,1,1,1789974800000],[1,null,null,1789967600000],[3,null,null,null]],\"titles\":[[\"movie\",550],[\"movie\",603],[\"movie\",680],[\"movie\",27205],[\"tv\",1396],[\"tv\",1399]],\"v\":1,\"watchlist\":[[0,1789964000000]]}",
+        "plaintext": "{\"at\":1790000000000,\"continue\":[[5,\"resume\",1,2,0.5,1789978400000],[4,\"next\",1,2,0.0,null],[2,\"resume\",null,null,0.4,1789971200000]],\"grant\":\"d7047d7faa4c6f77e1919c132bb6bd9f\",\"head\":4711,\"hide\":{\"anime\":true,\"genres\":[27,16],\"languages\":[\"tr\"],\"minYear\":1970},\"library\":\"4c1b7a0e9d3f2c8b5a6e1d0f7c3b9a2e\",\"rated\":[[5,\"dislike\",1789985600000],[1,\"love\",1789967600000],[3,\"like\",null]],\"seen\":[[4,1,1,1789982000000],[5,1,1,1789974800000],[1,null,null,1789967600000],[3,null,null,null]],\"titles\":[[\"movie\",550],[\"movie\",603],[\"movie\",680],[\"movie\",27205],[\"tv\",1396],[\"tv\",1399]],\"v\":1,\"watchlist\":[[0,1789964000000]]}",
         "random": "9c8b51a6e9216e23b1f472ea4d41c1f6bb32c18762ca965ae3cb4b9420ccf3fd",
         "set": "7309c02501b33e43f9d9d13136ffac57",
         "view": {
@@ -8802,7 +8905,44 @@
           ],
           "grant": "d7047d7faa4c6f77e1919c132bb6bd9f",
           "head": 4711,
+          "hide": {
+            "anime": true,
+            "genres": [
+              27,
+              16
+            ],
+            "languages": [
+              "tr"
+            ],
+            "minYear": 1970
+          },
           "library": "4c1b7a0e9d3f2c8b5a6e1d0f7c3b9a2e",
+          "rated": [
+            {
+              "at": 1789985600000,
+              "title": {
+                "id": 1399,
+                "type": "tv"
+              },
+              "value": "dislike"
+            },
+            {
+              "at": 1789967600000,
+              "title": {
+                "id": 603,
+                "type": "movie"
+              },
+              "value": "love"
+            },
+            {
+              "at": null,
+              "title": {
+                "id": 27205,
+                "type": "movie"
+              },
+              "value": "like"
+            }
+          ],
           "seen": [
             {
               "at": 1789982000000,
