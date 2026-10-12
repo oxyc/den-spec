@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oxyc/den-spec/schemas/profiles-v1.schema.json",
+  "title": "Den household profiles v1",
+  "oneOf": [
+    {"$ref": "#/$defs/directory"},
+    {"$ref": "#/$defs/selection"}
+  ],
+  "$defs": {
+    "profileId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "stamp": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        {"type": "string", "pattern": "^(|[0-9a-f]{16})$"}
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "displayValue": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1, "maxLength": 64},
+        "avatar": {"type": "string", "pattern": "^[0-9A-Za-z_-]{1,64}$"}
+      },
+      "additionalProperties": true
+    },
+    "libraryValue": {
+      "type": "object",
+      "required": ["keyVersion", "key"],
+      "properties": {
+        "keyVersion": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+        "key": {
+          "type": "string",
+          "pattern": "^(?:[A-Za-z0-9+/]{4}){10}[A-Za-z0-9+/]{3}=$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "policyValue": {
+      "type": "object",
+      "required": ["maxBand", "unknownRatings"],
+      "properties": {
+        "maxBand": {"type": ["string", "null"], "enum": [null, "littleKids", "family", "teen", "mature"]},
+        "unknownRatings": {"enum": ["allow", "block"]}
+      },
+      "additionalProperties": false
+    },
+    "stampedDisplay": {
+      "type": "object",
+      "required": ["value", "at"],
+      "properties": {"value": {"$ref": "#/$defs/displayValue"}, "at": {"$ref": "#/$defs/stamp"}},
+      "additionalProperties": false
+    },
+    "stampedLibrary": {
+      "type": "object",
+      "required": ["value", "at"],
+      "properties": {"value": {"$ref": "#/$defs/libraryValue"}, "at": {"$ref": "#/$defs/stamp"}},
+      "additionalProperties": false
+    },
+    "stampedPolicy": {
+      "type": "object",
+      "required": ["value", "at"],
+      "properties": {"value": {"$ref": "#/$defs/policyValue"}, "at": {"$ref": "#/$defs/stamp"}},
+      "additionalProperties": false
+    },
+    "stampedDeleted": {
+      "type": "object",
+      "required": ["value", "at"],
+      "properties": {"value": {"type": "boolean"}, "at": {"$ref": "#/$defs/stamp"}},
+      "additionalProperties": false
+    },
+    "entry": {
+      "type": "object",
+      "required": ["id", "role", "display", "library", "policy", "deleted"],
+      "properties": {
+        "id": {"$ref": "#/$defs/profileId"},
+        "role": {"enum": ["owner", "adult", "kid"]},
+        "display": {"$ref": "#/$defs/stampedDisplay"},
+        "library": {"$ref": "#/$defs/stampedLibrary"},
+        "policy": {"$ref": "#/$defs/stampedPolicy"},
+        "deleted": {"$ref": "#/$defs/stampedDeleted"}
+      },
+      "additionalProperties": true
+    },
+    "directory": {
+      "type": "object",
+      "required": ["format", "kind", "schema", "owner", "profiles"],
+      "properties": {
+        "format": {"const": 4},
+        "kind": {"const": "profiles"},
+        "schema": {"const": 1},
+        "owner": {"$ref": "#/$defs/profileId"},
+        "profiles": {
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/profileId"},
+          "additionalProperties": {"$ref": "#/$defs/entry"},
+          "minProperties": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "selection": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["version", "mode", "profileId"],
+          "properties": {
+            "version": {"const": 1},
+            "mode": {"const": "persistent"},
+            "profileId": {"$ref": "#/$defs/profileId"}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["version", "mode", "visitorNamespace"],
+          "properties": {
+            "version": {"const": 1},
+            "mode": {"const": "visitor"},
+            "visitorNamespace": {"$ref": "#/$defs/profileId"}
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

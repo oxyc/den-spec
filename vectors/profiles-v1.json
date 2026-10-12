@@ -1,0 +1,186 @@
+{
+  "version": 1,
+  "spec": "wire/profiles-v1.md",
+  "schema": "schemas/profiles-v1.schema.json",
+  "notes": [
+    "These are logical JCS documents. Library-v4 supplies compression, sealing and row-key vectors.",
+    "Valid and invalid directory cases pin profiles_validate; merge cases pin profiles_merge.",
+    "No case performs or authorizes the initial split, changes an existing minimum, or migrates production state."
+  ],
+  "directoryName": "profiles",
+  "validDirectories": [
+    {
+      "name": "one Owner and two Kids use distinct ordinary library-v4 logs",
+      "document": {
+        "format": 4,
+        "kind": "profiles",
+        "schema": 1,
+        "owner": "00112233445566778899aabbccddeeff",
+        "profiles": {
+          "00112233445566778899aabbccddeeff": {
+            "id": "00112233445566778899aabbccddeeff",
+            "role": "owner",
+            "display": {"value": {"name": "Cindy", "avatar": "fox"}, "at": [1800000000000, 0, "a1b2c3d4e5f60718"]},
+            "library": {"value": {"keyVersion": 1, "key": "ERERERERERERERERERERERERERERERERERERERERERE="}, "at": [1800000000000, 1, "a1b2c3d4e5f60718"]},
+            "policy": {"value": {"maxBand": null, "unknownRatings": "allow"}, "at": [1800000000000, 2, "a1b2c3d4e5f60718"]},
+            "deleted": {"value": false, "at": [1800000000000, 3, "a1b2c3d4e5f60718"]}
+          },
+          "11112222333344445555666677778888": {
+            "id": "11112222333344445555666677778888",
+            "role": "kid",
+            "display": {"value": {"name": "Mina", "avatar": "owl"}, "at": [1800000001000, 0, "a1b2c3d4e5f60718"]},
+            "library": {"value": {"keyVersion": 1, "key": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI="}, "at": [1800000001000, 1, "a1b2c3d4e5f60718"]},
+            "policy": {"value": {"maxBand": "family", "unknownRatings": "block"}, "at": [1800000001000, 2, "a1b2c3d4e5f60718"]},
+            "deleted": {"value": false, "at": [1800000001000, 3, "a1b2c3d4e5f60718"]}
+          },
+          "9999aaaabbbbccccddddeeeeffff0000": {
+            "id": "9999aaaabbbbccccddddeeeeffff0000",
+            "role": "kid",
+            "display": {"value": {"name": "Leo"}, "at": [1800000002000, 0, "0f1e2d3c4b5a6978"]},
+            "library": {"value": {"keyVersion": 1, "key": "MzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM="}, "at": [1800000002000, 1, "0f1e2d3c4b5a6978"]},
+            "policy": {"value": {"maxBand": "teen", "unknownRatings": "block"}, "at": [1800000002000, 2, "0f1e2d3c4b5a6978"]},
+            "deleted": {"value": false, "at": [1800000002000, 3, "0f1e2d3c4b5a6978"]}
+          }
+        }
+      }
+    }
+  ],
+  "invalidDirectories": [
+    {
+      "name": "map key must equal stable profile id",
+      "mutate": {"path": "/profiles/11112222333344445555666677778888/id", "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+      "error": "profile_id_mismatch"
+    },
+    {
+      "name": "owner field must name an entry",
+      "mutate": {"path": "/owner", "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+      "error": "owner_missing"
+    },
+    {
+      "name": "owner entry must have owner role",
+      "mutate": {"path": "/profiles/00112233445566778899aabbccddeeff/role", "value": "adult"},
+      "error": "owner_role"
+    },
+    {
+      "name": "owner cannot be deleted",
+      "mutate": {"path": "/profiles/00112233445566778899aabbccddeeff/deleted/value", "value": true},
+      "error": "owner_deleted"
+    },
+    {
+      "name": "there is exactly one owner role",
+      "mutate": {"path": "/profiles/11112222333344445555666677778888/role", "value": "owner"},
+      "error": "multiple_owners"
+    },
+    {
+      "name": "live profiles cannot share a library key",
+      "mutate": {"path": "/profiles/11112222333344445555666677778888/library/value/key", "value": "ERERERERERERERERERERERERERERERERERERERERERE="},
+      "error": "duplicate_library_key"
+    },
+    {
+      "name": "profile keys are exactly 32 bytes",
+      "mutate": {"path": "/profiles/11112222333344445555666677778888/library/value/key", "value": "c2hvcnQ="},
+      "error": "invalid_library_key"
+    },
+    {
+      "name": "display names are NFC",
+      "mutate": {"path": "/profiles/11112222333344445555666677778888/display/value/name", "value": "Miña"},
+      "error": "display_not_nfc"
+    }
+  ],
+  "mergeCases": [
+    {
+      "name": "later display stamp renames one profile",
+      "profile": "11112222333344445555666677778888",
+      "field": "display",
+      "a": {"value": {"name": "Mina", "avatar": "owl"}, "at": [1800000001000, 0, "a1b2c3d4e5f60718"]},
+      "b": {"value": {"name": "Mina Two", "avatar": "owl"}, "at": [1800000003000, 0, "0f1e2d3c4b5a6978"]},
+      "ok": {"value": {"name": "Mina Two", "avatar": "owl"}, "at": [1800000003000, 0, "0f1e2d3c4b5a6978"]}
+    },
+    {
+      "name": "deletion is irreversible even against a later false stamp",
+      "profile": "11112222333344445555666677778888",
+      "field": "deleted",
+      "a": {"value": true, "at": [1800000003000, 0, "a1b2c3d4e5f60718"]},
+      "b": {"value": false, "at": [1800000004000, 0, "0f1e2d3c4b5a6978"]},
+      "ok": {"value": true, "at": [1800000003000, 0, "a1b2c3d4e5f60718"]}
+    },
+    {
+      "name": "greater key version beats a later stamp",
+      "profile": "11112222333344445555666677778888",
+      "field": "library",
+      "a": {"value": {"keyVersion": 2, "key": "RERERERERERERERERERERERERERERERERERERERERE="}, "at": [1800000003000, 0, "a1b2c3d4e5f60718"]},
+      "b": {"value": {"keyVersion": 1, "key": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI="}, "at": [1800000004000, 0, "0f1e2d3c4b5a6978"]},
+      "ok": {"value": {"keyVersion": 2, "key": "RERERERERERERERERERERERERERERERERERERERERE="}, "at": [1800000003000, 0, "a1b2c3d4e5f60718"]}
+    }
+  ],
+  "policyCases": [
+    {"name": "legacy pg13", "legacy": "pg13", "normalized": {"maxBand": "teen", "unknownRatings": "allow"}},
+    {"name": "legacy r", "legacy": "r", "normalized": {"maxBand": "mature", "unknownRatings": "allow"}},
+    {"name": "legacy absent", "legacy": null, "normalized": {"maxBand": null, "unknownRatings": "allow"}},
+    {"name": "Kid unknown blocks", "policy": {"maxBand": "family", "unknownRatings": "block"}, "titleBand": null, "allow": false},
+    {"name": "Owner unknown allows", "policy": {"maxBand": null, "unknownRatings": "allow"}, "titleBand": null, "allow": true},
+    {"name": "family blocks teen", "policy": {"maxBand": "family", "unknownRatings": "block"}, "titleBand": "teen", "allow": false},
+    {"name": "teen allows family", "policy": {"maxBand": "teen", "unknownRatings": "block"}, "titleBand": "family", "allow": true}
+  ],
+  "selectionCases": [
+    {
+      "name": "sticky Kid opens directly",
+      "marker": {"version": 1, "mode": "persistent", "profileId": "11112222333344445555666677778888"},
+      "result": {"action": "open", "profileId": "11112222333344445555666677778888"}
+    },
+    {
+      "name": "sticky Visitor opens its local namespace",
+      "marker": {"version": 1, "mode": "visitor", "visitorNamespace": "abcdefabcdefabcdefabcdefabcdefab"},
+      "result": {"action": "openVisitor", "visitorNamespace": "abcdefabcdefabcdefabcdefabcdefab"}
+    },
+    {
+      "name": "missing marker never silently opens Owner",
+      "marker": null,
+      "result": {"action": "picker", "ownerGate": true}
+    },
+    {
+      "name": "unknown profile opens picker with restricted profiles",
+      "marker": {"version": 1, "mode": "persistent", "profileId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+      "result": {"action": "picker", "ownerGate": true}
+    }
+  ],
+  "settingsOwnership": [
+    {"key": "keys.tmdb|keys.omdb|keys.doesthedogdie", "scope": "household", "nonOwner": "read-use"},
+    {"key": "keys.simkl|future tracker credentials", "scope": "owning-profile", "nonOwner": "kid-visitor-no-read-or-delivery-v1"},
+    {"key": "keys.cfAccessId|keys.cfAccessSecret", "scope": "household", "nonOwner": "read-use"},
+    {"key": "keys.parentalPIN", "scope": "household-owner-pin", "nonOwner": "verify-only"},
+    {"key": "profile-directory Kid policy", "scope": "household-owner-managed", "nonOwner": "kid-read-only"},
+    {"key": "Visitor policy", "scope": "household-inherits-owner-v1", "nonOwner": "read-only"},
+    {"key": "plugins.*|servers.*|trust.*|addresses.*", "scope": "household", "nonOwner": "read-use"},
+    {"key": "devices.*|recovery.*", "scope": "household", "nonOwner": "administration-hidden"},
+    {"key": "download rows|download policy", "scope": "household", "nonOwner": "disabled-or-pin-gated"},
+    {"key": "prefs.den.watchRegion", "scope": "household", "nonOwner": "inherit"},
+    {"key": "prefs.den.myServiceIDs", "scope": "household", "nonOwner": "inherit-legacy"},
+    {"key": "prefs.den.myServicePicks", "scope": "household", "nonOwner": "inherit"},
+    {"key": "prefs.den.excludedGenreIDs", "scope": "profile", "nonOwner": "read-write-own"},
+    {"key": "prefs.den.excludedLanguages", "scope": "profile", "nonOwner": "read-write-own"},
+    {"key": "prefs.den.preferredSubtitleLanguage", "scope": "profile", "nonOwner": "read-write-own"},
+    {"key": "prefs.den.hasExplicitSubtitlePreference", "scope": "profile", "nonOwner": "read-write-own"},
+    {"key": "prefs.den.shownSubtitleLanguages", "scope": "profile", "nonOwner": "read-write-own"},
+    {"key": "prefs.den.maxSubtitlesPerLanguage", "scope": "profile", "nonOwner": "read-write-own"},
+    {"key": "prefs.den.preferredAudioLanguage", "scope": "profile", "nonOwner": "read-write-own"},
+    {"key": "prefs.den.autoSkipSegments", "scope": "profile", "nonOwner": "read-write-own"},
+    {"key": "prefs.den.autoplayTrailers", "scope": "profile", "nonOwner": "read-write-own-subject-to-kid-policy"},
+    {"key": "prefs.den.hideAnime", "scope": "profile", "nonOwner": "read-write-own"},
+    {"key": "prefs.den.hideWatched", "scope": "profile", "nonOwner": "read-write-own"},
+    {"key": "prefs.den.minReleaseYear", "scope": "profile", "nonOwner": "read-write-own"},
+    {"key": "prefs.den.enabledRatingSources", "scope": "profile", "nonOwner": "read-write-own"},
+    {"key": "prefs.den.shownWarningCategories", "scope": "profile", "nonOwner": "read-write-own"},
+    {"key": "prefs.den.maturityCeiling", "scope": "owner-profile-migration-input", "nonOwner": "translate-to-owner-policy"},
+    {"key": "OLED|presentation|other unsynced settings", "scope": "device", "nonOwner": "follow-device"}
+  ],
+  "wireTopology": {
+    "rowEncoding": "library-v4",
+    "householdRequestWireAfterActivation": 5,
+    "profileRequestWire": 4,
+    "newProfileLibraryMinimum": 4,
+    "existingHouseholdMinimumChangedByThisRevision": false,
+    "initialSplitOperationDefined": false,
+    "visitorSyncedLibrary": false
+  }
+}
