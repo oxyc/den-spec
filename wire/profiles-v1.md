@@ -193,12 +193,28 @@ Absent an explicit Kid approval (§5.1), a known title is eligible exactly when 
 decodes legacy `pg13` as `maximumAge: 13`, `r` as `maximumAge: 17`, and absent/null as `maximumAge: null`; all three
 preserve Owner's existing `unknownRatings: allow`. No named maturity band remains in the policy or title contract.
 
-Eligibility MUST be applied at discovery before scoring, ranking, limiting and pagination, so filtering cannot
+Age eligibility MUST be applied at discovery before scoring, ranking, limiting and pagination, so filtering cannot
 produce a sparse page when eligible inventory exists. It MUST be checked again before showing a direct/deep-linked
 detail or ambient trailer and at Play, Sources, autoplay/binge-next, download/offline use, companion/MCP/assistant
 play and remote-play boundaries. Cache and ETag identity includes `maximumAge`, `unknownRatings`, and the Kid's
 effective approval state. A source that cannot establish eligibility under a blocking policy is omitted or denied.
 [den-atlas#141](https://github.com/oxyc/den-atlas/issues/141) owns pre-ranking and pre-pagination Atlas enforcement.
+
+Age eligibility answers whether a title may be watched; it does not make every harmless adult title appropriate for
+a Kid catalogue. Kid discovery therefore has a second, independent **audience-relevance gate**. After the age gate
+and still before scoring, ranking, limiting and pagination, a title is discoverable for a Kid only when the store's
+`audience` table has `made_for_children >= 0.5`, or, when the Kid's `maximumAge` is 12 through 18 or null,
+`made_for_teens >= 0.5`. These are audience-intent signals: a Family/Kids genre, animation technique, young cast,
+gentle tone, low intensity or absence of warnings is not sufficient on its own. Missing audience evidence fails
+closed for Kid discovery. This gate applies to browse rows, recommendations and search results, including candidates
+fetched to refill a page after filtering.
+
+The audience-relevance gate is presentation policy, not a second maturity rating. It does not apply to Owner or
+Visitor discovery, does not change `minimumAge`, and does not deny an otherwise age-eligible direct/deep-linked
+detail, Play, Sources, download, autoplay or remote-play request. Those boundaries continue to use the age policy
+and title approvals above. This distinction lets an owner deliberately open a specific obscure or adult-oriented
+but age-eligible work without filling the Kid's normal catalogue with such titles. Atlas cache and ETag identity for
+Kid discovery additionally includes the Kid role and the child-only versus child-or-teen audience band.
 
 Policy ordering is the product order of two components. A lower numeric `maximumAge` is stricter than a higher one,
 and every numeric maximum is stricter than null; `unknownRatings: block` is stricter than `allow`. Policy A is

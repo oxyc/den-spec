@@ -298,6 +298,17 @@ def policy_allows(policy: dict, minimum_age: object, approved: bool = False) -> 
     return maximum_age is None or minimum_age <= maximum_age
 
 
+def kid_discovery_relevant(policy: dict, made_for_children: object, made_for_teens: object) -> bool:
+    for score in (made_for_children, made_for_teens):
+        if score is not None and (type(score) not in (int, float) or not 0 <= score <= 1):
+            fail("invalid_audience_score")
+    if made_for_children is not None and made_for_children >= 0.5:
+        return True
+    maximum_age = policy["maximumAge"]
+    teen_band = maximum_age is None or maximum_age >= 12
+    return teen_band and made_for_teens is not None and made_for_teens >= 0.5
+
+
 def policy_relation(a: dict, b: dict) -> str:
     def components(policy: dict) -> tuple[int, int]:
         age = policy["maximumAge"] if policy["maximumAge"] is not None else 19
@@ -499,6 +510,19 @@ def main() -> int:
     for case in vectors["policyOrderingCases"]:
         if policy_relation(case["a"], case["b"]) != case["relation"]:
             fail(f"{case['name']}: policy ordering mismatch")
+    for case in vectors["kidDiscoveryCases"]:
+        if "error" in case:
+            try:
+                kid_discovery_relevant(case["policy"], case.get("madeForChildren"), case.get("madeForTeens"))
+            except ValueError as error:
+                if str(error) != case["error"]:
+                    fail(f"{case['name']}: wanted {case['error']}, got {error}")
+            else:
+                fail(f"{case['name']}: invalid audience score accepted")
+        elif kid_discovery_relevant(
+            case["policy"], case.get("madeForChildren"), case.get("madeForTeens")
+        ) != case["relevant"]:
+            fail(f"{case['name']}: Kid discovery relevance mismatch")
     if vectors["unknownRatingsDefaults"] != {"owner": "allow", "kid": "block"}:
         fail("unknown_ratings_defaults_mismatch")
 
@@ -646,6 +670,7 @@ def main() -> int:
         f"{len(vectors['directoryMergeCases'])} directory merge, "
         f"{len(vectors['policyCases'])} policy, "
         f"{len(vectors['policyOrderingCases'])} policy ordering, "
+        f"{len(vectors['kidDiscoveryCases'])} Kid discovery, "
         f"{len(vectors['validApprovalDocuments'])} approval valid, "
         f"{len(vectors['invalidApprovalDocuments'])} approval invalid, "
         f"{len(vectors['approvalMergeCases'])} approval merge, "
