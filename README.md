@@ -46,11 +46,12 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
   cargo test -p den-sync --test assistant write_assistant_vectors -- --ignored`.
 - [`wire/routes-v1.md`](wire/routes-v1.md): den-edge's table of every address for each service, and the rule
   every client applies to it — order, health check, and the home check before a plain LAN address.
-- [`wire/store-v3.md`](wire/store-v3.md): the current single mmap'd artifact den-atlas serves from — every
+- [`wire/store-v4.md`](wire/store-v4.md): the current single mmap'd artifact den-atlas serves from — every
   per-title signal and both vector matrices in one columnar file. Written by den-dataset, read by
-  den-core's `den-store`. v3 adds structural-affinity profiles; [`wire/store-v2.md`](wire/store-v2.md)
+  den-core's `den-store`. v4 adds conservative numeric maturity ages; [`wire/store-v3.md`](wire/store-v3.md)
+  added structural-affinity profiles and [`wire/store-v2.md`](wire/store-v2.md)
   made `franchise` a list and [`wire/store-v1.md`](wire/store-v1.md) is the layout before that.
-- [`vectors/store-v3.json`](vectors/store-v3.json) and `vectors/store-v3.store`: a three-title store and
+- [`vectors/store-v4.json`](vectors/store-v4.json) and `vectors/store-v4.store`: a three-title store and
   the values a correct reader gets out of it, covering a facts-only row, a declined facet, a genre Q-id
   that maps to two TMDB ids, a title in two raw series, a curated franchise spanning film and TV,
   premise tags shared across two titles, other versions of both kinds, Jev More Like This scores
