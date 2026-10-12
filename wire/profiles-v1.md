@@ -3,9 +3,11 @@
 **Status: contract only; not activated.** This document is the backward-compatible first part of
 [den-spec#39](https://github.com/oxyc/den-spec/issues/39) and the architecture in
 [den#234](https://github.com/oxyc/den/issues/234). It defines the data model clients and den-core will implement.
-It does **not** authorize a client to split an existing library, publish a profile directory, raise a production
-wire minimum, or make an existing wire-4 household refuse a wire-4 client. Those state machines require a later
-revision with backup, fencing, adoption, cleanup and reset vectors.
+Its maturity values follow the conservative numeric model selected in
+[den-dataset#226](https://github.com/oxyc/den-dataset/issues/226).
+It does **not** authorize a client to split an existing library, publish a profile directory or approval document,
+raise a production wire minimum, or make an existing wire-4 household refuse a wire-4 client. Those state machines
+require a later revision with backup, fencing, adoption, cleanup and reset vectors.
 
 Words: *MUST* is a rule a client breaks at the cost of another client or profile; *should* is advice.
 
@@ -16,7 +18,10 @@ A profile-aware installation has this topology:
 ```text
 household library (configuration only; profile-aware requests use wire 5)
 ├── household settings and download rows
-└── profiles document
+├── profiles document
+├── Kid A title-approval document
+├── Kid B title-approval document
+└── persistent profile keys
     ├── Owner  ── random key ──> ordinary library-v4 activity log
     ├── Kid A  ── random key ──> ordinary library-v4 activity log
     └── Kid B  ── random key ──> ordinary library-v4 activity log
@@ -35,6 +40,10 @@ household's `x-den-wire-min`. In particular, this revision has no operation that
 eventual committed split will raise the existing household minimum to 5; until that operation is specified and
 implemented, its minimum stays unchanged.
 
+Experiments or canary behavior at `d.oxy.fi` may exercise this contract behind deployment controls, but do not
+alter the wire contract, activate the split, or authorize any production wire-minimum change. Wire behavior changes
+only through the fenced activation contract and implementation that this proposal explicitly defers.
+
 The household key seals the directory, including all profile keys. Profiles are UX and data-isolation boundaries,
 not protection from a hostile device that holds the household key. Selectively wrapped private profiles are out of
 scope.
@@ -45,7 +54,7 @@ The **household library** is configuration only. A profile-aware client MUST NOT
 season activity, reactions, resume state, personal recommendations, tracker commands, tracker receipts, tracker
 delivery documents, or tracker credentials there. It may hold:
 
-- the `profiles` document (§3);
+- the `profiles` document (§3) and per-Kid title-approval documents (§5.1);
 - the household-scoped settings in §6, including devices, recovery, credentials, addons, servers, routes/trust,
   private addresses, owner PIN and Visitor policy;
 - the library-v4 §17 download rows and download lease; and
@@ -81,7 +90,7 @@ The directory is one document named `profiles`. Its row key is
       "role": "owner",
       "display": {"value": {"name": "Cindy", "avatar": "fox"}, "at": [1800000000000, 0, "a1b2c3d4e5f60718"]},
       "library": {"value": {"keyVersion": 1, "key": "ERERERERERERERERERERERERERERERERERERERERERE="}, "at": [1800000000000, 1, "a1b2c3d4e5f60718"]},
-      "policy": {"value": {"maxBand": null, "unknownRatings": "allow"}, "at": [1800000000000, 2, "a1b2c3d4e5f60718"]},
+      "policy": {"value": {"maximumAge": null, "unknownRatings": "allow"}, "at": [1800000000000, 2, "a1b2c3d4e5f60718"]},
       "deleted": {"value": false, "at": [1800000000000, 3, "a1b2c3d4e5f60718"]}
     }
   }
@@ -101,8 +110,10 @@ The directory is one document named `profiles`. Its row key is
 - `library.value.key` is a canonical padded base64 encoding of exactly 32 random bytes. It is not derived from the
   household key, profile id, name, role or another profile key. `keyVersion` starts at 1 and increases on a reset;
   zero is invalid. Two live profiles MUST NOT carry the same key.
-- `policy.value.maxBand` is `null`, `littleKids`, `family`, `teen` or `mature`.
-  `unknownRatings` is `allow` or `block`. The effective check is in §5.
+- `policy.value.maximumAge` is an integer from 0 through 18, or `null` for no age ceiling. Values outside this
+  supported human-age range are invalid rather than silently treated as policy.
+  `unknownRatings` is `allow` or `block`. The effective check is in §5. Unknown policy members are extensions
+  and travel with the stamped policy value that wins.
 - `display`, `library`, `policy` and `deleted` are stamped fields. Stamps and their clock/future handling are
   library-v2 §4. A deletion is permanent: a deleted id cannot become live again, its library is retired by the
   lifecycle operation, and recreation uses a new id and key. The tombstone retains the last library reference so
@@ -138,8 +149,9 @@ An existing owner's missing/unknown certification remains fail-open: its migrate
 `unknownRatings: "allow"`.
 
 **Kid** is a persistent profile with independent activity, preferences and recommendations. Creation requires an
-owner PIN to exist and defaults `unknownRatings` to `block`; the owner chooses the initial `maxBand`. Only an
-owner-authorized operation writes a Kid's policy. A Kid session receives no policy writer and has no tracker in v1.
+owner PIN to exist and defaults `unknownRatings` to `block`; the owner chooses the initial `maximumAge`. Only an
+owner-authorized operation writes a Kid's policy or title approvals. A Kid session receives neither writer and has
+no tracker in v1.
 Kid cannot manage profiles or household connections. Resource-consuming download actions are disabled or gated by
 the owner PIN.
 
@@ -154,18 +166,73 @@ active.
 
 ## 5. Policy decisions
 
-The normalized bands, from stricter to looser, are `littleKids`, `family`, `teen`, `mature`, then `null` (no band
-ceiling). The eventual rating-source mapping is separate and must be pinned before Kid discovery ships. Legacy
-Owner input decodes `pg13` as `teen`, `r` as `mature`, and absent/null as null.
+The title signal is `minimumAge`: an integer from 0 through 18, or unknown. Values outside that supported human-age
+range are invalid. Unknown is a first-class value, not
+zero and not evidence that a title is suitable for every age. Dataset and runtime sources resolve confidently
+matched versions and authorities conservatively before producing this value; the highest verified applicable age
+wins, as specified by den-dataset#226. Profile policy stores `maximumAge`, with `null` meaning no age ceiling.
 
-For a normalized title band, allow only when it is no looser than `maxBand`, or when `maxBand` is null. For an
-unknown title band, allow exactly when `unknownRatings` is `allow`. Eligibility MUST be applied before ranking and
-pagination and again at play/deep-link/download boundaries. A session-only title unlock changes no stored policy.
+Absent an explicit Kid approval (§5.1), a known title is eligible exactly when `maximumAge` is null or
+`minimumAge <= maximumAge`; an unknown title is eligible exactly when `unknownRatings` is `allow`. Owner migration
+decodes legacy `pg13` as `maximumAge: 13`, `r` as `maximumAge: 17`, and absent/null as `maximumAge: null`; all three
+preserve Owner's existing `unknownRatings: allow`. No named maturity band remains in the policy or title contract.
 
-A stricter remote policy applies immediately. A looser policy waits for the owner PIN on a device already enforcing
-a policy. The ordering compares `maxBand` first and treats changing `unknownRatings` from `allow` to `block` as
-stricter, the reverse as looser. Policies whose two components move in opposite directions are incomparable and
-require the owner PIN before either loosening is applied.
+Eligibility MUST be applied at discovery before scoring, ranking, limiting and pagination, so filtering cannot
+produce a sparse page when eligible inventory exists. It MUST be checked again before showing a direct/deep-linked
+detail or ambient trailer and at Play, Sources, autoplay/binge-next, download/offline use, companion/MCP/assistant
+play and remote-play boundaries. Cache and ETag identity includes `maximumAge`, `unknownRatings`, and the Kid's
+effective approval state. A source that cannot establish eligibility under a blocking policy is omitted or denied.
+[den-atlas#141](https://github.com/oxyc/den-atlas/issues/141) owns pre-ranking and pre-pagination Atlas enforcement.
+
+Policy ordering is the product order of two components. A lower numeric `maximumAge` is stricter than a higher one,
+and every numeric maximum is stricter than null; `unknownRatings: block` is stricter than `allow`. Policy A is
+stricter than B only when neither component is looser and at least one is stricter. Opposite movements are
+incomparable. A stricter remote policy applies immediately; equal policy changes nothing; a looser or incomparable
+policy waits for the owner PIN on a device already enforcing a policy.
+
+### 5.1 Per-Kid title approvals
+
+Each Kid may have one owner-managed document in the household control library. Its logical name is
+`kid-title-approvals:<kid-profile-id>` and its row key is
+`hex(HMAC-SHA256(macKey, UTF8(<logical name>)))`. It uses the same compressed library-v4 document framing as the
+directory and is deliberately separate from the Kid's activity log:
+
+```json
+{
+  "format": 4,
+  "kind": "kid-title-approvals",
+  "schema": 1,
+  "kid": "11112222333344445555666677778888",
+  "approvals": {
+    "movie:550": {"value": "allow", "at": [1800000010000, 0, "a1b2c3d4e5f60718"]},
+    "tv:1399": {"value": "tombstone", "at": [1800000011000, 0, "a1b2c3d4e5f60718"]}
+  }
+}
+```
+
+- `kid` is immutable, equals the profile id in the logical name, and MUST name a live directory entry whose role is
+  `kid`. There is no approval document for Owner, adult or Visitor.
+- Approval keys are exactly `movie:<TMDB id>` or `tv:<TMDB id>`, with a positive uint32 id (`1..4294967295`) in
+  canonical decimal. This is the store's packed title identity bound. The key is stable across title metadata
+  changes and distinguishes a movie from a series with the same numeric id.
+- Each entry is a stamped `allow` or `tombstone`. Removing approval writes a fresh tombstone and retains the key;
+  physical absence is only “no known decision” and cannot erase an allow learned from another replica. Merge takes
+  the union of keys and, per key, the later stamp. On an equal-stamp value conflict, `tombstone` wins; otherwise the
+  byte-greater JCS wins, making merge commutative, associative and idempotent. A later owner-authorized `allow` may
+  intentionally approve the title again.
+- Only an owner-authorized operation may create or change this document. A Kid session can read its effective
+  entries but receives no writer. Deleting the Kid makes all of its approvals ineffective; retirement is part of
+  the deferred profile lifecycle contract, not an activity write.
+- A live `allow` overrides `maximumAge` and `unknownRatings` only for this one Kid and title. It does not weaken the
+  stored policy, affect another Kid or Visitor, or turn approval into evidence about the title's `minimumAge`.
+- Document-level extensions and entry members unknown to a client are preserved. Entry extensions travel with the
+  winning stamped entry. Top-level unknowns use library-v4 §6's unknown-set rule, using the document's greatest
+  approval stamp as its monotone newest stamp; a document with none ranks below one with a stamp.
+
+The existing owner-PIN-gated **play once** action remains device-local and session/playback scoped. It writes no
+approval, profile activity policy, or household row, is not synced, and is discarded after that playback attempt
+or when the active mode changes. Persistent approval is a distinct owner action and never an accidental side
+effect of play once.
 
 ## 6. Normative settings ownership
 
@@ -179,6 +246,7 @@ Adding a synced setting requires assigning it in a later version of this table.
 | `keys.cfAccessId`, `keys.cfAccessSecret` | Household | Read/use; cannot manage |
 | `keys.parentalPIN` | Household owner PIN | Verify gates; cannot manage |
 | profile-directory Kid policy | Household, owner-managed | Kid reads; Kid session has no policy writer |
+| per-Kid title approvals | Household, owner-managed | Kid reads own; Kid session has no approval writer |
 | Visitor policy | Household; inherits Owner policy in v1 | Read only |
 | `plugins.*`, `servers.*`, `trust.*`, `addresses.*` | Household | Read/use; cannot manage |
 | `devices.*`, `recovery.*` | Household | Hidden from non-owner administration |
@@ -221,7 +289,7 @@ opens directly across process death, TV sleep/reboot and browser reload. There i
 expiry.
 
 - A missing/corrupt marker, unknown/deleted profile id, or marker whose role is unsupported opens the picker. If
-  any live profile is restricted (`maxBand` non-null or `unknownRatings: block`), Owner and management remain behind
+  any live profile is restricted (`maximumAge` non-null or `unknownRatings: block`), Owner and management remain behind
   the owner PIN; the client MUST NOT silently choose Owner.
 - Owner → Kid or Visitor and Visitor → Kid need no PIN. Kid → Owner and Visitor → Owner require the owner PIN.
   Kid → Visitor requires it whenever Owner's inherited Visitor policy is looser than the Kid policy (§5).
@@ -233,8 +301,9 @@ expiry.
 ## 8. Vectors and deferred lifecycle work
 
 [`vectors/profiles-v1.json`](../vectors/profiles-v1.json) pins valid and invalid directories, more than one Kid,
-distinct keys, role semantics, settings scope, sticky selection and wire topology. The schema and vector-specific
-cross-field checks run with `python3 tools/validate_profiles.py`.
+distinct keys, numeric policy and ordering, per-Kid approval validation and convergence, role semantics, settings
+scope, sticky selection and wire topology. The schema and vector-specific cross-field checks run with
+`python3 tools/validate_profiles.py`.
 
 This revision intentionally has no vector for the destructive initial split, concurrent winner adoption, orphan
 cleanup, backup, or multi-profile §12 reset. It must not be cited as authorization to implement them. The follow-up

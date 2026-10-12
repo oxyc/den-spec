@@ -18,7 +18,7 @@ SCHEMA = ROOT / "schemas" / "profiles-v1.schema.json"
 ID = re.compile(r"^[0-9a-f]{32}$")
 DEVICE = re.compile(r"^(?:|[0-9a-f]{16})$")
 AVATAR = re.compile(r"^[0-9A-Za-z_-]{1,64}$")
-BANDS = ("littleKids", "family", "teen", "mature")
+TITLE_KEY = re.compile(r"^(?:movie|tv):([1-9][0-9]*)$")
 
 
 def fail(message: str) -> None:
@@ -42,9 +42,10 @@ def stamped(value: object) -> dict:
 
 
 def validate_policy(value: object) -> None:
-    if not isinstance(value, dict) or set(value) != {"maxBand", "unknownRatings"}:
+    if not isinstance(value, dict) or not {"maximumAge", "unknownRatings"} <= set(value):
         fail("invalid_policy")
-    if value["maxBand"] is not None and value["maxBand"] not in BANDS:
+    maximum_age = value["maximumAge"]
+    if maximum_age is not None and (type(maximum_age) is not int or not 0 <= maximum_age <= 18):
         fail("invalid_policy")
     if value["unknownRatings"] not in ("allow", "block"):
         fail("invalid_policy")
@@ -127,12 +128,41 @@ def validate_selection(marker: object) -> None:
     fail("invalid_selection")
 
 
-def set_pointer(document: dict, pointer: str, value: object) -> None:
-    parts = pointer.lstrip("/").split("/")
+def validate_approval(document: object, directory: dict, logical_name: str) -> dict:
+    if not isinstance(document, dict):
+        fail("invalid_approval_document")
+    if document.get("format") != 4 or document.get("kind") != "kid-title-approvals" or document.get("schema") != 1:
+        fail("invalid_approval_document")
+    kid = document.get("kid")
+    approvals = document.get("approvals")
+    if not isinstance(kid, str) or not ID.fullmatch(kid) or not isinstance(approvals, dict):
+        fail("invalid_approval_document")
+    if logical_name != f"kid-title-approvals:{kid}":
+        fail("approval_name_mismatch")
+    entry = directory["profiles"].get(kid)
+    if entry is None or entry.get("role") != "kid" or entry["deleted"]["value"]:
+        fail("approval_not_kid")
+    for title_key, approval in approvals.items():
+        match = TITLE_KEY.fullmatch(title_key) if isinstance(title_key, str) else None
+        if match is None or int(match.group(1)) > 4_294_967_295:
+            fail("invalid_title_key")
+        if not isinstance(approval, dict) or not {"value", "at"} <= set(approval):
+            fail("invalid_approval")
+        validate_stamp(approval["at"])
+        if approval["value"] not in ("allow", "tombstone"):
+            fail("invalid_approval")
+    return document
+
+
+def mutate_pointer(document: dict, mutation: dict) -> None:
+    parts = mutation["path"].lstrip("/").split("/")
     target = document
     for part in parts[:-1]:
         target = target[part]
-    target[parts[-1]] = value
+    if "rename" in mutation:
+        target[mutation["rename"]] = target.pop(parts[-1])
+    else:
+        target[parts[-1]] = mutation["value"]
 
 
 def merge_field(field: str, a: dict, b: dict) -> dict:
@@ -144,11 +174,53 @@ def merge_field(field: str, a: dict, b: dict) -> dict:
     return max((a, b), key=lambda item: tuple(item["at"]))
 
 
-def policy_allows(policy: dict, title_band: object) -> bool:
-    if title_band is None:
+def merge_approval(a: dict, b: dict) -> dict:
+    def rank(item: dict) -> tuple:
+        # Tombstone is the conservative winner for the otherwise impossible equal-stamp conflict.
+        return (tuple(item["at"]), item["value"] == "tombstone", canonical_json_bytes(item))
+
+    return max((a, b), key=rank)
+
+
+def canonical_json_bytes(value: object) -> bytes:
+    # Fixtures use only integers, strings, booleans and null, whose JCS form is this compact sorted JSON form.
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+
+
+def merge_unknown_set(a_stamp: object, a_unknown: dict, b_stamp: object, b_unknown: dict) -> dict:
+    def rank(stamp: object, unknown: dict) -> tuple:
+        has_stamp = stamp is not None
+        return (has_stamp, tuple(stamp) if has_stamp else (), bool(unknown), canonical_json_bytes(unknown))
+
+    return max(((a_stamp, a_unknown), (b_stamp, b_unknown)), key=lambda item: rank(*item))[1]
+
+
+def policy_allows(policy: dict, minimum_age: object, approved: bool = False) -> bool:
+    if minimum_age is not None and (type(minimum_age) is not int or not 0 <= minimum_age <= 18):
+        fail("invalid_minimum_age")
+    if approved:
+        return True
+    if minimum_age is None:
         return policy["unknownRatings"] == "allow"
-    ceiling = policy["maxBand"]
-    return ceiling is None or BANDS.index(title_band) <= BANDS.index(ceiling)
+    maximum_age = policy["maximumAge"]
+    return maximum_age is None or minimum_age <= maximum_age
+
+
+def policy_relation(a: dict, b: dict) -> str:
+    def components(policy: dict) -> tuple[int, int]:
+        age = policy["maximumAge"] if policy["maximumAge"] is not None else 19
+        unknown = 0 if policy["unknownRatings"] == "block" else 1
+        return age, unknown
+
+    left = components(a)
+    right = components(b)
+    if left == right:
+        return "equal"
+    if all(x <= y for x, y in zip(left, right)):
+        return "stricter"
+    if all(x >= y for x, y in zip(left, right)):
+        return "looser"
+    return "incomparable"
 
 
 def main() -> int:
@@ -159,6 +231,8 @@ def main() -> int:
         fail("unexpected_schema_dialect")
     if vectors.get("schema") != str(SCHEMA.relative_to(ROOT)):
         fail("schema_path_mismatch")
+    if vectors.get("directoryName") != "profiles" or vectors.get("approvalNamePrefix") != "kid-title-approvals:":
+        fail("document_name_mismatch")
 
     base = vectors["validDirectories"][0]["document"]
     for case in vectors["validDirectories"]:
@@ -166,7 +240,7 @@ def main() -> int:
 
     for case in vectors["invalidDirectories"]:
         candidate = copy.deepcopy(base)
-        set_pointer(candidate, case["mutate"]["path"], case["mutate"]["value"])
+        mutate_pointer(candidate, case["mutate"])
         try:
             validate_directory(candidate)
         except ValueError as error:
@@ -189,14 +263,106 @@ def main() -> int:
         if merge_field(case["field"], case["b"], case["a"]) != case["ok"]:
             fail(f"{case['name']}: merge is not commutative")
 
-    legacy = {"pg13": "teen", "r": "mature", None: None}
+    legacy = {"pg13": 13, "r": 17, None: None}
     for case in vectors["policyCases"]:
         if "legacy" in case:
-            actual = {"maxBand": legacy[case["legacy"]], "unknownRatings": "allow"}
+            actual = {"maximumAge": legacy[case["legacy"]], "unknownRatings": "allow"}
             if actual != case["normalized"]:
                 fail(f"{case['name']}: legacy mapping mismatch")
-        elif policy_allows(case["policy"], case["titleBand"]) != case["allow"]:
+        elif "error" in case:
+            try:
+                policy_allows(case["policy"], case["minimumAge"], case["approved"])
+            except ValueError as error:
+                if str(error) != case["error"]:
+                    fail(f"{case['name']}: wanted {case['error']}, got {error}")
+            else:
+                fail(f"{case['name']}: invalid minimum age accepted")
+        elif policy_allows(case["policy"], case["minimumAge"], case["approved"]) != case["allow"]:
             fail(f"{case['name']}: policy answer mismatch")
+
+    for case in vectors["policyOrderingCases"]:
+        if policy_relation(case["a"], case["b"]) != case["relation"]:
+            fail(f"{case['name']}: policy ordering mismatch")
+    if vectors["unknownRatingsDefaults"] != {"owner": "allow", "kid": "block"}:
+        fail("unknown_ratings_defaults_mismatch")
+
+    approval_base = vectors["validApprovalDocuments"][0]["document"]
+    approval_name = vectors["validApprovalDocuments"][0]["logicalName"]
+    for case in vectors["validApprovalDocuments"]:
+        validate_approval(case["document"], base, case["logicalName"])
+
+    for case in vectors["invalidApprovalDocuments"]:
+        candidate = copy.deepcopy(approval_base)
+        candidate_directory = copy.deepcopy(base)
+        if "mutate" in case:
+            mutate_pointer(candidate, case["mutate"])
+        if "directoryMutate" in case:
+            mutate_pointer(candidate_directory, case["directoryMutate"])
+        try:
+            validate_approval(candidate, candidate_directory, case.get("logicalName", approval_name))
+        except ValueError as error:
+            if str(error) != case["error"]:
+                fail(f"{case['name']}: wanted {case['error']}, got {error}")
+        else:
+            fail(f"{case['name']}: invalid approval document accepted")
+
+    for case in vectors["approvalMergeCases"]:
+        for label in ("a", "b", "ok"):
+            candidate = copy.deepcopy(approval_base)
+            candidate["approvals"] = {"movie:550": case[label]}
+            validate_approval(candidate, base, approval_name)
+        actual = merge_approval(case["a"], case["b"])
+        if actual != case["ok"]:
+            fail(f"{case['name']}: approval merge mismatch")
+        if merge_approval(case["b"], case["a"]) != case["ok"]:
+            fail(f"{case['name']}: approval merge is not commutative")
+        if merge_approval(case["a"], case["a"]) != case["a"]:
+            fail(f"{case['name']}: approval merge is not idempotent")
+
+    approval_values = [case["ok"] for case in vectors["approvalMergeCases"]]
+    left = merge_approval(merge_approval(approval_values[0], approval_values[1]), approval_values[2])
+    right = merge_approval(approval_values[0], merge_approval(approval_values[1], approval_values[2]))
+    if left != right:
+        fail("approval merge is not associative")
+
+    for case in vectors["approvalUnknownSetCases"]:
+        actual = merge_unknown_set(case["aNewestStamp"], case["aUnknown"], case["bNewestStamp"], case["bUnknown"])
+        if actual != case["ok"]:
+            fail(f"{case['name']}: approval unknown-set merge mismatch")
+        reverse = merge_unknown_set(case["bNewestStamp"], case["bUnknown"], case["aNewestStamp"], case["aUnknown"])
+        if reverse != case["ok"]:
+            fail(f"{case['name']}: approval unknown-set merge is not commutative")
+
+    for case in vectors["approvalScopeCases"]:
+        actual = (
+            case["activeMode"] == "kid"
+            and case["activeProfile"] == case["documentKid"]
+            and case["value"] == "allow"
+        )
+        if actual != case["approved"]:
+            fail(f"{case['name']}: approval scope mismatch")
+
+    for case in vectors["approvalWriterCases"]:
+        actual = case["mode"] == "owner"
+        if actual != case["mayWrite"]:
+            fail("approval writer mismatch")
+
+    for case in vectors["playOnceCases"]:
+        if case["allowedForPlayback"] != case["ownerPinVerified"] or case["writesApproval"]:
+            fail("play_once_mismatch")
+
+    expected_boundaries = [
+        "discovery-before-rank-limit-page",
+        "detail-and-deep-link",
+        "ambient-trailer",
+        "play-and-sources",
+        "autoplay-and-binge-next",
+        "download-and-offline",
+        "companion-mcp-assistant",
+        "remote-play",
+    ]
+    if vectors["enforcementBoundaries"] != expected_boundaries:
+        fail("enforcement_boundaries_mismatch")
 
     for case in vectors["selectionCases"]:
         if case["marker"] is not None:
@@ -211,12 +377,16 @@ def main() -> int:
         "existingHouseholdMinimumChangedByThisRevision": False,
         "initialSplitOperationDefined": False,
         "visitorSyncedLibrary": False,
+        "visitorPolicy": "inherits-owner-v1",
+        "kidApprovalsStoredInHousehold": True,
+        "playOnceStoredInHousehold": False,
+        "canaryChangesWireContract": False,
     }
     if topology != expected:
         fail("wire_topology_mismatch")
-    if len(vectors["settingsOwnership"]) != 28:
+    if len(vectors["settingsOwnership"]) != 29:
         fail("settings_ownership_row_count")
-    if len({row["key"] for row in vectors["settingsOwnership"]}) != 28:
+    if len({row["key"] for row in vectors["settingsOwnership"]}) != 29:
         fail("duplicate_settings_ownership_key")
 
     print(
@@ -224,6 +394,14 @@ def main() -> int:
         f"{len(vectors['invalidDirectories'])} invalid, "
         f"{len(vectors['mergeCases'])} merge, "
         f"{len(vectors['policyCases'])} policy, "
+        f"{len(vectors['policyOrderingCases'])} policy ordering, "
+        f"{len(vectors['validApprovalDocuments'])} approval valid, "
+        f"{len(vectors['invalidApprovalDocuments'])} approval invalid, "
+        f"{len(vectors['approvalMergeCases'])} approval merge, "
+        f"{len(vectors['approvalUnknownSetCases'])} approval unknown set, "
+        f"{len(vectors['approvalScopeCases'])} approval scope, "
+        f"{len(vectors['approvalWriterCases'])} approval writer, "
+        f"{len(vectors['playOnceCases'])} play once, "
         f"{len(vectors['selectionCases'])} selection cases passed"
     )
     return 0
