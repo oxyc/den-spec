@@ -251,6 +251,16 @@
     {"name": "opposite movements are incomparable", "a": {"maximumAge": 10, "unknownRatings": "allow"}, "b": {"maximumAge": 13, "unknownRatings": "block"}, "relation": "incomparable"},
     {"name": "same policy is equal", "a": {"maximumAge": null, "unknownRatings": "allow"}, "b": {"maximumAge": null, "unknownRatings": "allow"}, "relation": "equal"}
   ],
+  "kidDiscoveryCases": [
+    {"name": "child intent at threshold is relevant", "policy": {"maximumAge": 8, "unknownRatings": "block"}, "madeForChildren": 0.5, "madeForTeens": null, "relevant": true},
+    {"name": "child intent below threshold is not relevant", "policy": {"maximumAge": 8, "unknownRatings": "block"}, "madeForChildren": 0.49, "madeForTeens": null, "relevant": false},
+    {"name": "teen intent does not enter a young child catalogue", "policy": {"maximumAge": 11, "unknownRatings": "block"}, "madeForChildren": null, "madeForTeens": 0.99, "relevant": false},
+    {"name": "teen intent enters the 12-plus catalogue", "policy": {"maximumAge": 12, "unknownRatings": "block"}, "madeForChildren": null, "madeForTeens": 0.5, "relevant": true},
+    {"name": "unbounded Kid includes child and teen intent", "policy": {"maximumAge": null, "unknownRatings": "block"}, "madeForChildren": null, "madeForTeens": 0.5, "relevant": true},
+    {"name": "missing audience evidence fails closed", "policy": {"maximumAge": 13, "unknownRatings": "block"}, "madeForChildren": null, "madeForTeens": null, "relevant": false},
+    {"name": "genre and technique alone have no relevance input", "policy": {"maximumAge": 13, "unknownRatings": "block"}, "madeForChildren": null, "madeForTeens": null, "relevant": false},
+    {"name": "audience scores above one are invalid", "policy": {"maximumAge": 13, "unknownRatings": "block"}, "madeForChildren": 1.01, "madeForTeens": null, "error": "invalid_audience_score"}
+  ],
   "unknownRatingsDefaults": {
     "owner": "allow",
     "kid": "block"

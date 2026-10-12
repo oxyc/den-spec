@@ -21,6 +21,14 @@ class ProfilesVectorsTests(unittest.TestCase):
         stricter_unknown = {"maximumAge": 13, "unknownRatings": "block"}
         self.assertEqual(validate_profiles.policy_relation(stricter_age, stricter_unknown), "incomparable")
 
+    def test_kid_discovery_uses_audience_intent_and_teen_band(self):
+        child = {"maximumAge": 8, "unknownRatings": "block"}
+        teen = {"maximumAge": 13, "unknownRatings": "block"}
+        self.assertTrue(validate_profiles.kid_discovery_relevant(child, 0.5, None))
+        self.assertFalse(validate_profiles.kid_discovery_relevant(child, None, 0.99))
+        self.assertTrue(validate_profiles.kid_discovery_relevant(teen, None, 0.5))
+        self.assertFalse(validate_profiles.kid_discovery_relevant(teen, None, None))
+
     def test_approval_merge_is_conservative_and_preserves_extensions(self):
         stamp = [1800000013000, 0, "a1b2c3d4e5f60718"]
         allow = {"value": "allow", "at": stamp, "future": "kept-if-winner"}
