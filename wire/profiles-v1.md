@@ -110,7 +110,8 @@ The directory is one document named `profiles`. Its row key is
 - `library.value.key` is a canonical padded base64 encoding of exactly 32 random bytes. It is not derived from the
   household key, profile id, name, role or another profile key. `keyVersion` starts at 1 and increases on a reset;
   zero is invalid. Two live profiles MUST NOT carry the same key.
-- `policy.value.maximumAge` is an integer from 0 through 255, or `null` for no age ceiling.
+- `policy.value.maximumAge` is an integer from 0 through 18, or `null` for no age ceiling. Values outside this
+  supported human-age range are invalid rather than silently treated as policy.
   `unknownRatings` is `allow` or `block`. The effective check is in §5. Unknown policy members are extensions
   and travel with the stamped policy value that wins.
 - `display`, `library`, `policy` and `deleted` are stamped fields. Stamps and their clock/future handling are
@@ -165,7 +166,8 @@ active.
 
 ## 5. Policy decisions
 
-The title signal is `minimumAge`: an integer from 0 through 255, or unknown. Unknown is a first-class value, not
+The title signal is `minimumAge`: an integer from 0 through 18, or unknown. Values outside that supported human-age
+range are invalid. Unknown is a first-class value, not
 zero and not evidence that a title is suitable for every age. Dataset and runtime sources resolve confidently
 matched versions and authorities conservatively before producing this value; the highest verified applicable age
 wins, as specified by den-dataset#226. Profile policy stores `maximumAge`, with `null` meaning no age ceiling.
@@ -210,8 +212,9 @@ directory and is deliberately separate from the Kid's activity log:
 
 - `kid` is immutable, equals the profile id in the logical name, and MUST name a live directory entry whose role is
   `kid`. There is no approval document for Owner, adult or Visitor.
-- Approval keys are exactly `movie:<TMDB id>` or `tv:<TMDB id>`, with the positive id in canonical decimal. The key
-  is stable across title metadata changes and distinguishes a movie from a series with the same numeric id.
+- Approval keys are exactly `movie:<TMDB id>` or `tv:<TMDB id>`, with a positive uint32 id (`1..4294967295`) in
+  canonical decimal. This is the store's packed title identity bound. The key is stable across title metadata
+  changes and distinguishes a movie from a series with the same numeric id.
 - Each entry is a stamped `allow` or `tombstone`. Removing approval writes a fresh tombstone and retains the key;
   physical absence is only “no known decision” and cannot erase an allow learned from another replica. Merge takes
   the union of keys and, per key, the later stamp. On an equal-stamp value conflict, `tombstone` wins; otherwise the

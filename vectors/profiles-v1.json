@@ -98,8 +98,8 @@
       "error": "invalid_policy"
     },
     {
-      "name": "maximum age is bounded",
-      "mutate": {"path": "/profiles/11112222333344445555666677778888/policy/value/maximumAge", "value": 256},
+      "name": "maximum age is a supported human threshold",
+      "mutate": {"path": "/profiles/11112222333344445555666677778888/policy/value/maximumAge", "value": 19},
       "error": "invalid_policy"
     }
   ],
@@ -146,9 +146,12 @@
     {"name": "age above maximum blocks", "policy": {"maximumAge": 10, "unknownRatings": "block"}, "minimumAge": 13, "approved": false, "allow": false},
     {"name": "age equal to maximum allows", "policy": {"maximumAge": 13, "unknownRatings": "block"}, "minimumAge": 13, "approved": false, "allow": true},
     {"name": "lower age allows", "policy": {"maximumAge": 16, "unknownRatings": "block"}, "minimumAge": 12, "approved": false, "allow": true},
+    {"name": "highest supported age allows at the boundary", "policy": {"maximumAge": 18, "unknownRatings": "block"}, "minimumAge": 18, "approved": false, "allow": true},
     {"name": "no maximum allows known age", "policy": {"maximumAge": null, "unknownRatings": "block"}, "minimumAge": 18, "approved": false, "allow": true},
     {"name": "explicit Kid approval overrides age", "policy": {"maximumAge": 10, "unknownRatings": "block"}, "minimumAge": 18, "approved": true, "allow": true},
-    {"name": "explicit Kid approval overrides unknown", "policy": {"maximumAge": 10, "unknownRatings": "block"}, "minimumAge": null, "approved": true, "allow": true}
+    {"name": "explicit Kid approval overrides unknown", "policy": {"maximumAge": 10, "unknownRatings": "block"}, "minimumAge": null, "approved": true, "allow": true},
+    {"name": "negative minimum age is invalid", "policy": {"maximumAge": 10, "unknownRatings": "block"}, "minimumAge": -1, "approved": false, "error": "invalid_minimum_age"},
+    {"name": "minimum age above the supported human range is invalid", "policy": {"maximumAge": 18, "unknownRatings": "block"}, "minimumAge": 19, "approved": false, "error": "invalid_minimum_age"}
   ],
   "policyOrderingCases": [
     {"name": "lower maximum is stricter", "a": {"maximumAge": 10, "unknownRatings": "block"}, "b": {"maximumAge": 13, "unknownRatings": "block"}, "relation": "stricter"},
@@ -164,6 +167,7 @@
   "validApprovalDocuments": [
     {
       "name": "one Kid has independent movie and TV approvals with extensions",
+      "logicalName": "kid-title-approvals:11112222333344445555666677778888",
       "document": {
         "format": 4,
         "kind": "kid-title-approvals",
@@ -171,7 +175,8 @@
         "kid": "11112222333344445555666677778888",
         "approvals": {
           "movie:550": {"value": "allow", "at": [1800000010000, 0, "a1b2c3d4e5f60718"], "futureEntryFact": "kept"},
-          "tv:1399": {"value": "tombstone", "at": [1800000011000, 0, "0f1e2d3c4b5a6978"]}
+          "tv:1399": {"value": "tombstone", "at": [1800000011000, 0, "0f1e2d3c4b5a6978"]},
+          "movie:4294967295": {"value": "allow", "at": [1800000011000, 1, "0f1e2d3c4b5a6978"]}
         },
         "futureDocumentFact": {"kept": true}
       }
@@ -180,7 +185,10 @@
   "invalidApprovalDocuments": [
     {"name": "title key requires a media type", "mutate": {"path": "/approvals/movie:550", "rename": "550"}, "error": "invalid_title_key"},
     {"name": "title key uses canonical positive decimal", "mutate": {"path": "/approvals/movie:550", "rename": "movie:0550"}, "error": "invalid_title_key"},
-    {"name": "approval target must be a Kid", "mutate": {"path": "/kid", "value": "00112233445566778899aabbccddeeff"}, "error": "approval_not_kid"},
+    {"name": "title key fits the store uint32 identity", "mutate": {"path": "/approvals/movie:550", "rename": "tv:4294967296"}, "error": "invalid_title_key"},
+    {"name": "logical document name identifies its Kid", "logicalName": "kid-title-approvals:9999aaaabbbbccccddddeeeeffff0000", "error": "approval_name_mismatch"},
+    {"name": "approval target must be a Kid", "logicalName": "kid-title-approvals:00112233445566778899aabbccddeeff", "mutate": {"path": "/kid", "value": "00112233445566778899aabbccddeeff"}, "error": "approval_not_kid"},
+    {"name": "approval target must be live", "directoryMutate": {"path": "/profiles/11112222333344445555666677778888/deleted/value", "value": true}, "error": "approval_not_kid"},
     {"name": "approval value is allow or tombstone", "mutate": {"path": "/approvals/movie:550/value", "value": "deny"}, "error": "invalid_approval"}
   ],
   "approvalMergeCases": [
@@ -189,6 +197,12 @@
       "a": {"value": "allow", "at": [1800000010000, 0, "a1b2c3d4e5f60718"]},
       "b": {"value": "tombstone", "at": [1800000012000, 0, "0f1e2d3c4b5a6978"]},
       "ok": {"value": "tombstone", "at": [1800000012000, 0, "0f1e2d3c4b5a6978"]}
+    },
+    {
+      "name": "a stale allow cannot resurrect after a newer tombstone",
+      "a": {"value": "tombstone", "at": [1800000012500, 0, "0f1e2d3c4b5a6978"], "futureEntryFact": "winner-preserved"},
+      "b": {"value": "allow", "at": [1800000010500, 0, "a1b2c3d4e5f60718"], "futureEntryFact": "stale"},
+      "ok": {"value": "tombstone", "at": [1800000012500, 0, "0f1e2d3c4b5a6978"], "futureEntryFact": "winner-preserved"}
     },
     {
       "name": "tombstone wins an equal-stamp tie conservatively",

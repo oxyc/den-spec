@@ -13,6 +13,8 @@ class ProfilesVectorsTests(unittest.TestCase):
         self.assertFalse(validate_profiles.policy_allows(policy, 14))
         self.assertFalse(validate_profiles.policy_allows(policy, None))
         self.assertTrue(validate_profiles.policy_allows(policy, None, approved=True))
+        with self.assertRaisesRegex(ValueError, "invalid_minimum_age"):
+            validate_profiles.policy_allows(policy, 19)
 
     def test_policy_product_order(self):
         stricter_age = {"maximumAge": 10, "unknownRatings": "allow"}
