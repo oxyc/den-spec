@@ -23,6 +23,14 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
 - [`vectors/library-v4-downloads.json`](vectors/library-v4-downloads.json): the shared download queue
   (library-v4 §17) — the download rows' merge, poll answers, fallback, pruning and the release ranking. The cases
   are den-core's `policy-v1.json` ones for those ops, and den-core checks the two are equal.
+- [`wire/profiles-v1.md`](wire/profiles-v1.md): the profile-aware household topology: one
+  configuration-only household log, one ordinary library-v4 log per persistent profile, Owner/Kid/Visitor
+  behavior, settings ownership, and sticky local selection. It defines wire 5 without activating the split or
+  changing an existing library's minimum.
+- [`schemas/profiles-v1.schema.json`](schemas/profiles-v1.schema.json) and
+  [`vectors/profiles-v1.json`](vectors/profiles-v1.json): the profile-directory and local-selection schemas,
+  accepted/rejected directories, topology, ownership, and selection cases. Validate them with
+  `python3 tools/validate_profiles.py`.
 - [`wire/recovery-code.md`](wire/recovery-code.md) (proposal): a recovery code that unwraps the library key on a
   new device, with no device that holds the library at hand. Argon2id-wrapped, stored at den-edge under a locator
   it cannot tie to a library.
