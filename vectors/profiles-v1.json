@@ -127,6 +127,14 @@
       "a": {"value": {"keyVersion": 2, "key": "REREREREREREREREREREREREREREREREREREREREREQ="}, "at": [1800000003000, 0, "a1b2c3d4e5f60718"]},
       "b": {"value": {"keyVersion": 1, "key": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI="}, "at": [1800000004000, 0, "0f1e2d3c4b5a6978"]},
       "ok": {"value": {"keyVersion": 2, "key": "REREREREREREREREREREREREREREREREREREREREREQ="}, "at": [1800000003000, 0, "a1b2c3d4e5f60718"]}
+    },
+    {
+      "name": "later policy keeps its extension members",
+      "profile": "11112222333344445555666677778888",
+      "field": "policy",
+      "a": {"value": {"maximumAge": 10, "unknownRatings": "block", "futurePolicyFlag": "old"}, "at": [1800000003000, 0, "a1b2c3d4e5f60718"]},
+      "b": {"value": {"maximumAge": 13, "unknownRatings": "block", "futurePolicyFlag": "kept"}, "at": [1800000004000, 0, "0f1e2d3c4b5a6978"]},
+      "ok": {"value": {"maximumAge": 13, "unknownRatings": "block", "futurePolicyFlag": "kept"}, "at": [1800000004000, 0, "0f1e2d3c4b5a6978"]}
     }
   ],
   "policyCases": [
@@ -193,6 +201,32 @@
       "a": {"value": "tombstone", "at": [1800000014000, 0, "a1b2c3d4e5f60718"]},
       "b": {"value": "allow", "at": [1800000015000, 0, "0f1e2d3c4b5a6978"], "futureEntryFact": "kept"},
       "ok": {"value": "allow", "at": [1800000015000, 0, "0f1e2d3c4b5a6978"], "futureEntryFact": "kept"}
+    }
+  ],
+  "approvalUnknownSetCases": [
+    {
+      "name": "unknown set follows the document with the newest approval stamp",
+      "aNewestStamp": [1800000010000, 0, "a1b2c3d4e5f60718"],
+      "aUnknown": {"futureDocumentFact": "old"},
+      "bNewestStamp": [1800000011000, 0, "0f1e2d3c4b5a6978"],
+      "bUnknown": {"futureDocumentFact": "kept"},
+      "ok": {"futureDocumentFact": "kept"}
+    },
+    {
+      "name": "nonempty unknown set wins when newest stamps are equal",
+      "aNewestStamp": [1800000012000, 0, "a1b2c3d4e5f60718"],
+      "aUnknown": {},
+      "bNewestStamp": [1800000012000, 0, "a1b2c3d4e5f60718"],
+      "bUnknown": {"futureDocumentFact": "kept"},
+      "ok": {"futureDocumentFact": "kept"}
+    },
+    {
+      "name": "byte-greater JCS breaks equal-stamp nonempty ties",
+      "aNewestStamp": [1800000013000, 0, "a1b2c3d4e5f60718"],
+      "aUnknown": {"futureDocumentFact": "a"},
+      "bNewestStamp": [1800000013000, 0, "a1b2c3d4e5f60718"],
+      "bUnknown": {"futureDocumentFact": "b"},
+      "ok": {"futureDocumentFact": "b"}
     }
   ],
   "approvalScopeCases": [

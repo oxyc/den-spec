@@ -174,9 +174,22 @@ def merge_field(field: str, a: dict, b: dict) -> dict:
 def merge_approval(a: dict, b: dict) -> dict:
     def rank(item: dict) -> tuple:
         # Tombstone is the conservative winner for the otherwise impossible equal-stamp conflict.
-        return (tuple(item["at"]), item["value"] == "tombstone", json.dumps(item, sort_keys=True, separators=(",", ":")))
+        return (tuple(item["at"]), item["value"] == "tombstone", canonical_json_bytes(item))
 
     return max((a, b), key=rank)
+
+
+def canonical_json_bytes(value: object) -> bytes:
+    # Fixtures use only integers, strings, booleans and null, whose JCS form is this compact sorted JSON form.
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+
+
+def merge_unknown_set(a_stamp: object, a_unknown: dict, b_stamp: object, b_unknown: dict) -> dict:
+    def rank(stamp: object, unknown: dict) -> tuple:
+        has_stamp = stamp is not None
+        return (has_stamp, tuple(stamp) if has_stamp else (), bool(unknown), canonical_json_bytes(unknown))
+
+    return max(((a_stamp, a_unknown), (b_stamp, b_unknown)), key=lambda item: rank(*item))[1]
 
 
 def policy_allows(policy: dict, minimum_age: object, approved: bool = False) -> bool:
@@ -294,6 +307,14 @@ def main() -> int:
     if left != right:
         fail("approval merge is not associative")
 
+    for case in vectors["approvalUnknownSetCases"]:
+        actual = merge_unknown_set(case["aNewestStamp"], case["aUnknown"], case["bNewestStamp"], case["bUnknown"])
+        if actual != case["ok"]:
+            fail(f"{case['name']}: approval unknown-set merge mismatch")
+        reverse = merge_unknown_set(case["bNewestStamp"], case["bUnknown"], case["aNewestStamp"], case["aUnknown"])
+        if reverse != case["ok"]:
+            fail(f"{case['name']}: approval unknown-set merge is not commutative")
+
     for case in vectors["approvalScopeCases"]:
         actual = (
             case["activeMode"] == "kid"
@@ -359,6 +380,7 @@ def main() -> int:
         f"{len(vectors['validApprovalDocuments'])} approval valid, "
         f"{len(vectors['invalidApprovalDocuments'])} approval invalid, "
         f"{len(vectors['approvalMergeCases'])} approval merge, "
+        f"{len(vectors['approvalUnknownSetCases'])} approval unknown set, "
         f"{len(vectors['approvalScopeCases'])} approval scope, "
         f"{len(vectors['approvalWriterCases'])} approval writer, "
         f"{len(vectors['playOnceCases'])} play once, "
