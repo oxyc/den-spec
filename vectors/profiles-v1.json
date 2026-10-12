@@ -5,7 +5,7 @@
   "notes": [
     "These are logical JCS documents. Library-v4 supplies compression, sealing and row-key vectors.",
     "Valid and invalid directory and title-approval cases pin den-core validation; merge cases pin convergence.",
-    "No case performs or authorizes the initial split, changes an existing minimum, or migrates production state."
+    "Migration and reset cases pin pure decisions only; they do not authorize a production split or minimum change."
   ],
   "directoryName": "profiles",
   "approvalNamePrefix": "kid-title-approvals:",
@@ -17,6 +17,14 @@
         "kind": "profiles",
         "schema": 1,
         "owner": "00112233445566778899aabbccddeeff",
+        "migration": {
+          "version": 1,
+          "attempt": "0123456789abcdef0123456789abcdef",
+          "source": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+          "backup": {"id": "backup-7", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+          "ownerProfile": "00112233445566778899aabbccddeeff",
+          "ownerHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
         "profiles": {
           "00112233445566778899aabbccddeeff": {
             "id": "00112233445566778899aabbccddeeff",
@@ -101,6 +109,22 @@
       "name": "maximum age is a supported human threshold",
       "mutate": {"path": "/profiles/11112222333344445555666677778888/policy/value/maximumAge", "value": 19},
       "error": "invalid_policy"
+    },
+    {
+      "name": "migration identifies the directory Owner",
+      "mutate": {"path": "/migration/ownerProfile", "value": "11112222333344445555666677778888"},
+      "error": "invalid_migration"
+    },
+    {
+      "name": "migration backup digest is canonical",
+      "mutate": {"path": "/migration/backup/digest", "value": "not-a-digest"},
+      "error": "invalid_migration"
+    },
+    {
+      "name": "stored directory requires migration evidence",
+      "remove": "/migration",
+      "stored": true,
+      "error": "migration_missing"
     }
   ],
   "mergeCases": [
@@ -135,6 +159,73 @@
       "a": {"value": {"maximumAge": 10, "unknownRatings": "block", "futurePolicyFlag": "old"}, "at": [1800000003000, 0, "a1b2c3d4e5f60718"]},
       "b": {"value": {"maximumAge": 13, "unknownRatings": "block", "futurePolicyFlag": "kept"}, "at": [1800000004000, 0, "0f1e2d3c4b5a6978"]},
       "ok": {"value": {"maximumAge": 13, "unknownRatings": "block", "futurePolicyFlag": "kept"}, "at": [1800000004000, 0, "0f1e2d3c4b5a6978"]}
+    }
+  ],
+  "directoryOperationCases": [
+    {
+      "name": "create a third Kid through the uniform profile entry",
+      "operation": "create",
+      "profile": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "entry": {
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "role": "kid",
+        "display": {"value": {"name": "Sam"}, "at": [1800000005000, 0, "a1b2c3d4e5f60718"]},
+        "library": {"value": {"keyVersion": 1, "key": "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU="}, "at": [1800000005000, 1, "a1b2c3d4e5f60718"]},
+        "policy": {"value": {"maximumAge": 8, "unknownRatings": "block"}, "at": [1800000005000, 2, "a1b2c3d4e5f60718"]},
+        "deleted": {"value": false, "at": [1800000005000, 3, "a1b2c3d4e5f60718"]}
+      },
+      "expect": {"role": "kid", "maximumAge": 8, "unknownRatings": "block"}
+    },
+    {
+      "name": "rename preserves identity and library",
+      "operation": "rename",
+      "profile": "11112222333344445555666677778888",
+      "value": {"name": "Mina Two", "avatar": "owl"},
+      "at": [1800000006000, 0, "0f1e2d3c4b5a6978"],
+      "expect": {"name": "Mina Two", "keyVersion": 1}
+    },
+    {
+      "name": "owner changes one Kid policy",
+      "operation": "policy",
+      "profile": "11112222333344445555666677778888",
+      "value": {"maximumAge": 13, "unknownRatings": "block"},
+      "at": [1800000007000, 0, "0f1e2d3c4b5a6978"],
+      "expect": {"maximumAge": 13, "unknownRatings": "block"}
+    },
+    {
+      "name": "delete leaves a permanent entry tombstone",
+      "operation": "delete",
+      "profile": "9999aaaabbbbccccddddeeeeffff0000",
+      "at": [1800000008000, 0, "a1b2c3d4e5f60718"],
+      "expect": {"deleted": true, "libraryKeyVersion": 1}
+    }
+  ],
+  "directoryMergeCases": [
+    {
+      "name": "concurrent rename and policy change converge",
+      "aMutations": [
+        {"path": "/profiles/11112222333344445555666677778888/display", "value": {"value": {"name": "Mina Two", "avatar": "owl"}, "at": [1800000006000, 0, "a1b2c3d4e5f60718"]}}
+      ],
+      "bMutations": [
+        {"path": "/profiles/11112222333344445555666677778888/policy", "value": {"value": {"maximumAge": 13, "unknownRatings": "block"}, "at": [1800000007000, 0, "0f1e2d3c4b5a6978"]}}
+      ],
+      "expect": {"name": "Mina Two", "maximumAge": 13}
+    },
+    {
+      "name": "committed migration identity is immutable",
+      "aMutations": [],
+      "bMutations": [
+        {"path": "/migration/attempt", "value": "fedcba9876543210fedcba9876543210"}
+      ],
+      "error": "identity_conflict"
+    },
+    {
+      "name": "profile role is immutable",
+      "aMutations": [],
+      "bMutations": [
+        {"path": "/profiles/11112222333344445555666677778888/role", "value": "adult"}
+      ],
+      "error": "identity_conflict"
     }
   ],
   "policyCases": [
@@ -288,46 +379,129 @@
       "name": "unknown profile opens picker with restricted profiles",
       "marker": {"version": 1, "mode": "persistent", "profileId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
       "result": {"action": "picker", "ownerGate": true}
+    },
+    {
+      "name": "corrupt marker opens picker and never Owner",
+      "marker": {"version": 1, "mode": "owner"},
+      "result": {"action": "picker", "ownerGate": true}
+    },
+    {
+      "name": "deleted sticky profile opens picker",
+      "marker": {"version": 1, "mode": "persistent", "profileId": "9999aaaabbbbccccddddeeeeffff0000"},
+      "directoryMutation": {"path": "/profiles/9999aaaabbbbccccddddeeeeffff0000/deleted/value", "value": true},
+      "result": {"action": "picker", "ownerGate": true}
+    },
+    {
+      "name": "missing marker opens picker even when every profile is unrestricted",
+      "marker": null,
+      "allUnrestricted": true,
+      "result": {"action": "picker", "ownerGate": false}
     }
   ],
   "settingsOwnership": [
-    {"key": "keys.tmdb|keys.omdb|keys.doesthedogdie", "scope": "household", "nonOwner": "read-use"},
-    {"key": "keys.simkl|future tracker credentials", "scope": "owning-profile", "nonOwner": "kid-visitor-no-read-or-delivery-v1"},
-    {"key": "keys.cfAccessId|keys.cfAccessSecret", "scope": "household", "nonOwner": "read-use"},
-    {"key": "keys.parentalPIN", "scope": "household-owner-pin", "nonOwner": "verify-only"},
-    {"key": "profile-directory Kid policy", "scope": "household-owner-managed", "nonOwner": "kid-read-only"},
-    {"key": "per-Kid title approvals", "scope": "household-owner-managed", "nonOwner": "kid-read-only"},
-    {"key": "Visitor policy", "scope": "household-inherits-owner-v1", "nonOwner": "read-only"},
-    {"key": "plugins.*|servers.*|trust.*|addresses.*", "scope": "household", "nonOwner": "read-use"},
-    {"key": "devices.*|recovery.*", "scope": "household", "nonOwner": "administration-hidden"},
-    {"key": "download rows|download policy", "scope": "household", "nonOwner": "disabled-or-pin-gated"},
-    {"key": "prefs.den.watchRegion", "scope": "household", "nonOwner": "inherit"},
-    {"key": "prefs.den.myServiceIDs", "scope": "household", "nonOwner": "inherit-legacy"},
-    {"key": "prefs.den.myServicePicks", "scope": "household", "nonOwner": "inherit"},
-    {"key": "prefs.den.excludedGenreIDs", "scope": "profile", "nonOwner": "read-write-own"},
-    {"key": "prefs.den.excludedLanguages", "scope": "profile", "nonOwner": "read-write-own"},
-    {"key": "prefs.den.preferredSubtitleLanguage", "scope": "profile", "nonOwner": "read-write-own"},
-    {"key": "prefs.den.hasExplicitSubtitlePreference", "scope": "profile", "nonOwner": "read-write-own"},
-    {"key": "prefs.den.shownSubtitleLanguages", "scope": "profile", "nonOwner": "read-write-own"},
-    {"key": "prefs.den.maxSubtitlesPerLanguage", "scope": "profile", "nonOwner": "read-write-own"},
-    {"key": "prefs.den.preferredAudioLanguage", "scope": "profile", "nonOwner": "read-write-own"},
-    {"key": "prefs.den.autoSkipSegments", "scope": "profile", "nonOwner": "read-write-own"},
-    {"key": "prefs.den.autoplayTrailers", "scope": "profile", "nonOwner": "read-write-own-subject-to-kid-policy"},
-    {"key": "prefs.den.hideAnime", "scope": "profile", "nonOwner": "read-write-own"},
-    {"key": "prefs.den.hideWatched", "scope": "profile", "nonOwner": "read-write-own"},
-    {"key": "prefs.den.minReleaseYear", "scope": "profile", "nonOwner": "read-write-own"},
-    {"key": "prefs.den.enabledRatingSources", "scope": "profile", "nonOwner": "read-write-own"},
-    {"key": "prefs.den.shownWarningCategories", "scope": "profile", "nonOwner": "read-write-own"},
-    {"key": "prefs.den.maturityCeiling", "scope": "owner-profile-migration-input", "nonOwner": "translate-to-owner-policy"},
-    {"key": "OLED|presentation|other unsynced settings", "scope": "device", "nonOwner": "follow-device"}
+    {"key": "prefs.den.watchRegion", "scope": "household"},
+    {"key": "prefs.den.myServicePicks", "scope": "household"},
+    {"key": "prefs.den.excludedGenreIDs", "scope": "profile"},
+    {"key": "prefs.den.excludedLanguages", "scope": "profile"},
+    {"key": "prefs.den.preferredSubtitleLanguage", "scope": "profile"},
+    {"key": "prefs.den.hasExplicitSubtitlePreference", "scope": "profile"},
+    {"key": "prefs.den.shownSubtitleLanguages", "scope": "profile"},
+    {"key": "prefs.den.maxSubtitlesPerLanguage", "scope": "profile"},
+    {"key": "prefs.den.preferredAudioLanguage", "scope": "profile"},
+    {"key": "prefs.den.autoSkipSegments", "scope": "profile"},
+    {"key": "prefs.den.autoplayTrailers", "scope": "profile"},
+    {"key": "prefs.den.hideAnime", "scope": "profile"},
+    {"key": "prefs.den.hideWatched", "scope": "profile"},
+    {"key": "prefs.den.minReleaseYear", "scope": "profile"},
+    {"key": "prefs.den.enabledRatingSources", "scope": "profile"},
+    {"key": "prefs.den.shownWarningCategories", "scope": "profile"}
+  ],
+  "migrationCases": [
+    {"name": "explicit intent first acquires a fence", "state": "idle", "observed": "legacy", "fence": "same", "expect": "acquire-fence"},
+    {"name": "backup precedes any Owner destination write", "state": "fenced", "observed": "legacy", "fence": "same", "expect": "create-backup"},
+    {"name": "verified backup permits Owner creation", "state": "backed-up", "observed": "legacy", "fence": "same", "backupVerified": true, "expect": "create-owner-library"},
+    {"name": "copied Owner must be verified", "state": "owner-copied", "observed": "legacy", "fence": "same", "backupVerified": true, "candidateLibrary": "candidate-a", "expect": "verify-owner-library"},
+    {"name": "only ready state attempts fenced commit", "state": "ready-to-commit", "observed": "legacy", "fence": "same", "backupVerified": true, "candidateLibrary": "candidate-a", "ownerVerified": true, "expect": "commit-fenced-household"},
+    {"name": "ready journal without backup evidence is rejected", "state": "ready-to-commit", "observed": "legacy", "fence": "same", "backupVerified": false, "candidateLibrary": "candidate-a", "ownerVerified": true, "expect": "invalid_evidence"},
+    {"name": "unknown commit is resolved by read", "state": "commit-unknown", "observed": "legacy", "fence": "same", "candidateLibrary": "candidate-a", "expect": "read-household"},
+    {"name": "fence loser retires its unreferenced candidate", "state": "ready-to-commit", "observed": "committed", "candidateLibrary": "candidate-a", "winnerLibrary": "winner-b", "winnerVerified": true, "candidateRetired": false, "expect": "retire-losing-candidate"},
+    {"name": "loser cleanup is idempotent then adopts winner", "state": "cleaning-loser", "observed": "committed", "candidateLibrary": "candidate-a", "winnerLibrary": "winner-b", "winnerVerified": true, "candidateRetired": true, "expect": "activate"},
+    {"name": "cleanup can never target committed Owner", "state": "cleaning-loser", "observed": "committed", "candidateLibrary": "winner-b", "winnerLibrary": "winner-b", "winnerVerified": true, "cleanupRequested": true, "expect": "cleanup_targets_winner"},
+    {"name": "winner is verified before activation", "state": "adopting", "observed": "committed", "winnerLibrary": "winner-b", "winnerVerified": false, "expect": "verify-winner"},
+    {"name": "changed legacy fence restarts after candidate cleanup", "state": "owner-copied", "observed": "legacy", "fence": "changed", "candidateLibrary": "candidate-a", "candidateRetired": false, "expect": "retire-losing-candidate"},
+    {"name": "verified backup may repair corrupt legacy household", "state": "restore-required", "observed": "corrupt", "backupVerified": true, "expect": "restore-backup"},
+    {"name": "backup never restores over committed winner", "state": "restore-required", "observed": "committed", "backupVerified": true, "winnerLibrary": "winner-b", "winnerVerified": true, "expect": "activate"}
+  ],
+  "resetCases": [
+    {
+      "name": "all live profiles must verify before successor publication",
+      "householdCommitted": false,
+      "oldHouseholdRetired": false,
+      "profiles": [
+        {"oldKey": "owner-old", "newKey": "owner-new", "oldVersion": 1, "newVersion": 2, "deleted": false, "verified": true, "oldRetired": false},
+        {"oldKey": "kid-a-old", "newKey": "kid-a-new", "oldVersion": 3, "newVersion": 4, "deleted": false, "verified": false, "oldRetired": false},
+        {"oldKey": "kid-deleted-old", "newKey": "unused", "oldVersion": 1, "newVersion": 1, "deleted": true, "verified": false, "oldRetired": false}
+      ],
+      "expect": "move-live-profiles"
+    },
+    {
+      "name": "verified live moves permit one successor commit",
+      "householdCommitted": false,
+      "oldHouseholdRetired": false,
+      "profiles": [
+        {"oldKey": "owner-old", "newKey": "owner-new", "oldVersion": 1, "newVersion": 2, "deleted": false, "verified": true, "oldRetired": false},
+        {"oldKey": "kid-a-old", "newKey": "kid-a-new", "oldVersion": 3, "newVersion": 4, "deleted": false, "verified": true, "oldRetired": false}
+      ],
+      "expect": "commit-successor-household"
+    },
+    {
+      "name": "old libraries retire only after commit",
+      "householdCommitted": true,
+      "oldHouseholdRetired": false,
+      "profiles": [
+        {"oldKey": "owner-old", "newKey": "owner-new", "oldVersion": 1, "newVersion": 2, "deleted": false, "verified": true, "oldRetired": false},
+        {"oldKey": "kid-a-old", "newKey": "kid-a-new", "oldVersion": 3, "newVersion": 4, "deleted": false, "verified": true, "oldRetired": false}
+      ],
+      "expect": "retire-old-libraries"
+    },
+    {
+      "name": "revocation completes only after every old library is retired",
+      "householdCommitted": true,
+      "oldHouseholdRetired": true,
+      "profiles": [
+        {"oldKey": "owner-old", "newKey": "owner-new", "oldVersion": 1, "newVersion": 2, "deleted": false, "verified": true, "oldRetired": true},
+        {"oldKey": "kid-a-old", "newKey": "kid-a-new", "oldVersion": 3, "newVersion": 4, "deleted": false, "verified": true, "oldRetired": true}
+      ],
+      "expect": "complete"
+    },
+    {
+      "name": "profile key versions increment exactly once",
+      "householdCommitted": false,
+      "oldHouseholdRetired": false,
+      "profiles": [
+        {"oldKey": "owner-old", "newKey": "owner-new", "oldVersion": 1, "newVersion": 3, "deleted": false, "verified": true, "oldRetired": false}
+      ],
+      "expect": "invalid_key_version"
+    },
+    {
+      "name": "successor keys cannot reuse an old profile key",
+      "householdCommitted": false,
+      "oldHouseholdRetired": false,
+      "profiles": [
+        {"oldKey": "owner-old", "newKey": "kid-old", "oldVersion": 1, "newVersion": 2, "deleted": false, "verified": true, "oldRetired": false},
+        {"oldKey": "kid-old", "newKey": "kid-new", "oldVersion": 1, "newVersion": 2, "deleted": false, "verified": true, "oldRetired": false}
+      ],
+      "expect": "reused_key"
+    }
   ],
   "wireTopology": {
     "rowEncoding": "library-v4",
     "householdRequestWireAfterActivation": 5,
     "profileRequestWire": 4,
     "newProfileLibraryMinimum": 4,
-    "existingHouseholdMinimumChangedByThisRevision": false,
-    "initialSplitOperationDefined": false,
+    "existingHouseholdMinimumChangedByContractPublication": false,
+    "initialSplitOperationDefined": true,
+    "activationAuthorized": false,
     "visitorSyncedLibrary": false,
     "visitorPolicy": "inherits-owner-v1",
     "kidApprovalsStoredInHousehold": true,
