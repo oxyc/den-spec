@@ -176,6 +176,13 @@ def main() -> int:
             fail(f"{case['name']}: invalid directory accepted")
 
     for case in vectors["mergeCases"]:
+        for label in ("a", "b", "ok"):
+            candidate = copy.deepcopy(base)
+            candidate["profiles"][case["profile"]][case["field"]] = case[label]
+            try:
+                validate_directory(candidate)
+            except ValueError as error:
+                fail(f"{case['name']}: {label} is not a valid directory field: {error}")
         actual = merge_field(case["field"], case["a"], case["b"])
         if actual != case["ok"]:
             fail(f"{case['name']}: merge mismatch")

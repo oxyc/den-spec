@@ -108,9 +108,9 @@
       "name": "greater key version beats a later stamp",
       "profile": "11112222333344445555666677778888",
       "field": "library",
-      "a": {"value": {"keyVersion": 2, "key": "RERERERERERERERERERERERERERERERERERERERERE="}, "at": [1800000003000, 0, "a1b2c3d4e5f60718"]},
+      "a": {"value": {"keyVersion": 2, "key": "REREREREREREREREREREREREREREREREREREREREREQ="}, "at": [1800000003000, 0, "a1b2c3d4e5f60718"]},
       "b": {"value": {"keyVersion": 1, "key": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI="}, "at": [1800000004000, 0, "0f1e2d3c4b5a6978"]},
-      "ok": {"value": {"keyVersion": 2, "key": "RERERERERERERERERERERERERERERERERERERERERE="}, "at": [1800000003000, 0, "a1b2c3d4e5f60718"]}
+      "ok": {"value": {"keyVersion": 2, "key": "REREREREREREREREREREREREREREREREREREREREREQ="}, "at": [1800000003000, 0, "a1b2c3d4e5f60718"]}
     }
   ],
   "policyCases": [
