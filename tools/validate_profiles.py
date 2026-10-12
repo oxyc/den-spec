@@ -19,6 +19,7 @@ ID = re.compile(r"^[0-9a-f]{32}$")
 DEVICE = re.compile(r"^(?:|[0-9a-f]{16})$")
 AVATAR = re.compile(r"^[0-9A-Za-z_-]{1,64}$")
 TITLE_KEY = re.compile(r"^(?:movie|tv):([1-9][0-9]*)$")
+DIGEST = re.compile(r"^[0-9a-f]{64}$")
 
 
 def fail(message: str) -> None:
@@ -51,7 +52,32 @@ def validate_policy(value: object) -> None:
         fail("invalid_policy")
 
 
-def validate_directory(document: object) -> dict:
+def validate_migration(value: object, owner: str) -> None:
+    if not isinstance(value, dict) or set(value) != {
+        "version", "attempt", "source", "backup", "ownerProfile", "ownerHead"
+    }:
+        fail("invalid_migration")
+    if value["version"] != 1 or not isinstance(value["attempt"], str) or not ID.fullmatch(value["attempt"]):
+        fail("invalid_migration")
+    source = value["source"]
+    if not isinstance(source, dict) or set(source) != {"generation", "head"}:
+        fail("invalid_migration")
+    if type(source["generation"]) is not int or not 0 <= source["generation"] <= 9_007_199_254_740_991:
+        fail("invalid_migration")
+    if not isinstance(source["head"], str) or not DIGEST.fullmatch(source["head"]):
+        fail("invalid_migration")
+    backup = value["backup"]
+    if not isinstance(backup, dict) or set(backup) != {"id", "digest"}:
+        fail("invalid_migration")
+    if not isinstance(backup["id"], str) or not 1 <= len(backup["id"]) <= 256:
+        fail("invalid_migration")
+    if not isinstance(backup["digest"], str) or not DIGEST.fullmatch(backup["digest"]):
+        fail("invalid_migration")
+    if value["ownerProfile"] != owner or not isinstance(value["ownerHead"], str) or not DIGEST.fullmatch(value["ownerHead"]):
+        fail("invalid_migration")
+
+
+def validate_directory(document: object, require_migration: bool = False) -> dict:
     if not isinstance(document, dict):
         fail("invalid_document")
     if document.get("format") != 4 or document.get("kind") != "profiles" or document.get("schema") != 1:
@@ -60,6 +86,8 @@ def validate_directory(document: object) -> dict:
     profiles = document.get("profiles")
     if not isinstance(owner, str) or not ID.fullmatch(owner) or not isinstance(profiles, dict) or not profiles:
         fail("invalid_document")
+    if require_migration and "migration" not in document:
+        fail("migration_missing")
 
     live_keys: set[bytes] = set()
     owner_roles = 0
@@ -113,6 +141,8 @@ def validate_directory(document: object) -> dict:
         fail("owner_deleted")
     if owner_roles != 1:
         fail("multiple_owners")
+    if "migration" in document:
+        validate_migration(document["migration"], owner)
     return document
 
 
@@ -165,6 +195,14 @@ def mutate_pointer(document: dict, mutation: dict) -> None:
         target[parts[-1]] = mutation["value"]
 
 
+def remove_pointer(document: dict, pointer: str) -> None:
+    parts = pointer.lstrip("/").split("/")
+    target = document
+    for part in parts[:-1]:
+        target = target[part]
+    del target[parts[-1]]
+
+
 def merge_field(field: str, a: dict, b: dict) -> dict:
     if field == "deleted" and (a["value"] is True or b["value"] is True):
         true_values = [item for item in (a, b) if item["value"] is True]
@@ -174,12 +212,66 @@ def merge_field(field: str, a: dict, b: dict) -> dict:
     return max((a, b), key=lambda item: tuple(item["at"]))
 
 
+def merge_directory(a: dict, b: dict) -> dict:
+    validate_directory(a, require_migration=True)
+    validate_directory(b, require_migration=True)
+    if a["owner"] != b["owner"] or a["migration"] != b["migration"]:
+        fail("identity_conflict")
+    result = copy.deepcopy(max((a, b), key=canonical_json_bytes))
+    result["owner"] = a["owner"]
+    result["migration"] = copy.deepcopy(a["migration"])
+    result["profiles"] = {}
+    for profile_id in set(a["profiles"]) | set(b["profiles"]):
+        if profile_id not in a["profiles"]:
+            result["profiles"][profile_id] = copy.deepcopy(b["profiles"][profile_id])
+            continue
+        if profile_id not in b["profiles"]:
+            result["profiles"][profile_id] = copy.deepcopy(a["profiles"][profile_id])
+            continue
+        left = a["profiles"][profile_id]
+        right = b["profiles"][profile_id]
+        if left["id"] != right["id"] or left["role"] != right["role"]:
+            fail("identity_conflict")
+        entry = copy.deepcopy(max((left, right), key=canonical_json_bytes))
+        entry["id"] = left["id"]
+        entry["role"] = left["role"]
+        for field in ("display", "library", "policy", "deleted"):
+            entry[field] = copy.deepcopy(merge_field(field, left[field], right[field]))
+        result["profiles"][profile_id] = entry
+    return validate_directory(result, require_migration=True)
+
+
 def merge_approval(a: dict, b: dict) -> dict:
     def rank(item: dict) -> tuple:
         # Tombstone is the conservative winner for the otherwise impossible equal-stamp conflict.
         return (tuple(item["at"]), item["value"] == "tombstone", canonical_json_bytes(item))
 
     return max((a, b), key=rank)
+
+
+def apply_directory_operation(document: dict, case: dict) -> dict:
+    result = copy.deepcopy(document)
+    profile_id = case["profile"]
+    operation = case["operation"]
+    if operation == "create":
+        if profile_id in result["profiles"]:
+            fail("profile_exists")
+        result["profiles"][profile_id] = copy.deepcopy(case["entry"])
+    else:
+        entry = result["profiles"].get(profile_id)
+        if entry is None or entry["deleted"]["value"]:
+            fail("profile_not_live")
+        if operation == "rename":
+            entry["display"] = {"value": copy.deepcopy(case["value"]), "at": case["at"]}
+        elif operation == "policy":
+            entry["policy"] = {"value": copy.deepcopy(case["value"]), "at": case["at"]}
+        elif operation == "delete":
+            if profile_id == result["owner"]:
+                fail("owner_deleted")
+            entry["deleted"] = {"value": True, "at": case["at"]}
+        else:
+            fail("invalid_operation")
+    return validate_directory(result, require_migration=True)
 
 
 def canonical_json_bytes(value: object) -> bytes:
@@ -223,6 +315,82 @@ def policy_relation(a: dict, b: dict) -> str:
     return "incomparable"
 
 
+def selection_decision(marker: object, directory: dict) -> dict:
+    restricted = any(
+        not entry["deleted"]["value"]
+        and (entry["policy"]["value"]["maximumAge"] is not None
+             or entry["policy"]["value"]["unknownRatings"] == "block")
+        for entry in directory["profiles"].values()
+    )
+    try:
+        validate_selection(marker)
+    except ValueError:
+        return {"action": "picker", "ownerGate": restricted}
+    if marker["mode"] == "visitor":
+        return {"action": "openVisitor", "visitorNamespace": marker["visitorNamespace"]}
+    profile_id = marker["profileId"]
+    entry = directory["profiles"].get(profile_id)
+    if entry is None or entry["deleted"]["value"] or entry["role"] not in ("owner", "kid", "adult"):
+        return {"action": "picker", "ownerGate": restricted}
+    return {"action": "open", "profileId": profile_id}
+
+
+def migration_next(value: dict) -> str:
+    state = value["state"]
+    observed = value["observed"]
+    candidate = value.get("candidateLibrary")
+    winner = value.get("winnerLibrary")
+    if observed == "committed":
+        if winner is None:
+            return "invalid_evidence"
+        if candidate is not None and candidate != winner and not value.get("candidateRetired", False):
+            return "retire-losing-candidate"
+        if candidate is not None and candidate == winner and value.get("cleanupRequested", False):
+            return "cleanup_targets_winner"
+        if not value.get("winnerVerified", False):
+            return "verify-winner"
+        return "activate"
+    if state == "commit-unknown":
+        return "read-household"
+    if observed == "corrupt":
+        return "restore-backup" if value.get("backupVerified", False) else "recovery-blocked"
+    if observed != "legacy":
+        return "invalid_observation"
+    if value.get("fence") == "changed":
+        return "retire-losing-candidate" if candidate is not None and not value.get("candidateRetired", False) else "restart"
+    if state in ("backed-up", "owner-copied", "ready-to-commit") and not value.get("backupVerified", False):
+        return "invalid_evidence"
+    if state in ("owner-copied", "ready-to-commit") and candidate is None:
+        return "invalid_evidence"
+    if state == "ready-to-commit" and not value.get("ownerVerified", False):
+        return "verify-owner-library"
+    return {
+        "idle": "acquire-fence",
+        "fenced": "create-backup",
+        "backed-up": "create-owner-library",
+        "owner-copied": "verify-owner-library",
+        "ready-to-commit": "commit-fenced-household",
+    }.get(state, "invalid_state")
+
+
+def validate_reset(case: dict) -> str:
+    profiles = case["profiles"]
+    live = [profile for profile in profiles if not profile["deleted"]]
+    if any(profile["newVersion"] != profile["oldVersion"] + 1 for profile in live):
+        return "invalid_key_version"
+    old_keys = {profile["oldKey"] for profile in live}
+    new_keys = [profile["newKey"] for profile in live]
+    if len(set(new_keys)) != len(new_keys) or old_keys.intersection(new_keys):
+        return "reused_key"
+    if any(not profile["verified"] for profile in live):
+        return "move-live-profiles"
+    if not case["householdCommitted"]:
+        return "commit-successor-household"
+    if any(not profile["oldRetired"] for profile in live) or not case["oldHouseholdRetired"]:
+        return "retire-old-libraries"
+    return "complete"
+
+
 def main() -> int:
     # Loading both files is part of validation: malformed JSON fails before any vector runs.
     schema = json.loads(SCHEMA.read_text())
@@ -240,9 +408,12 @@ def main() -> int:
 
     for case in vectors["invalidDirectories"]:
         candidate = copy.deepcopy(base)
-        mutate_pointer(candidate, case["mutate"])
+        if "mutate" in case:
+            mutate_pointer(candidate, case["mutate"])
+        if "remove" in case:
+            remove_pointer(candidate, case["remove"])
         try:
-            validate_directory(candidate)
+            validate_directory(candidate, require_migration=case.get("stored", False))
         except ValueError as error:
             if str(error) != case["error"]:
                 fail(f"{case['name']}: wanted {case['error']}, got {error}")
@@ -262,6 +433,51 @@ def main() -> int:
             fail(f"{case['name']}: merge mismatch")
         if merge_field(case["field"], case["b"], case["a"]) != case["ok"]:
             fail(f"{case['name']}: merge is not commutative")
+
+    for case in vectors["directoryOperationCases"]:
+        result = apply_directory_operation(base, case)
+        entry = result["profiles"][case["profile"]]
+        expected = case["expect"]
+        actual = {}
+        if "role" in expected:
+            actual["role"] = entry["role"]
+        if "name" in expected:
+            actual["name"] = entry["display"]["value"]["name"]
+        if "keyVersion" in expected:
+            actual["keyVersion"] = entry["library"]["value"]["keyVersion"]
+        if "maximumAge" in expected:
+            actual["maximumAge"] = entry["policy"]["value"]["maximumAge"]
+        if "unknownRatings" in expected:
+            actual["unknownRatings"] = entry["policy"]["value"]["unknownRatings"]
+        if "deleted" in expected:
+            actual["deleted"] = entry["deleted"]["value"]
+        if "libraryKeyVersion" in expected:
+            actual["libraryKeyVersion"] = entry["library"]["value"]["keyVersion"]
+        if actual != expected:
+            fail(f"{case['name']}: directory operation mismatch")
+
+    for case in vectors["directoryMergeCases"]:
+        left = copy.deepcopy(base)
+        right = copy.deepcopy(base)
+        for mutation in case["aMutations"]:
+            mutate_pointer(left, mutation)
+        for mutation in case["bMutations"]:
+            mutate_pointer(right, mutation)
+        try:
+            merged = merge_directory(left, right)
+        except ValueError as error:
+            if str(error) != case.get("error"):
+                fail(f"{case['name']}: wanted {case.get('error')}, got {error}")
+        else:
+            if "error" in case:
+                fail(f"{case['name']}: conflicting directories merged")
+            profile = merged["profiles"]["11112222333344445555666677778888"]
+            actual = {"name": profile["display"]["value"]["name"],
+                      "maximumAge": profile["policy"]["value"]["maximumAge"]}
+            if actual != case["expect"]:
+                fail(f"{case['name']}: directory merge mismatch")
+            if merge_directory(right, left) != merged:
+                fail(f"{case['name']}: directory merge is not commutative")
 
     legacy = {"pg13": 13, "r": 17, None: None}
     for case in vectors["policyCases"]:
@@ -365,8 +581,45 @@ def main() -> int:
         fail("enforcement_boundaries_mismatch")
 
     for case in vectors["selectionCases"]:
-        if case["marker"] is not None:
-            validate_selection(case["marker"])
+        candidate_directory = copy.deepcopy(base)
+        if case.get("allUnrestricted"):
+            for entry in candidate_directory["profiles"].values():
+                entry["policy"]["value"] = {"maximumAge": None, "unknownRatings": "allow"}
+        if "directoryMutation" in case:
+            mutate_pointer(candidate_directory, case["directoryMutation"])
+        actual = selection_decision(case["marker"], candidate_directory)
+        if actual != case["result"]:
+            fail(f"{case['name']}: selection mismatch")
+
+    expected_settings = {
+        "prefs.den.watchRegion": "household",
+        "prefs.den.myServicePicks": "household",
+        "prefs.den.excludedGenreIDs": "profile",
+        "prefs.den.excludedLanguages": "profile",
+        "prefs.den.preferredSubtitleLanguage": "profile",
+        "prefs.den.hasExplicitSubtitlePreference": "profile",
+        "prefs.den.shownSubtitleLanguages": "profile",
+        "prefs.den.maxSubtitlesPerLanguage": "profile",
+        "prefs.den.preferredAudioLanguage": "profile",
+        "prefs.den.autoSkipSegments": "profile",
+        "prefs.den.autoplayTrailers": "profile",
+        "prefs.den.hideAnime": "profile",
+        "prefs.den.hideWatched": "profile",
+        "prefs.den.minReleaseYear": "profile",
+        "prefs.den.enabledRatingSources": "profile",
+        "prefs.den.shownWarningCategories": "profile",
+    }
+    actual_settings = {row["key"]: row["scope"] for row in vectors["settingsOwnership"]}
+    if actual_settings != expected_settings or len(vectors["settingsOwnership"]) != 16:
+        fail("settings_ownership_exact_keys")
+
+    for case in vectors["migrationCases"]:
+        if migration_next(case) != case["expect"]:
+            fail(f"{case['name']}: migration decision mismatch")
+
+    for case in vectors["resetCases"]:
+        if validate_reset(case) != case["expect"]:
+            fail(f"{case['name']}: reset decision mismatch")
 
     topology = vectors["wireTopology"]
     expected = {
@@ -374,8 +627,9 @@ def main() -> int:
         "householdRequestWireAfterActivation": 5,
         "profileRequestWire": 4,
         "newProfileLibraryMinimum": 4,
-        "existingHouseholdMinimumChangedByThisRevision": False,
-        "initialSplitOperationDefined": False,
+        "existingHouseholdMinimumChangedByContractPublication": False,
+        "initialSplitOperationDefined": True,
+        "activationAuthorized": False,
         "visitorSyncedLibrary": False,
         "visitorPolicy": "inherits-owner-v1",
         "kidApprovalsStoredInHousehold": True,
@@ -384,15 +638,12 @@ def main() -> int:
     }
     if topology != expected:
         fail("wire_topology_mismatch")
-    if len(vectors["settingsOwnership"]) != 29:
-        fail("settings_ownership_row_count")
-    if len({row["key"] for row in vectors["settingsOwnership"]}) != 29:
-        fail("duplicate_settings_ownership_key")
-
     print(
         f"profiles-v1: {len(vectors['validDirectories'])} valid, "
         f"{len(vectors['invalidDirectories'])} invalid, "
         f"{len(vectors['mergeCases'])} merge, "
+        f"{len(vectors['directoryOperationCases'])} directory operations, "
+        f"{len(vectors['directoryMergeCases'])} directory merge, "
         f"{len(vectors['policyCases'])} policy, "
         f"{len(vectors['policyOrderingCases'])} policy ordering, "
         f"{len(vectors['validApprovalDocuments'])} approval valid, "
@@ -402,7 +653,9 @@ def main() -> int:
         f"{len(vectors['approvalScopeCases'])} approval scope, "
         f"{len(vectors['approvalWriterCases'])} approval writer, "
         f"{len(vectors['playOnceCases'])} play once, "
-        f"{len(vectors['selectionCases'])} selection cases passed"
+        f"{len(vectors['selectionCases'])} selection, "
+        f"{len(vectors['migrationCases'])} migration, "
+        f"{len(vectors['resetCases'])} reset cases passed"
     )
     return 0
 

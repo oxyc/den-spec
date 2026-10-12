@@ -1,13 +1,14 @@
 # Household profiles, v1 — proposal
 
-**Status: contract only; not activated.** This document is the backward-compatible first part of
+**Status: complete contract; not activated.** This document is the normative contract for
 [den-spec#39](https://github.com/oxyc/den-spec/issues/39) and the architecture in
 [den#234](https://github.com/oxyc/den/issues/234). It defines the data model clients and den-core will implement.
 Its maturity values follow the conservative numeric model selected in
 [den-dataset#226](https://github.com/oxyc/den-dataset/issues/226).
 It does **not** authorize a client to split an existing library, publish a profile directory or approval document,
-raise a production wire minimum, or make an existing wire-4 household refuse a wire-4 client. Those state machines
-require a later revision with backup, fencing, adoption, cleanup and reset vectors.
+raise a production wire minimum, or make an existing wire-4 household refuse a wire-4 client. Sections 8 and 9 pin
+those state machines so implementations can be built and reviewed; activation still requires an explicit product
+release after every participant implements this contract. Reading or shipping this specification is not activation.
 
 Words: *MUST* is a rule a client breaks at the cost of another client or profile; *should* is advice.
 
@@ -33,16 +34,16 @@ Visitor ──> device-local namespace; no library and no directory entry
 in this document.** It is not a fifth row encoding. The household's rows use library-v4 §4 plaintext framing and
 library-v2 sealing. A persistent profile's log is an ordinary library-v4 library: requests to that log advertise
 `x-den-wire: 4`, and a new profile log starts with `x-den-wire-min: 4`. Profile-aware requests to the household
-advertise `x-den-wire: 5` once profiles have been enabled by the later split protocol.
+advertise `x-den-wire: 5` only after §8's fenced commit.
 
 Merely understanding this document, constructing a directory in memory, or reading the vectors MUST NOT raise a
-household's `x-den-wire-min`. In particular, this revision has no operation that commits the initial split. The
-eventual committed split will raise the existing household minimum to 5; until that operation is specified and
-implemented, its minimum stays unchanged.
+household's `x-den-wire-min`. A §8 commit atomically rewrites the household and raises its minimum to 5, but this
+contract does not enable any caller to initiate that commit. Until a separately reviewed implementation is
+activated, every existing household minimum stays unchanged.
 
 Experiments or canary behavior at `d.oxy.fi` may exercise this contract behind deployment controls, but do not
 alter the wire contract, activate the split, or authorize any production wire-minimum change. Wire behavior changes
-only through the fenced activation contract and implementation that this proposal explicitly defers.
+only through §8's fenced activation operation after that operation is deliberately enabled in product code.
 
 The household key seals the directory, including all profile keys. Profiles are UX and data-isolation boundaries,
 not protection from a hostile device that holds the household key. Selectively wrapped private profiles are out of
@@ -84,6 +85,14 @@ The directory is one document named `profiles`. Its row key is
   "kind": "profiles",
   "schema": 1,
   "owner": "00112233445566778899aabbccddeeff",
+  "migration": {
+    "version": 1,
+    "attempt": "0123456789abcdef0123456789abcdef",
+    "source": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+    "backup": {"id": "backup-7", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+    "ownerProfile": "00112233445566778899aabbccddeeff",
+    "ownerHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
   "profiles": {
     "00112233445566778899aabbccddeeff": {
       "id": "00112233445566778899aabbccddeeff",
@@ -118,6 +127,12 @@ The directory is one document named `profiles`. Its row key is
   library-v2 §4. A deletion is permanent: a deleted id cannot become live again, its library is retired by the
   lifecycle operation, and recreation uses a new id and key. The tombstone retains the last library reference so
   interrupted retirement can be completed; no activity is read from it.
+- A directory stored by the initial split MUST contain `migration`. `attempt` is a random 16-byte id. `source`
+  identifies the exact den-edge rewrite generation and head that the backup and copy came from. `backup.id` is the
+  durable provider handle and `backup.digest` authenticates the verified backup artifact. `ownerProfile` MUST equal
+  `owner`, and `ownerHead` is the verified head of that entry's destination library before commit. All digests and
+  heads are 32 bytes in lowercase hexadecimal. These values are immutable evidence, not a progress register;
+  pre-commit progress lives only in the local journal in §8.
 
 The schema permits extension fields so a newer client can add display or lifecycle facts. A writer keeps unknown
 fields byte-for-byte in the logical document unless den-core tells it how to merge them. A client that does not know
@@ -131,8 +146,9 @@ Clients do not independently implement directory decisions. den-core operations 
 - `profiles_merge(a, b)` validates both versions, merges them, then validates the result; and
 - lifecycle operations construct creates, renames, policy changes, deletions and key changes from validated input.
 
-The merge is the union of profile ids. `owner`, each entry's `id`, and `role` are immutable; disagreement is
-`identity_conflict`. Known stamped fields use library-v2's later-stamp rule, except `library`: greater `keyVersion`
+The merge is the union of profile ids. `owner`, `migration`, each entry's `id`, and `role` are immutable;
+disagreement is `identity_conflict`. A directory without `migration` is accepted only as an uncommitted constructor
+input and MUST NOT be published. Known stamped fields use library-v2's later-stamp rule, except `library`: greater `keyVersion`
 wins first and its stamp breaks a tie. A `deleted: true` is irreversible even if another valid input has a later
 false value. Unknowns use library-v4 §6's unknown-field rule. The merged document is rejected if the owner is
 missing/deleted, map keys and ids differ, a role conflicts, a live key is duplicated, or any field is malformed.
@@ -236,44 +252,46 @@ effect of play once.
 
 ## 6. Normative settings ownership
 
-Scope is assigned key by key. A client MUST NOT infer it from a row name, UI section or an unknown key's prefix.
-Adding a synced setting requires assigning it in a later version of this table.
+Scope is assigned key by key. These are the exact sixteen non-legacy `SettingsLogBridge` preference keys after the
+split. A client MUST NOT infer scope from a row name, UI section or prefix.
 
-| Existing setting | Scope after profiles | Non-owner behavior |
+| Existing key | Scope after profiles | Split rule |
 |---|---|---|
-| `keys.tmdb`, `keys.omdb`, `keys.doesthedogdie` | Household | Read/use; cannot manage |
-| `keys.simkl`, future tracker credentials | Profile owning that tracker | Kid/Visitor do not read or deliver in v1 |
-| `keys.cfAccessId`, `keys.cfAccessSecret` | Household | Read/use; cannot manage |
-| `keys.parentalPIN` | Household owner PIN | Verify gates; cannot manage |
-| profile-directory Kid policy | Household, owner-managed | Kid reads; Kid session has no policy writer |
-| per-Kid title approvals | Household, owner-managed | Kid reads own; Kid session has no approval writer |
-| Visitor policy | Household; inherits Owner policy in v1 | Read only |
-| `plugins.*`, `servers.*`, `trust.*`, `addresses.*` | Household | Read/use; cannot manage |
-| `devices.*`, `recovery.*` | Household | Hidden from non-owner administration |
-| download rows and download policy | Household | Kid/Visitor actions disabled or PIN-gated |
-| `prefs.den.watchRegion` | Household | Inherit |
-| `prefs.den.myServiceIDs` (legacy) | Household | Inherit |
-| `prefs.den.myServicePicks` | Household | Inherit |
-| `prefs.den.excludedGenreIDs` | Profile | Read/write own |
-| `prefs.den.excludedLanguages` | Profile | Read/write own |
-| `prefs.den.preferredSubtitleLanguage` | Profile | Read/write own |
-| `prefs.den.hasExplicitSubtitlePreference` | Profile | Read/write own |
-| `prefs.den.shownSubtitleLanguages` | Profile | Read/write own |
-| `prefs.den.maxSubtitlesPerLanguage` | Profile | Read/write own |
-| `prefs.den.preferredAudioLanguage` | Profile | Read/write own |
-| `prefs.den.autoSkipSegments` | Profile | Read/write own |
-| `prefs.den.autoplayTrailers` | Profile | Read/write own, subject to Kid policy |
-| `prefs.den.hideAnime` | Profile | Read/write own |
-| `prefs.den.hideWatched` | Profile | Read/write own |
-| `prefs.den.minReleaseYear` | Profile | Read/write own |
-| `prefs.den.enabledRatingSources` | Profile | Read/write own |
-| `prefs.den.shownWarningCategories` | Profile | Read/write own |
-| `prefs.den.maturityCeiling` | Owner profile migration input | Translate to Owner policy; not retained as household policy |
-| OLED/presentation and other unsynced settings | Device | Follow device |
+| `prefs.den.watchRegion` | Household | Retain; every profile inherits it |
+| `prefs.den.myServicePicks` | Household | Retain; every profile inherits it |
+| `prefs.den.excludedGenreIDs` | Profile | Move to Owner |
+| `prefs.den.excludedLanguages` | Profile | Move to Owner |
+| `prefs.den.preferredSubtitleLanguage` | Profile | Move to Owner |
+| `prefs.den.hasExplicitSubtitlePreference` | Profile | Move to Owner |
+| `prefs.den.shownSubtitleLanguages` | Profile | Move to Owner |
+| `prefs.den.maxSubtitlesPerLanguage` | Profile | Move to Owner |
+| `prefs.den.preferredAudioLanguage` | Profile | Move to Owner |
+| `prefs.den.autoSkipSegments` | Profile | Move to Owner |
+| `prefs.den.autoplayTrailers` | Profile | Move to Owner; Kid use remains subject to policy |
+| `prefs.den.hideAnime` | Profile | Move to Owner |
+| `prefs.den.hideWatched` | Profile | Move to Owner |
+| `prefs.den.minReleaseYear` | Profile | Move to Owner |
+| `prefs.den.enabledRatingSources` | Profile | Move to Owner |
+| `prefs.den.shownWarningCategories` | Profile | Move to Owner |
+
+Two legacy inputs are outside the sixteen-key post-split table: `prefs.den.myServiceIDs` remains in the household
+for old readers but is not copied, and `prefs.den.maturityCeiling` is decoded into Owner policy by §5 and then
+removed. `keys.simkl` and future tracker credentials move to the owning profile. Everything else already named
+household-wide in den#234 remains in the household rewrite: metadata and Cloudflare credentials, `keys.parentalPIN`,
+`plugins.*`, `servers.*`, `trust.*`, `addresses.*`, `devices.*`, `recovery.*`, and download rows and policy. The
+directory's Kid policy and approvals are household documents; Visitor inherits Owner policy.
+
+The following device categories are intentionally non-exhaustive and are not part of the sixteen-key contract:
+
+| Device-only category | Rule |
+|---|---|
+| OLED and presentation preferences | Remain on that device |
+| active profile/Visitor marker and Visitor namespace | Follow §7; never enter either library |
+| transient play-once authorization and retained navigation | Clear at the boundaries in §§5.1 and 7 |
 
 Every persistent profile opens its own `set:prefs`; household preferences are read separately from the control log.
-Personal values are never copied between profiles. An unassigned future synced key MUST NOT be moved or copied by a
-split until a later contract assigns its scope.
+Personal values are never copied between profiles. An unknown or future synced key MUST remain in the household and
+MUST NOT be copied into a profile until a later contract assigns it explicitly.
 
 ## 7. Sticky device-local selection
 
@@ -298,14 +316,89 @@ expiry.
 - Playback is dismissed, profile-owned delayed progress/tracker/recommendation work is cancelled, navigation is
   reset, and profile-specific caches are cleared before another mode becomes active. Household services stay open.
 
-## 8. Vectors and deferred lifecycle work
+## 8. Initial split: explicit, backed up and fenced
 
-[`vectors/profiles-v1.json`](../vectors/profiles-v1.json) pins valid and invalid directories, more than one Kid,
-distinct keys, numeric policy and ordering, per-Kid approval validation and convergence, role semantics, settings
-scope, sticky selection and wire topology. The schema and vector-specific cross-field checks run with
-`python3 tools/validate_profiles.py`.
+The split starts only from an explicit owner action after the owner PIN is verified. Upgrade, launch, opening these
+vectors, creating a directory in memory, or merely seeing a capable peer MUST NOT start it. The client durably keeps
+a local journal keyed by a random `attempt`; it never writes intermediate migration state to the shared log.
 
-This revision intentionally has no vector for the destructive initial split, concurrent winner adoption, orphan
-cleanup, backup, or multi-profile §12 reset. It must not be cited as authorization to implement them. The follow-up
-contract will add those state machines and vectors before any product code enables profiles or changes a production
+The states and only permitted next effects are:
+
+| Local state | Required durable evidence | Next effect |
+|---|---|---|
+| `idle` | explicit owner intent | Open a den-edge rewrite and record its generation and base head as `fenced` |
+| `fenced` | source fence | Create a complete backup at that exact fence; verify its digest and readability |
+| `backed-up` | source fence plus verified backup | Create one random Owner key/library and copy the Owner partition |
+| `owner-copied` | candidate library id/key | Verify every source row is accounted for and derived state and delivery pending state agree |
+| `ready-to-commit` | all prior evidence | Stage the configuration-only household form and commit `{base, wireMin: 5}` |
+| `commit-unknown` | attempted commit | Read the household; never guess or submit the same rewrite blindly |
+| `adopting` | a valid committed directory | Open and verify its Owner library, then make its profile the local active mode |
+| `cleaning-loser` | winner and a distinct local candidate | Retire/delete only the unreferenced candidate; repeat until absence is confirmed |
+| `active` | winner usable and any losing candidate absent | Delete the local journal; use household wire 5 and profile wire 4 |
+| `restore-required` | verified backup and no valid committed directory | Stop; require an explicit recovery action under a fresh fence |
+
+The backup MUST be complete through the recorded head, restorable under the unchanged household key/id, readable
+after creation, and retained at least until `active`. No Owner destination write may occur first. The Owner copy
+contains every title and season document, all fourteen profile preferences in §6, SIMKL credentials, commands,
+receipts, pending/held work, epochs and delivery documents, including facts needed to avoid replay. Its verification
+compares decoded/derived activity and pending delivery decisions, not merely row counts.
+
+The staged household is built from the same fenced source. It retains all household state named in §§2 and 6,
+adds the directory and its immutable migration evidence, and contains no activity, personal preference, tracker
+credential, command, receipt or delivery row. Its directory Owner key is the verified candidate key. The single
+den-edge generation/base-fenced rewrite commits the staged rows and `x-den-wire-min: 5` together. It keeps the
+existing household key, id, membership and links. A split is not a §12 reset and never asks a device to pair again.
+
+den-edge alone selects a concurrent winner by accepting one fence. `profiles_migration_next(input)` in den-core is
+the canonical pure decision operation. Its input contains the validated local journal (or none), the observed
+household kind/minimum/generation/head, the validated committed directory (or none), backup verification, candidate
+Owner verification, and candidate retirement observation. It returns one of the effects named in the table or an
+error. Swift and web MUST execute that answer and MUST NOT infer success from their own request outcome.
+
+After any conflict, timeout or process death, read the household first:
+
+- A valid committed directory is the winner even when its `attempt` differs. Adopt it. If this client created a
+  different Owner library, enter `cleaning-loser`; cleanup is idempotent and continues after restart.
+- Cleanup MUST compare the candidate key with every live key in the committed directory. Equal or referenced means
+  `cleanup_targets_winner` and no delete. Only a distinct, unreferenced candidate may be retired. Absence counts as
+  success, so a retry cannot create a storage-counting orphan.
+- If the household remains legacy and the original fence still matches, resume the journal's next effect. If its
+  fence changed, retire any candidate, discard only the attempt journal, and restart from `idle` on explicit intent.
+- An atomic fenced rewrite failure leaves the old household authoritative; do not restore over it. An unreadable or
+  partial household with no valid committed directory enters `restore-required`. Recovery first proves the backup's
+  digest and source fence, opens a fresh rewrite, and restores only if den-core answers `restore-backup`. A backup
+  MUST NOT restore over a valid wire-5 directory or lower its minimum.
+- A valid committed directory whose Owner library cannot yet be verified remains `adopting`; it never falls back to
+  household activity and never lowers the wire minimum. Repair/finish the referenced Owner library from the verified
+  candidate/backup facts, or stop for recovery.
+
+Until product activation is separately approved, `profiles_migration_next` may be implemented and tested but no UI
+or background path may supply the explicit owner intent, publish the directory, commit the rewrite or change a live
 minimum.
+
+## 9. Multi-profile key reset and revocation
+
+A household §12 reset is one fenced compound move. It generates a successor household key and one distinct random
+successor key for every live persistent profile, increments each profile's `keyVersion` exactly once, and re-seals
+each complete ordinary library-v4 log while preserving delivery state. Deleted profiles are not moved. No successor
+profile key may equal any old or other successor key.
+
+`profiles_reset_next(input)` is den-core's canonical pure planner. It receives the validated committed directory,
+the household move fence, and for each live profile the old key/version, proposed new key/version, copy head and
+verification state. Its phases are `prepared`, `profiles-moving`, `ready-to-publish`, `committed`, `retiring-old`
+and `complete`. It returns the next profiles to copy/verify or the one permitted commit/retirement effect.
+
+The successor directory is not published until every live profile move is verified. The household move then
+publishes that directory under the successor household, commits its fence, and only afterward retires the old
+household and every old profile library. A conflict or unknown outcome is resolved by reading the committed
+household move before any retirement. Missing verification, a non-incremented version, reused key, unknown/newer
+row that library-v4 §12 cannot move, or any unavailable profile returns an error and leaves all old libraries live.
+Revocation is complete only when every old profile library and the old household are confirmed retired; leaving one
+old profile key usable is not a reset.
+
+## 10. Vectors and operation boundary
+
+[`vectors/profiles-v1.json`](../vectors/profiles-v1.json) pins directory schema and operations, numeric policy,
+approvals, the exact settings table, sticky selection, activation/recovery decisions, loser cleanup, wire topology
+and multi-profile reset. `python3 tools/validate_profiles.py` checks the canonical input boundary and expected pure
+answers. The vectors specify den-core behavior; they do not authorize a production caller to activate profiles.

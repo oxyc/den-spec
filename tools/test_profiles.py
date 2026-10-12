@@ -35,6 +35,36 @@ class ProfilesVectorsTests(unittest.TestCase):
         self.assertEqual(validate_profiles.merge_unknown_set(older, {"future": "old"}, newer, expected), expected)
         self.assertEqual(validate_profiles.merge_unknown_set(newer, expected, older, {"future": "old"}), expected)
 
+    def test_losing_migration_candidate_is_cleaned_before_adoption(self):
+        case = {
+            "state": "ready-to-commit", "observed": "committed",
+            "candidateLibrary": "loser", "winnerLibrary": "winner",
+            "winnerVerified": True, "candidateRetired": False,
+        }
+        self.assertEqual(validate_profiles.migration_next(case), "retire-losing-candidate")
+        case["candidateRetired"] = True
+        self.assertEqual(validate_profiles.migration_next(case), "activate")
+
+    def test_cleanup_never_targets_winner(self):
+        case = {
+            "state": "cleaning-loser", "observed": "committed",
+            "candidateLibrary": "winner", "winnerLibrary": "winner",
+            "winnerVerified": True, "cleanupRequested": True,
+        }
+        self.assertEqual(validate_profiles.migration_next(case), "cleanup_targets_winner")
+
+    def test_reset_waits_for_every_live_profile(self):
+        case = {
+            "householdCommitted": False, "oldHouseholdRetired": False,
+            "profiles": [
+                {"oldKey": "a", "newKey": "b", "oldVersion": 1, "newVersion": 2,
+                 "deleted": False, "verified": True, "oldRetired": False},
+                {"oldKey": "c", "newKey": "d", "oldVersion": 1, "newVersion": 2,
+                 "deleted": False, "verified": False, "oldRetired": False},
+            ],
+        }
+        self.assertEqual(validate_profiles.validate_reset(case), "move-live-profiles")
+
 
 if __name__ == "__main__":
     unittest.main()
