@@ -4,6 +4,7 @@
   "title": "Den household profiles v1",
   "oneOf": [
     {"$ref": "#/$defs/directory"},
+    {"$ref": "#/$defs/titleApprovals"},
     {"$ref": "#/$defs/selection"}
   ],
   "$defs": {
@@ -44,12 +45,12 @@
     },
     "policyValue": {
       "type": "object",
-      "required": ["maxBand", "unknownRatings"],
+      "required": ["maximumAge", "unknownRatings"],
       "properties": {
-        "maxBand": {"type": ["string", "null"], "enum": [null, "littleKids", "family", "teen", "mature"]},
+        "maximumAge": {"type": ["integer", "null"], "minimum": 0, "maximum": 255},
         "unknownRatings": {"enum": ["allow", "block"]}
       },
-      "additionalProperties": false
+      "additionalProperties": true
     },
     "stampedDisplay": {
       "type": "object",
@@ -101,6 +102,35 @@
           "propertyNames": {"$ref": "#/$defs/profileId"},
           "additionalProperties": {"$ref": "#/$defs/entry"},
           "minProperties": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "titleKey": {
+      "type": "string",
+      "pattern": "^(movie|tv):[1-9][0-9]*$"
+    },
+    "stampedApproval": {
+      "type": "object",
+      "required": ["value", "at"],
+      "properties": {
+        "value": {"enum": ["allow", "tombstone"]},
+        "at": {"$ref": "#/$defs/stamp"}
+      },
+      "additionalProperties": true
+    },
+    "titleApprovals": {
+      "type": "object",
+      "required": ["format", "kind", "schema", "kid", "approvals"],
+      "properties": {
+        "format": {"const": 4},
+        "kind": {"const": "kid-title-approvals"},
+        "schema": {"const": 1},
+        "kid": {"$ref": "#/$defs/profileId"},
+        "approvals": {
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/titleKey"},
+          "additionalProperties": {"$ref": "#/$defs/stampedApproval"}
         }
       },
       "additionalProperties": true

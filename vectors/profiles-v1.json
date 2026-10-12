@@ -4,10 +4,11 @@
   "schema": "schemas/profiles-v1.schema.json",
   "notes": [
     "These are logical JCS documents. Library-v4 supplies compression, sealing and row-key vectors.",
-    "Valid and invalid directory cases pin profiles_validate; merge cases pin profiles_merge.",
+    "Valid and invalid directory and title-approval cases pin den-core validation; merge cases pin convergence.",
     "No case performs or authorizes the initial split, changes an existing minimum, or migrates production state."
   ],
   "directoryName": "profiles",
+  "approvalNamePrefix": "kid-title-approvals:",
   "validDirectories": [
     {
       "name": "one Owner and two Kids use distinct ordinary library-v4 logs",
@@ -22,7 +23,7 @@
             "role": "owner",
             "display": {"value": {"name": "Cindy", "avatar": "fox"}, "at": [1800000000000, 0, "a1b2c3d4e5f60718"]},
             "library": {"value": {"keyVersion": 1, "key": "ERERERERERERERERERERERERERERERERERERERERERE="}, "at": [1800000000000, 1, "a1b2c3d4e5f60718"]},
-            "policy": {"value": {"maxBand": null, "unknownRatings": "allow"}, "at": [1800000000000, 2, "a1b2c3d4e5f60718"]},
+            "policy": {"value": {"maximumAge": null, "unknownRatings": "allow", "futurePolicyFlag": true}, "at": [1800000000000, 2, "a1b2c3d4e5f60718"]},
             "deleted": {"value": false, "at": [1800000000000, 3, "a1b2c3d4e5f60718"]}
           },
           "11112222333344445555666677778888": {
@@ -30,7 +31,7 @@
             "role": "kid",
             "display": {"value": {"name": "Mina", "avatar": "owl"}, "at": [1800000001000, 0, "a1b2c3d4e5f60718"]},
             "library": {"value": {"keyVersion": 1, "key": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI="}, "at": [1800000001000, 1, "a1b2c3d4e5f60718"]},
-            "policy": {"value": {"maxBand": "family", "unknownRatings": "block"}, "at": [1800000001000, 2, "a1b2c3d4e5f60718"]},
+            "policy": {"value": {"maximumAge": 10, "unknownRatings": "block"}, "at": [1800000001000, 2, "a1b2c3d4e5f60718"]},
             "deleted": {"value": false, "at": [1800000001000, 3, "a1b2c3d4e5f60718"]}
           },
           "9999aaaabbbbccccddddeeeeffff0000": {
@@ -38,7 +39,7 @@
             "role": "kid",
             "display": {"value": {"name": "Leo"}, "at": [1800000002000, 0, "0f1e2d3c4b5a6978"]},
             "library": {"value": {"keyVersion": 1, "key": "MzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM="}, "at": [1800000002000, 1, "0f1e2d3c4b5a6978"]},
-            "policy": {"value": {"maxBand": "teen", "unknownRatings": "block"}, "at": [1800000002000, 2, "0f1e2d3c4b5a6978"]},
+            "policy": {"value": {"maximumAge": 16, "unknownRatings": "block"}, "at": [1800000002000, 2, "0f1e2d3c4b5a6978"]},
             "deleted": {"value": false, "at": [1800000002000, 3, "0f1e2d3c4b5a6978"]}
           }
         }
@@ -85,6 +86,21 @@
       "name": "display names are NFC",
       "mutate": {"path": "/profiles/11112222333344445555666677778888/display/value/name", "value": "Miña"},
       "error": "display_not_nfc"
+    },
+    {
+      "name": "named maturity bands are not policy values",
+      "mutate": {"path": "/profiles/11112222333344445555666677778888/policy/value", "value": {"maximumAge": "family", "unknownRatings": "block"}},
+      "error": "invalid_policy"
+    },
+    {
+      "name": "maximum age is nonnegative",
+      "mutate": {"path": "/profiles/11112222333344445555666677778888/policy/value/maximumAge", "value": -1},
+      "error": "invalid_policy"
+    },
+    {
+      "name": "maximum age is bounded",
+      "mutate": {"path": "/profiles/11112222333344445555666677778888/policy/value/maximumAge", "value": 256},
+      "error": "invalid_policy"
     }
   ],
   "mergeCases": [
@@ -114,13 +130,95 @@
     }
   ],
   "policyCases": [
-    {"name": "legacy pg13", "legacy": "pg13", "normalized": {"maxBand": "teen", "unknownRatings": "allow"}},
-    {"name": "legacy r", "legacy": "r", "normalized": {"maxBand": "mature", "unknownRatings": "allow"}},
-    {"name": "legacy absent", "legacy": null, "normalized": {"maxBand": null, "unknownRatings": "allow"}},
-    {"name": "Kid unknown blocks", "policy": {"maxBand": "family", "unknownRatings": "block"}, "titleBand": null, "allow": false},
-    {"name": "Owner unknown allows", "policy": {"maxBand": null, "unknownRatings": "allow"}, "titleBand": null, "allow": true},
-    {"name": "family blocks teen", "policy": {"maxBand": "family", "unknownRatings": "block"}, "titleBand": "teen", "allow": false},
-    {"name": "teen allows family", "policy": {"maxBand": "teen", "unknownRatings": "block"}, "titleBand": "family", "allow": true}
+    {"name": "legacy pg13", "legacy": "pg13", "normalized": {"maximumAge": 13, "unknownRatings": "allow"}},
+    {"name": "legacy r", "legacy": "r", "normalized": {"maximumAge": 17, "unknownRatings": "allow"}},
+    {"name": "legacy absent", "legacy": null, "normalized": {"maximumAge": null, "unknownRatings": "allow"}},
+    {"name": "Kid unknown blocks", "policy": {"maximumAge": 10, "unknownRatings": "block"}, "minimumAge": null, "approved": false, "allow": false},
+    {"name": "Owner unknown allows", "policy": {"maximumAge": null, "unknownRatings": "allow"}, "minimumAge": null, "approved": false, "allow": true},
+    {"name": "age above maximum blocks", "policy": {"maximumAge": 10, "unknownRatings": "block"}, "minimumAge": 13, "approved": false, "allow": false},
+    {"name": "age equal to maximum allows", "policy": {"maximumAge": 13, "unknownRatings": "block"}, "minimumAge": 13, "approved": false, "allow": true},
+    {"name": "lower age allows", "policy": {"maximumAge": 16, "unknownRatings": "block"}, "minimumAge": 12, "approved": false, "allow": true},
+    {"name": "no maximum allows known age", "policy": {"maximumAge": null, "unknownRatings": "block"}, "minimumAge": 18, "approved": false, "allow": true},
+    {"name": "explicit Kid approval overrides age", "policy": {"maximumAge": 10, "unknownRatings": "block"}, "minimumAge": 18, "approved": true, "allow": true},
+    {"name": "explicit Kid approval overrides unknown", "policy": {"maximumAge": 10, "unknownRatings": "block"}, "minimumAge": null, "approved": true, "allow": true}
+  ],
+  "policyOrderingCases": [
+    {"name": "lower maximum is stricter", "a": {"maximumAge": 10, "unknownRatings": "block"}, "b": {"maximumAge": 13, "unknownRatings": "block"}, "relation": "stricter"},
+    {"name": "bounded is stricter than unbounded", "a": {"maximumAge": 18, "unknownRatings": "allow"}, "b": {"maximumAge": null, "unknownRatings": "allow"}, "relation": "stricter"},
+    {"name": "blocking unknown is stricter", "a": {"maximumAge": 13, "unknownRatings": "block"}, "b": {"maximumAge": 13, "unknownRatings": "allow"}, "relation": "stricter"},
+    {"name": "opposite movements are incomparable", "a": {"maximumAge": 10, "unknownRatings": "allow"}, "b": {"maximumAge": 13, "unknownRatings": "block"}, "relation": "incomparable"},
+    {"name": "same policy is equal", "a": {"maximumAge": null, "unknownRatings": "allow"}, "b": {"maximumAge": null, "unknownRatings": "allow"}, "relation": "equal"}
+  ],
+  "unknownRatingsDefaults": {
+    "owner": "allow",
+    "kid": "block"
+  },
+  "validApprovalDocuments": [
+    {
+      "name": "one Kid has independent movie and TV approvals with extensions",
+      "document": {
+        "format": 4,
+        "kind": "kid-title-approvals",
+        "schema": 1,
+        "kid": "11112222333344445555666677778888",
+        "approvals": {
+          "movie:550": {"value": "allow", "at": [1800000010000, 0, "a1b2c3d4e5f60718"], "futureEntryFact": "kept"},
+          "tv:1399": {"value": "tombstone", "at": [1800000011000, 0, "0f1e2d3c4b5a6978"]}
+        },
+        "futureDocumentFact": {"kept": true}
+      }
+    }
+  ],
+  "invalidApprovalDocuments": [
+    {"name": "title key requires a media type", "mutate": {"path": "/approvals/movie:550", "rename": "550"}, "error": "invalid_title_key"},
+    {"name": "title key uses canonical positive decimal", "mutate": {"path": "/approvals/movie:550", "rename": "movie:0550"}, "error": "invalid_title_key"},
+    {"name": "approval target must be a Kid", "mutate": {"path": "/kid", "value": "00112233445566778899aabbccddeeff"}, "error": "approval_not_kid"},
+    {"name": "approval value is allow or tombstone", "mutate": {"path": "/approvals/movie:550/value", "value": "deny"}, "error": "invalid_approval"}
+  ],
+  "approvalMergeCases": [
+    {
+      "name": "later tombstone removes an allow without deleting its key",
+      "a": {"value": "allow", "at": [1800000010000, 0, "a1b2c3d4e5f60718"]},
+      "b": {"value": "tombstone", "at": [1800000012000, 0, "0f1e2d3c4b5a6978"]},
+      "ok": {"value": "tombstone", "at": [1800000012000, 0, "0f1e2d3c4b5a6978"]}
+    },
+    {
+      "name": "tombstone wins an equal-stamp tie conservatively",
+      "a": {"value": "allow", "at": [1800000013000, 0, "a1b2c3d4e5f60718"]},
+      "b": {"value": "tombstone", "at": [1800000013000, 0, "a1b2c3d4e5f60718"]},
+      "ok": {"value": "tombstone", "at": [1800000013000, 0, "a1b2c3d4e5f60718"]}
+    },
+    {
+      "name": "a fresh owner allow can reapprove a tombstoned title",
+      "a": {"value": "tombstone", "at": [1800000014000, 0, "a1b2c3d4e5f60718"]},
+      "b": {"value": "allow", "at": [1800000015000, 0, "0f1e2d3c4b5a6978"], "futureEntryFact": "kept"},
+      "ok": {"value": "allow", "at": [1800000015000, 0, "0f1e2d3c4b5a6978"], "futureEntryFact": "kept"}
+    }
+  ],
+  "approvalScopeCases": [
+    {"name": "approval applies to its Kid", "documentKid": "11112222333344445555666677778888", "activeMode": "kid", "activeProfile": "11112222333344445555666677778888", "value": "allow", "approved": true},
+    {"name": "approval does not apply to another Kid", "documentKid": "11112222333344445555666677778888", "activeMode": "kid", "activeProfile": "9999aaaabbbbccccddddeeeeffff0000", "value": "allow", "approved": false},
+    {"name": "tombstone is not approval", "documentKid": "11112222333344445555666677778888", "activeMode": "kid", "activeProfile": "11112222333344445555666677778888", "value": "tombstone", "approved": false},
+    {"name": "Visitor never consumes a Kid approval", "documentKid": "11112222333344445555666677778888", "activeMode": "visitor", "activeProfile": null, "value": "allow", "approved": false}
+  ],
+  "approvalWriterCases": [
+    {"mode": "owner", "mayWrite": true},
+    {"mode": "kid", "mayWrite": false},
+    {"mode": "visitor", "mayWrite": false}
+  ],
+  "playOnceCases": [
+    {"ownerPinVerified": true, "allowedForPlayback": true, "writesApproval": false},
+    {"ownerPinVerified": false, "allowedForPlayback": false, "writesApproval": false}
+  ],
+  "enforcementBoundaries": [
+    "discovery-before-rank-limit-page",
+    "detail-and-deep-link",
+    "ambient-trailer",
+    "play-and-sources",
+    "autoplay-and-binge-next",
+    "download-and-offline",
+    "companion-mcp-assistant",
+    "remote-play"
   ],
   "selectionCases": [
     {
@@ -150,6 +248,7 @@
     {"key": "keys.cfAccessId|keys.cfAccessSecret", "scope": "household", "nonOwner": "read-use"},
     {"key": "keys.parentalPIN", "scope": "household-owner-pin", "nonOwner": "verify-only"},
     {"key": "profile-directory Kid policy", "scope": "household-owner-managed", "nonOwner": "kid-read-only"},
+    {"key": "per-Kid title approvals", "scope": "household-owner-managed", "nonOwner": "kid-read-only"},
     {"key": "Visitor policy", "scope": "household-inherits-owner-v1", "nonOwner": "read-only"},
     {"key": "plugins.*|servers.*|trust.*|addresses.*", "scope": "household", "nonOwner": "read-use"},
     {"key": "devices.*|recovery.*", "scope": "household", "nonOwner": "administration-hidden"},
@@ -181,6 +280,10 @@
     "newProfileLibraryMinimum": 4,
     "existingHouseholdMinimumChangedByThisRevision": false,
     "initialSplitOperationDefined": false,
-    "visitorSyncedLibrary": false
+    "visitorSyncedLibrary": false,
+    "visitorPolicy": "inherits-owner-v1",
+    "kidApprovalsStoredInHousehold": true,
+    "playOnceStoredInHousehold": false,
+    "canaryChangesWireContract": false
   }
 }
