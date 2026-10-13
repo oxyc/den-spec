@@ -131,10 +131,215 @@ def migration_digest(kind: str, value: object) -> tuple[str, str]:
     return canonical.decode(), hashlib.sha256(canonical).hexdigest()
 
 
+PROFILE_PREFERENCE_KEYS = {
+    "den.excludedGenreIDs", "den.excludedLanguages", "den.preferredSubtitleLanguage",
+    "den.hasExplicitSubtitlePreference", "den.shownSubtitleLanguages", "den.maxSubtitlesPerLanguage",
+    "den.preferredAudioLanguage", "den.autoSkipSegments", "den.autoplayTrailers", "den.hideAnime",
+    "den.hideWatched", "den.minReleaseYear", "den.enabledRatingSources", "den.shownWarningCategories",
+}
+
+
+def migration_partition_rows(value: object) -> dict:
+    """Reference boundary for the canonical initial-split row projection."""
+    if not isinstance(value, dict) or set(value) != {"base", "ownerPolicyAt", "rows"}:
+        fail("invalid_partition_input")
+    base = value["base"]
+    if type(base) is not int or not 0 <= base <= SAFE_INTEGER:
+        fail("invalid_partition_input")
+    try:
+        validate_stamp(value["ownerPolicyAt"])
+    except ValueError:
+        fail("invalid_partition_input")
+    if not isinstance(value["rows"], list):
+        fail("invalid_partition_input")
+
+    household: list[dict] = []
+    owner: list[dict] = []
+    accounting: list[dict] = []
+    keys: set[str] = set()
+    sequences: set[int] = set()
+    names: set[str] = set()
+    owner_policy = {
+        "value": {"maximumAge": None, "unknownRatings": "allow"},
+        "at": copy.deepcopy(value["ownerPolicyAt"]),
+    }
+
+    def source(row: dict) -> dict:
+        return {"k": row["k"], "seq": row["seq"]}
+
+    def preserve(row: dict) -> dict:
+        return {"source": source(row), "mode": "preserve", "k": row["k"], "v": row["v"]}
+
+    def materialize(row: dict, name: str, logical: dict) -> dict:
+        return {"source": source(row), "mode": "materialize", "name": name, "row": logical}
+
+    def settings_projection(row: dict, name: str, logical: dict, values: dict) -> dict:
+        projected = copy.deepcopy(logical)
+        projected["values"] = copy.deepcopy(values)
+        return materialize(row, name, projected)
+
+    def reserved_profile_name(name: object) -> bool:
+        return isinstance(name, str) and (name.startswith(("title:", "season:", "dlv:", "set:deliver:",
+                                                           "set:handoff:"))
+                                          or name in ("set:prefs", "set:keys", "set:trackers",
+                                                      "set:assistant-applied"))
+
+    def validate_settings_values(values: object) -> dict:
+        if not isinstance(values, dict):
+            fail("invalid_settings_row")
+        for stamped_value in values.values():
+            if not isinstance(stamped_value, dict) or not {"value", "at"} <= set(stamped_value):
+                fail("invalid_settings_row")
+            at = stamped_value["at"]
+            if (not isinstance(at, list) or len(at) != 3
+                    or any(type(part) is not int or not 0 <= part <= SAFE_INTEGER for part in at[:2])
+                    or not isinstance(at[2], str) or not DEVICE.fullmatch(at[2])):
+                fail("invalid_settings_row")
+            tagged = stamped_value["value"]
+            if tagged is None:
+                continue
+            if not isinstance(tagged, dict) or len(tagged) != 1:
+                fail("invalid_settings_row")
+            tag, tagged_value = next(iter(tagged.items()))
+            valid = (
+                (tag == "bool" and type(tagged_value) is bool)
+                or (tag == "int" and type(tagged_value) is int and abs(tagged_value) <= SAFE_INTEGER)
+                or (tag == "string" and isinstance(tagged_value, str))
+                or (tag == "ints" and isinstance(tagged_value, list)
+                    and all(type(item) is int and abs(item) <= SAFE_INTEGER for item in tagged_value))
+                or (tag == "strings" and isinstance(tagged_value, list)
+                    and all(isinstance(item, str) for item in tagged_value))
+            )
+            if not valid:
+                fail("invalid_settings_row")
+        return values
+
+    for source_row in value["rows"]:
+        if (not isinstance(source_row, dict) or set(source_row) != {"k", "seq", "v", "opened"}
+                or not isinstance(source_row["k"], str) or not ROW_KEY.fullmatch(source_row["k"])
+                or type(source_row["seq"]) is not int or not 1 <= source_row["seq"] <= base
+                or not isinstance(source_row["v"], str) or not isinstance(source_row["opened"], dict)):
+            fail("invalid_source_row")
+    ordered = sorted(value["rows"], key=lambda row: row["k"].encode())
+    for source_row in ordered:
+        if source_row["k"] in keys or source_row["seq"] in sequences:
+            fail("invalid_source_row")
+        keys.add(source_row["k"])
+        sequences.add(source_row["seq"])
+        opened = source_row["opened"]
+        status = opened.get("status")
+        name = opened.get("name")
+        if name is not None:
+            if not isinstance(name, str) or not name or name in names:
+                fail("duplicate_logical_name" if name in names else "invalid_source_row")
+            names.add(name)
+
+        destinations: list[str] = []
+        if status == "unreadable":
+            fail("unreadable_source_row")
+        if reserved_profile_name(name) and status not in ("document", "row"):
+            fail("newer_profile_row")
+        if status == "newer":
+            if name == "profiles" or (isinstance(name, str) and name.startswith("kid-title-approvals:")):
+                fail("profiles_already_present")
+            household.append(preserve(source_row))
+            destinations.append("household")
+        elif status == "document":
+            if opened.get("dropped") != [] or not isinstance(opened.get("document"), dict):
+                fail("invalid_source_row")
+            logical = opened["document"]
+            kind = logical.get("kind")
+            if kind in ("profiles", "kid-title-approvals"):
+                fail("profiles_already_present")
+            if kind not in ("title", "season", "delivery") or not isinstance(name, str):
+                fail("ambiguous_source_row")
+            owner.append(materialize(source_row, name, copy.deepcopy(logical)))
+            destinations.append("owner")
+        elif status == "row":
+            logical = opened.get("row")
+            if not isinstance(logical, dict):
+                fail("invalid_source_row")
+            kind = logical.get("kind")
+            if opened.get("legacy") is True or kind in ("rec", "wat", "snt", "ep"):
+                fail("legacy_source_row")
+            if kind in ("profiles", "kid-title-approvals"):
+                fail("profiles_already_present")
+            if kind != "set":
+                if reserved_profile_name(name):
+                    fail("newer_profile_row")
+                household.append(preserve(source_row))
+                destinations.append("household")
+            else:
+                setting = logical.get("name")
+                values = logical.get("values")
+                if (logical.get("schema") != 2 or not isinstance(setting, str) or not setting
+                        or name != f"set:{setting}" or not isinstance(values, dict)):
+                    fail("invalid_source_row")
+                validate_settings_values(values)
+                if setting.startswith("tracker-event:"):
+                    fail("legacy_source_row")
+                if setting == "prefs":
+                    household_values: dict = {}
+                    owner_values: dict = {}
+                    maturity = None
+                    for key, stamped_value in values.items():
+                        if key in PROFILE_PREFERENCE_KEYS:
+                            owner_values[key] = stamped_value
+                        elif key == "den.maturityCeiling":
+                            maturity = stamped_value
+                        else:
+                            household_values[key] = stamped_value
+                    if household_values:
+                        household.append(settings_projection(source_row, name, logical, household_values))
+                        destinations.append("household")
+                    if owner_values:
+                        owner.append(settings_projection(source_row, name, logical, owner_values))
+                        destinations.append("owner")
+                    if maturity is not None:
+                        if not isinstance(maturity, dict) or set(maturity) != {"value", "at"}:
+                            fail("invalid_legacy_policy")
+                        validate_stamp(maturity["at"])
+                        tagged = maturity["value"]
+                        if tagged is None:
+                            legacy = None
+                        elif isinstance(tagged, dict) and set(tagged) == {"string"} and isinstance(tagged["string"], str):
+                            legacy = tagged["string"]
+                        else:
+                            fail("invalid_legacy_policy")
+                        maximum_age = None if legacy is None else 13 if legacy == "pg13" else 17 if legacy == "r" else fail("invalid_legacy_policy")
+                        owner_policy = {"value": {"maximumAge": maximum_age, "unknownRatings": "allow"},
+                                        "at": copy.deepcopy(maturity["at"])}
+                        destinations.append("ownerPolicy")
+                elif setting == "keys":
+                    owner_values = {key: setting_value for key, setting_value in values.items() if key == "simkl"}
+                    household_values = {key: setting_value for key, setting_value in values.items() if key != "simkl"}
+                    if household_values:
+                        household.append(settings_projection(source_row, name, logical, household_values))
+                        destinations.append("household")
+                    if owner_values:
+                        owner.append(settings_projection(source_row, name, logical, owner_values))
+                        destinations.append("owner")
+                elif (setting in ("trackers", "assistant-applied")
+                      or setting.startswith(("deliver:", "handoff:"))):
+                    owner.append(materialize(source_row, name, copy.deepcopy(logical)))
+                    destinations.append("owner")
+                else:
+                    household.append(preserve(source_row))
+                    destinations.append("household")
+        else:
+            fail("invalid_source_row")
+
+        accounting.append({"k": source_row["k"], "seq": source_row["seq"],
+                           "destinations": destinations})
+
+    return {"household": household, "owner": owner, "ownerPolicy": owner_policy,
+            "accounting": accounting}
+
+
 def validate_stamp(value: object) -> None:
     if not isinstance(value, list) or len(value) != 3:
         fail("invalid_stamp")
-    if not all(isinstance(n, int) and 0 <= n <= 9_007_199_254_740_991 for n in value[:2]):
+    if not all(type(n) is int and 0 <= n <= 9_007_199_254_740_991 for n in value[:2]):
         fail("invalid_stamp")
     if not isinstance(value[2], str) or not DEVICE.fullmatch(value[2]):
         fail("invalid_stamp")
@@ -1234,6 +1439,18 @@ def main() -> int:
             if actual != case.get("expect"):
                 fail(f"{case['name']}: wanted {case.get('expect')}, got {actual}")
 
+    for case in vectors["migrationPartitionCases"]:
+        try:
+            actual = migration_partition_rows(case["input"])
+        except ValueError as error:
+            if str(error) != case.get("error"):
+                fail(f"{case['name']}: wanted {case.get('error')}, got {error}")
+        else:
+            if "error" in case:
+                fail(f"{case['name']}: invalid row partition accepted")
+            if actual != case["expect"]:
+                fail(f"{case['name']}: row partition mismatch")
+
     for case in vectors["resetCases"]:
         directory = copy.deepcopy(base)
         if "directoryMutate" in case:
@@ -1296,6 +1513,7 @@ def main() -> int:
         f"{len(vectors['playOnceCases'])} play once, "
         f"{len(vectors['selectionCases'])} selection, "
         f"{len(vectors['settingsPartitionCases'])} settings partition, "
+        f"{len(vectors['migrationPartitionCases'])} migration row partition, "
         f"{len(vectors['migrationDigestCases'])} migration digests, "
         f"{len(vectors['migrationStorageContract']['restoreCases'])} storage restore, "
         f"{len(vectors['migrationStorageContract']['retirementCases'])} storage retirement, "
