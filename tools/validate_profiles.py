@@ -336,6 +336,47 @@ def migration_partition_rows(value: object) -> dict:
             "accounting": accounting}
 
 
+def migration_construct_directory(value: object) -> dict:
+    """Construct and stored-validate the first Owner-only profile directory."""
+    if not isinstance(value, dict) or set(value) != {"attempt", "source", "backup", "owner", "ownerHead"}:
+        fail("invalid_directory_constructor")
+    owner = value["owner"]
+    if not isinstance(owner, dict) or set(owner) != {
+            "id", "display", "libraryKey", "libraryAt", "policy", "deletedAt"}:
+        fail("invalid_directory_constructor")
+    owner_id = owner["id"]
+    if not isinstance(owner_id, str) or not ID.fullmatch(owner_id):
+        fail("invalid_profile")
+    document = {
+        "format": 4,
+        "kind": "profiles",
+        "schema": 1,
+        "owner": owner_id,
+        "migration": {
+            "version": 1,
+            "attempt": copy.deepcopy(value["attempt"]),
+            "source": copy.deepcopy(value["source"]),
+            "backup": copy.deepcopy(value["backup"]),
+            "ownerProfile": owner_id,
+            "ownerHead": copy.deepcopy(value["ownerHead"]),
+        },
+        "profiles": {
+            owner_id: {
+                "id": owner_id,
+                "role": "owner",
+                "display": copy.deepcopy(owner["display"]),
+                "library": {
+                    "value": {"keyVersion": 1, "key": copy.deepcopy(owner["libraryKey"])},
+                    "at": copy.deepcopy(owner["libraryAt"]),
+                },
+                "policy": copy.deepcopy(owner["policy"]),
+                "deleted": {"value": False, "at": copy.deepcopy(owner["deletedAt"])},
+            }
+        },
+    }
+    return validate_directory(document, require_migration=True)
+
+
 def validate_stamp(value: object) -> None:
     if not isinstance(value, list) or len(value) != 3:
         fail("invalid_stamp")
@@ -1451,6 +1492,23 @@ def main() -> int:
             if actual != case["expect"]:
                 fail(f"{case['name']}: row partition mismatch")
 
+    for case in vectors["migrationDirectoryConstructorCases"]:
+        constructor_input = copy.deepcopy(vectors["migrationDirectoryConstructorInput"])
+        for mutation in case.get("mutations", []):
+            mutate_pointer(constructor_input, mutation)
+        if "remove" in case:
+            remove_pointer(constructor_input, case["remove"])
+        try:
+            actual = migration_construct_directory(constructor_input)
+        except ValueError as error:
+            if str(error) != case.get("error"):
+                fail(f"{case['name']}: wanted {case.get('error')}, got {error}")
+        else:
+            if "error" in case:
+                fail(f"{case['name']}: invalid directory construction accepted")
+            if actual != case["expect"]:
+                fail(f"{case['name']}: directory construction mismatch")
+
     for case in vectors["resetCases"]:
         directory = copy.deepcopy(base)
         if "directoryMutate" in case:
@@ -1514,6 +1572,7 @@ def main() -> int:
         f"{len(vectors['selectionCases'])} selection, "
         f"{len(vectors['settingsPartitionCases'])} settings partition, "
         f"{len(vectors['migrationPartitionCases'])} migration row partition, "
+        f"{len(vectors['migrationDirectoryConstructorCases'])} migration directory constructor, "
         f"{len(vectors['migrationDigestCases'])} migration digests, "
         f"{len(vectors['migrationStorageContract']['restoreCases'])} storage restore, "
         f"{len(vectors['migrationStorageContract']['retirementCases'])} storage retirement, "

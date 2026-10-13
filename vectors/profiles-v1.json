@@ -988,6 +988,66 @@
     },
     {"name": "a row beyond the fenced base is rejected", "input": {"base": 1, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 2, "v": "sealed", "opened": {"status": "row", "name": "set:plugins", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "plugins", "values": {}}}}]}, "error": "invalid_source_row"}
   ],
+  "migrationDirectoryConstructorInput": {
+    "attempt": "0123456789abcdef0123456789abcdef",
+    "source": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+    "backup": {"id": "backup-7", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+    "owner": {
+      "id": "00112233445566778899aabbccddeeff",
+      "display": {"value": {"name": "Cindy", "avatar": "fox", "futureDisplayFact": {"kept": true}}, "at": [1800000000000, 0, "a1b2c3d4e5f60718"]},
+      "libraryKey": "ERERERERERERERERERERERERERERERERERERERERERE=",
+      "libraryAt": [1800000000000, 1, "a1b2c3d4e5f60718"],
+      "policy": {"value": {"maximumAge": 13, "unknownRatings": "allow", "futurePolicyFact": ["kept"]}, "at": [1800000000000, 2, "a1b2c3d4e5f60718"]},
+      "deletedAt": [1800000000000, 3, "a1b2c3d4e5f60718"]
+    },
+    "ownerHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "migrationDirectoryConstructorCases": [
+    {
+      "name": "the first stored directory derives every Owner identity binding and preserves extensions",
+      "expect": {
+        "format": 4,
+        "kind": "profiles",
+        "schema": 1,
+        "owner": "00112233445566778899aabbccddeeff",
+        "migration": {
+          "version": 1,
+          "attempt": "0123456789abcdef0123456789abcdef",
+          "source": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+          "backup": {"id": "backup-7", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+          "ownerProfile": "00112233445566778899aabbccddeeff",
+          "ownerHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "profiles": {
+          "00112233445566778899aabbccddeeff": {
+            "id": "00112233445566778899aabbccddeeff",
+            "role": "owner",
+            "display": {"value": {"name": "Cindy", "avatar": "fox", "futureDisplayFact": {"kept": true}}, "at": [1800000000000, 0, "a1b2c3d4e5f60718"]},
+            "library": {"value": {"keyVersion": 1, "key": "ERERERERERERERERERERERERERERERERERERERERERE="}, "at": [1800000000000, 1, "a1b2c3d4e5f60718"]},
+            "policy": {"value": {"maximumAge": 13, "unknownRatings": "allow", "futurePolicyFact": ["kept"]}, "at": [1800000000000, 2, "a1b2c3d4e5f60718"]},
+            "deleted": {"value": false, "at": [1800000000000, 3, "a1b2c3d4e5f60718"]}
+          }
+        }
+      }
+    },
+    {"name": "constructor input has no ambient extension surface", "mutations": [{"path": "/future", "value": true}], "error": "invalid_directory_constructor"},
+    {"name": "Owner constructor input has exact members", "mutations": [{"path": "/owner/future", "value": true}], "error": "invalid_directory_constructor"},
+    {"name": "Owner id is canonical", "mutations": [{"path": "/owner/id", "value": "not-an-id"}], "error": "invalid_profile"},
+    {"name": "Owner key is canonical padded base64 of 32 bytes", "mutations": [{"path": "/owner/libraryKey", "value": "c2hvcnQ="}], "error": "invalid_library_key"},
+    {"name": "display stamp is valid", "mutations": [{"path": "/owner/display/at", "value": [true, 0, "a1b2c3d4e5f60718"]}], "error": "invalid_stamp"},
+    {"name": "library stamp is valid", "mutations": [{"path": "/owner/libraryAt", "value": [1, -1, "a1b2c3d4e5f60718"]}], "error": "invalid_stamp"},
+    {"name": "policy stamp is valid", "mutations": [{"path": "/owner/policy/at", "value": [1, 0, "not-a-device"]}], "error": "invalid_stamp"},
+    {"name": "deletion stamp is valid", "mutations": [{"path": "/owner/deletedAt", "value": [9007199254740992, 0, "a1b2c3d4e5f60718"]}], "error": "invalid_stamp"},
+    {"name": "Owner display is validated before storage", "mutations": [{"path": "/owner/display/value/name", "value": ""}], "error": "invalid_display"},
+    {"name": "Owner policy is validated before storage", "mutations": [{"path": "/owner/policy/value/maximumAge", "value": 19}], "error": "invalid_policy"},
+    {"name": "migration attempt is canonical", "mutations": [{"path": "/attempt", "value": "not-an-attempt"}], "error": "invalid_migration"},
+    {"name": "source generation is an exact safe integer", "mutations": [{"path": "/source/generation", "value": true}], "error": "invalid_migration"},
+    {"name": "source head is canonical", "mutations": [{"path": "/source/head", "value": "bad"}], "error": "invalid_migration"},
+    {"name": "backup provider evidence is complete", "mutations": [{"path": "/backup/id", "value": ""}], "error": "invalid_migration"},
+    {"name": "backup digest is canonical", "mutations": [{"path": "/backup/digest", "value": "bad"}], "error": "invalid_migration"},
+    {"name": "Owner destination head is canonical", "mutations": [{"path": "/ownerHead", "value": "bad"}], "error": "invalid_migration"},
+    {"name": "missing Owner constructor material is rejected", "remove": "/owner/policy", "error": "invalid_directory_constructor"}
+  ],
   "wireTopology": {
     "rowEncoding": "library-v4",
     "householdRequestWireAfterActivation": 5,
