@@ -11,6 +11,7 @@ import json
 import re
 import sys
 import unicodedata
+import zlib
 from pathlib import Path
 
 
@@ -129,6 +130,118 @@ def migration_digest(kind: str, value: object) -> tuple[str, str]:
         fail("invalid_migration_digest_kind")
     canonical = canonical_json(normalized)
     return canonical.decode(), hashlib.sha256(canonical).hexdigest()
+
+
+def unpadded_base64url(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).decode().rstrip("=")
+
+
+def decode_unpadded_base64url(value: object) -> bytes:
+    if not isinstance(value, str) or "=" in value or not re.fullmatch(r"[0-9A-Za-z_-]*", value):
+        fail("invalid_materialize_vector")
+    try:
+        return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+    except ValueError:
+        fail("invalid_materialize_vector")
+
+
+def materialize_identity(value: object) -> tuple[bytes, bool]:
+    """Validate the pure materialization boundary and return (JCS, is_document)."""
+    if not isinstance(value, dict) or set(value) != {"name", "row"}:
+        fail("invalid_materialize_input")
+    name = value["name"]
+    row = value["row"]
+    if not isinstance(name, str) or not name or not isinstance(row, dict):
+        fail("invalid_materialize_input")
+    kind = row.get("kind")
+    if kind == "set":
+        setting = row.get("name")
+        if row.get("schema") != 2 or not isinstance(setting, str) or not setting:
+            fail("invalid_materialize_input")
+        expected_name = f"set:{setting}"
+        is_document = False
+    elif kind == "title":
+        title = row.get("title")
+        if (row.get("format") != 4 or not isinstance(title, dict) or set(title) != {"type", "id"}
+                or title.get("type") not in ("movie", "tv") or type(title.get("id")) is not int
+                or not 1 <= title["id"] <= 4_294_967_295):
+            fail("invalid_materialize_input")
+        expected_name = f"title:{title['type']}:{title['id']}"
+        is_document = True
+    elif kind == "season":
+        title = row.get("title")
+        season = row.get("season")
+        if (row.get("format") != 4 or not isinstance(title, dict)
+                or title != {"type": "tv", "id": title.get("id")}
+                or type(title.get("id")) is not int or not 1 <= title["id"] <= 4_294_967_295
+                or type(season) is not int or not 0 <= season <= 4_294_967_295):
+            fail("invalid_materialize_input")
+        expected_name = f"season:tv:{title['id']}:{season}"
+        is_document = True
+    elif kind == "delivery":
+        title = row.get("title")
+        provider = row.get("provider")
+        account = row.get("account")
+        season = row.get("season")
+        if (row.get("format") != 4 or not isinstance(title, dict) or set(title) != {"type", "id"}
+                or title.get("type") not in ("movie", "tv") or type(title.get("id")) is not int
+                or not 1 <= title["id"] <= 4_294_967_295
+                or not isinstance(provider, str) or not provider or ":" in provider
+                or not isinstance(account, str) or not re.fullmatch(r"[0-9A-Za-z_-]+", account)
+                or (season is not None and (title["type"] != "tv" or type(season) is not int
+                                             or not 0 <= season <= 4_294_967_295))):
+            fail("invalid_materialize_input")
+        expected_name = f"dlv:{provider}:{account}:{title['type']}:{title['id']}"
+        if season is not None:
+            expected_name += f":{season}"
+        is_document = True
+    else:
+        fail("unsupported_materialize_kind")
+    if name != expected_name:
+        fail("materialize_name_mismatch")
+    return canonical_json(row), is_document
+
+
+def validate_materialize_case(case: dict) -> None:
+    try:
+        jcs, is_document = materialize_identity(case["input"])
+    except ValueError as error:
+        if str(error) != case.get("error"):
+            fail(f"{case['name']}: wanted {case.get('error')}, got {error}")
+        return
+    if "error" in case:
+        fail(f"{case['name']}: invalid materialization accepted")
+    expect = case.get("expect")
+    if not isinstance(expect, dict) or set(expect) != {"jcs", "plaintext"}:
+        fail(f"{case['name']}: invalid materialization vector")
+    if expect["jcs"] != unpadded_base64url(jcs):
+        fail(f"{case['name']}: materialization JCS mismatch")
+    plaintext = decode_unpadded_base64url(expect["plaintext"])
+    if is_document:
+        if not plaintext.startswith(b"\x00"):
+            fail(f"{case['name']}: document is not compressed")
+        try:
+            inflated = zlib.decompress(plaintext[1:], wbits=-15)
+        except zlib.error:
+            fail(f"{case['name']}: invalid document deflate")
+        if inflated != jcs:
+            fail(f"{case['name']}: materialization plaintext mismatch")
+    elif plaintext != jcs:
+        fail(f"{case['name']}: settings materialization is not raw JCS")
+
+
+def authorization_fingerprint(value: object) -> dict:
+    if not isinstance(value, dict) or set(value) != {"token", "member"}:
+        fail("invalid_authorization_fingerprint")
+    token = value["token"]
+    member = value["member"]
+    if (not isinstance(token, str) or not DIGEST.fullmatch(token)
+            or (member is not None and (not isinstance(member, str) or not DIGEST.fullmatch(member)))):
+        fail("invalid_authorization_fingerprint")
+    return {
+        "tokenHash": hashlib.sha256(token.encode("utf-8")).hexdigest(),
+        "memberHash": None if member is None else hashlib.sha256(member.encode("utf-8")).hexdigest(),
+    }
 
 
 PROFILE_PREFERENCE_KEYS = {
@@ -1143,6 +1256,21 @@ def main() -> int:
         if canonical != case["canonical"] or digest != case["expect"]:
             fail(f"{case['name']}: migration digest mismatch")
 
+    for case in vectors["migrationMaterializeCases"]:
+        validate_materialize_case(case)
+
+    for case in vectors["migrationAuthorizationFingerprintCases"]:
+        try:
+            actual = authorization_fingerprint(case["input"])
+        except ValueError as error:
+            if str(error) != case.get("error"):
+                fail(f"{case['name']}: wanted {case.get('error')}, got {error}")
+        else:
+            if "error" in case:
+                fail(f"{case['name']}: invalid authorization fingerprint accepted")
+            if actual != case["expect"]:
+                fail(f"{case['name']}: authorization fingerprint mismatch")
+
     base = vectors["validDirectories"][0]["document"]
     for case in vectors["validDirectories"]:
         validate_directory(case["document"])
@@ -1583,6 +1711,8 @@ def main() -> int:
         f"{len(vectors['selectionCases'])} selection, "
         f"{len(vectors['settingsPartitionCases'])} settings partition, "
         f"{len(vectors['migrationPartitionCases'])} migration row partition, "
+        f"{len(vectors['migrationMaterializeCases'])} migration materialization, "
+        f"{len(vectors['migrationAuthorizationFingerprintCases'])} authorization fingerprints, "
         f"{len(vectors['migrationDirectoryConstructorCases'])} migration directory constructor, "
         f"{len(vectors['migrationDigestCases'])} migration digests, "
         f"{len(vectors['migrationStorageContract']['restoreCases'])} storage restore, "
