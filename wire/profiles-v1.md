@@ -309,6 +309,19 @@ Every persistent profile opens its own `set:prefs`; household preferences are re
 Personal values are never copied between profiles. An unknown or future synced key MUST remain in the household and
 MUST NOT be copied into a profile until a later contract assigns it explicitly.
 
+`profiles_partition_preferences(values)` is den-core's canonical pure split operation for the legacy
+`set:prefs.values` object. It returns three disjoint outputs:
+
+- `household` contains `den.watchRegion`, `den.myServicePicks`, legacy `den.myServiceIDs`, and every unknown key;
+- `owner` contains exactly the fourteen profile-scoped keys in the table, with each complete stamped value kept
+  byte-for-byte; and
+- `ownerMaturity` contains the complete legacy `den.maturityCeiling` stamped value, or `null` when absent. It is an
+  input to Owner-policy migration and is retained in neither output settings row.
+
+The operation never infers scope from a prefix, never interprets a stamped setting value, and rejects a non-object
+input. The split executor MUST use its result rather than maintaining a second key list. An empty `owner` or
+`household` object means that destination has no `set:prefs` row to write; the executor does not invent an empty row.
+
 ## 7. Sticky device-local selection
 
 Selection is local, never a library row. Its JSON shape is `profile-selection-v1` in the schema and vectors:
