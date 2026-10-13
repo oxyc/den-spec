@@ -82,6 +82,67 @@ class ProfilesVectorsTests(unittest.TestCase):
         }
         self.assertEqual(validate_profiles.migration_next(case), "cleanup_targets_winner")
 
+    def test_storage_transaction_is_durable_and_not_the_sync_generation(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        storage = vectors["migrationStorageContract"]
+        self.assertEqual(storage["publicSyncGenerationType"], "opaque-string")
+        self.assertEqual(storage["transactionGenerationType"], "safe-integer")
+        self.assertFalse(storage["sameGenerationNamespace"])
+        self.assertEqual(storage["transactionGenerationAllocation"],
+                         "monotone-per-household-on-visible-mutation")
+        self.assertTrue(storage["open"]["reopenReturnsSameFence"])
+        self.assertTrue(storage["open"]["survivesServerRestart"])
+        self.assertFalse(storage["open"]["idleExpiry"])
+        self.assertTrue(storage["open"]["ordinaryWritesRemainAvailable"])
+        self.assertTrue(storage["open"]["concurrentAttemptsCommitByFence"])
+        self.assertTrue(storage["open"]["concurrentAttemptsOnSameSnapshotShareGeneration"])
+        self.assertTrue(storage["open"]["restoreNeverReusesGeneration"])
+
+    def test_atomic_retirement_requires_the_exact_live_directory_set(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        storage = vectors["migrationStorageContract"]
+        directory = vectors["validDirectories"][0]["document"]
+        evidence = copy.deepcopy(storage["retirementBase"])
+        self.assertEqual(validate_profiles.retirement_result(evidence, directory), "retired")
+        evidence["protectedLibraryIds"].pop()
+        with self.assertRaisesRegex(ValueError, "incomplete_protection"):
+            validate_profiles.retirement_result(evidence, directory)
+
+    def test_restore_is_fresh_fenced_durable_and_never_lowers_wire_five(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        evidence = copy.deepcopy(vectors["migrationStorageContract"]["restoreBase"])
+        self.assertNotEqual(evidence["recoveryAttempt"], evidence["backup"]["attempt"])
+        self.assertEqual(evidence["open"]["purpose"], "restore")
+        self.assertEqual(evidence["fence"], evidence["open"]["fence"])
+        self.assertEqual(validate_profiles.restore_result(evidence), "restored")
+        self.assertEqual(evidence["result"]["generation"], evidence["fence"]["generation"] + 1)
+        self.assertEqual(evidence["result"]["wireMin"], 5)
+
+        evidence["currentFence"]["head"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "migration_fence_moved"):
+            validate_profiles.restore_result(evidence)
+
+    def test_restore_requires_exact_fence_from_durable_recovery_open(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        evidence = copy.deepcopy(vectors["migrationStorageContract"]["restoreBase"])
+        self.assertTrue(evidence["open"]["lookupReturnsSameOpen"])
+        evidence["fence"]["rewrite"] = "not-the-opened-handle"
+        with self.assertRaisesRegex(ValueError, "restore_fence_mismatch"):
+            validate_profiles.restore_result(evidence)
+
+    def test_restore_lost_response_resolves_by_terminal_lookup(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        evidence = copy.deepcopy(vectors["migrationStorageContract"]["restoreBase"])
+        self.assertTrue(evidence["terminalLookupRetained"])
+        self.assertTrue(evidence["identicalRetryReturnsSameResult"])
+        self.assertEqual(evidence["conflictTerminalState"], "superseded")
+        self.assertEqual(evidence["unknownResolution"],
+                         ["lookup-attempt", "fresh-authenticated-read"])
+        first = copy.deepcopy(evidence["result"])
+        evidence["retry"] = True
+        self.assertEqual(validate_profiles.restore_result(evidence), "restored")
+        self.assertEqual(evidence["result"], first)
+
     def test_reset_waits_for_every_live_profile(self):
         vectors = json.loads(validate_profiles.VECTORS.read_text())
         profiles = copy.deepcopy(vectors["resetProfiles"])

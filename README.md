@@ -26,12 +26,15 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
 - [`wire/profiles-v1.md`](wire/profiles-v1.md): the profile-aware household topology: one
   configuration-only household log, one ordinary library-v4 log per persistent profile, Owner/Kid/Visitor
   behavior, numeric maturity policy, owner-managed per-Kid title approvals, exact settings ownership, sticky local
-  selection, backed-up/fenced initial migration and multi-profile reset. It defines wire 5 and its state machines
-  without activating the split, deploying anything or changing an existing library's minimum.
+  selection, backed-up/fenced initial migration and multi-profile reset. Its initial-migration contract includes
+  the dormant den-edge storage surface for a durable attempt-addressed fence, verified pre-write backup, atomic
+  in-place household rewrite, explicit fenced/idempotent backup restore and directory-conditioned loser retirement.
+  It defines wire 5 and its state machines without activating the split, deploying anything or changing an existing
+  library's minimum.
 - [`schemas/profiles-v1.schema.json`](schemas/profiles-v1.schema.json) and
   [`vectors/profiles-v1.json`](vectors/profiles-v1.json): the profile-directory, per-Kid approval and local-selection
   schemas, accepted/rejected directories and approval documents, numeric policy decisions, topology, ownership,
-  selection, migration/recovery, losing-library cleanup and reset cases. Validate them with
+  selection, migration/recovery, storage transaction proofs, losing-library cleanup and reset cases. Validate them with
   `python3 tools/validate_profiles.py`.
 - [`wire/recovery-code.md`](wire/recovery-code.md) (proposal): a recovery code that unwraps the library key on a
   new device, with no device that holds the library at hand. Argon2id-wrapped, stored at den-edge under a locator
