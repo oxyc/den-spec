@@ -1191,6 +1191,42 @@
     {"name": "Owner destination head is canonical", "mutations": [{"path": "/ownerHead", "value": "bad"}], "error": "invalid_migration"},
     {"name": "missing Owner constructor material is rejected", "remove": "/owner/policy", "error": "invalid_directory_constructor"}
   ],
+  "profileCapabilityContract": {
+    "states": ["off", "prepare", "runtime"],
+    "scope": "per-household",
+    "migrationRequestWire": 5,
+    "runtimeHouseholdWire": 5,
+    "runtimeProfileWire": 4,
+    "offMigrationStatus": 404,
+    "oldRuntimeStatus": 426,
+    "runtimeDerivedFromStoredDirectory": true,
+    "operatorFlipAfterCommit": false,
+    "cases": [
+      {"name": "off keeps an authenticated wire-4 Owner household usable", "input": {"enrollment":"off","wireMin":4,"directory":"absent","request":"ordinary","wire":4,"authenticated":true}, "expect": {"state":"off","effect":"serve-legacy"}},
+      {"name": "prepare keeps an authenticated wire-4 Owner household usable", "input": {"enrollment":"prepare","wireMin":4,"directory":"absent","request":"ordinary","wire":4,"authenticated":true}, "expect": {"state":"prepare","effect":"serve-legacy"}},
+      {"name": "a wire-5 preparation client still reads legacy until commit", "input": {"enrollment":"prepare","wireMin":4,"directory":"absent","request":"ordinary","wire":5,"authenticated":true}, "expect": {"state":"prepare","effect":"serve-legacy"}},
+      {"name": "off hides every migration route before wire and authentication distinctions", "input": {"enrollment":"off","wireMin":4,"directory":"absent","request":"migration","wire":1,"authenticated":false}, "expect": {"state":"off","effect":"not-found"}},
+      {"name": "prepare exposes only exact wire-5 migration storage", "input": {"enrollment":"prepare","wireMin":4,"directory":"absent","request":"migration","wire":5,"authenticated":true}, "expect": {"state":"prepare","effect":"migration-storage"}},
+      {"name": "prepare rejects a lower migration wire without storage effects", "input": {"enrollment":"prepare","wireMin":4,"directory":"absent","request":"migration","wire":4,"authenticated":true}, "expect": {"state":"prepare","effect":"migration-wire-required","requiredWire":5}},
+      {"name": "prepare rejects a higher migration wire without storage effects", "input": {"enrollment":"prepare","wireMin":4,"directory":"absent","request":"migration","wire":6,"authenticated":true}, "expect": {"state":"prepare","effect":"migration-wire-required","requiredWire":5}},
+      {"name": "prepare migration storage requires household authentication", "input": {"enrollment":"prepare","wireMin":4,"directory":"absent","request":"migration","wire":5,"authenticated":false}, "expect": {"state":"prepare","effect":"authentication-required"}},
+      {"name": "a committed directory enters runtime without another operator flip", "input": {"enrollment":"prepare","wireMin":5,"directory":"valid","request":"ordinary","wire":5,"authenticated":true}, "expect": {"state":"runtime","effect":"serve-runtime"}},
+      {"name": "disabling preparation cannot demote a committed household", "input": {"enrollment":"off","wireMin":5,"directory":"valid","request":"ordinary","wire":5,"authenticated":true}, "expect": {"state":"runtime","effect":"serve-runtime"}},
+      {"name": "runtime retains exact wire-5 migration recovery storage", "input": {"enrollment":"off","wireMin":5,"directory":"valid","request":"migration","wire":5,"authenticated":true}, "expect": {"state":"runtime","effect":"migration-storage"}},
+      {"name": "runtime also rejects a non-exact migration wire", "input": {"enrollment":"off","wireMin":5,"directory":"valid","request":"migration","wire":6,"authenticated":true}, "expect": {"state":"runtime","effect":"migration-wire-required","requiredWire":5}},
+      {"name": "an old client is gated before it can decode runtime state", "input": {"enrollment":"off","wireMin":5,"directory":"invalid","request":"ordinary","wire":4,"authenticated":true}, "expect": {"effect":"update-required","requiredWire":5}},
+      {"name": "a wire-5 client fails closed when the committed directory is missing", "input": {"enrollment":"prepare","wireMin":5,"directory":"absent","request":"ordinary","wire":5,"authenticated":true}, "error": "runtime_directory_required"},
+      {"name": "a wire-5 client fails closed when the committed directory is invalid", "input": {"enrollment":"prepare","wireMin":5,"directory":"invalid","request":"ordinary","wire":5,"authenticated":true}, "error": "runtime_directory_required"},
+      {"name": "a profiles row below wire 5 is an inconsistent partial state", "input": {"enrollment":"prepare","wireMin":4,"directory":"valid","request":"ordinary","wire":5,"authenticated":true}, "error": "inconsistent_profiles_state"},
+      {"name": "a newer household minimum remains update-required", "input": {"enrollment":"off","wireMin":6,"directory":"valid","request":"ordinary","wire":5,"authenticated":true}, "expect": {"effect":"update-required","requiredWire":6}},
+      {"name": "unknown capability enrollment fails closed", "input": {"enrollment":"enabled","wireMin":4,"directory":"absent","request":"ordinary","wire":4,"authenticated":true}, "error": "invalid_profile_capability"}
+    ],
+    "mixedHost": [
+      {"household":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","input":{"enrollment":"off","wireMin":4,"directory":"absent","request":"ordinary","wire":4,"authenticated":true},"expect":{"state":"off","effect":"serve-legacy"}},
+      {"household":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","input":{"enrollment":"prepare","wireMin":4,"directory":"absent","request":"ordinary","wire":4,"authenticated":true},"expect":{"state":"prepare","effect":"serve-legacy"}},
+      {"household":"cccccccccccccccccccccccccccccccc","input":{"enrollment":"off","wireMin":5,"directory":"valid","request":"ordinary","wire":5,"authenticated":true},"expect":{"state":"runtime","effect":"serve-runtime"}}
+    ]
+  },
   "wireTopology": {
     "rowEncoding": "library-v4",
     "householdRequestWireAfterActivation": 5,

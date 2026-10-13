@@ -45,6 +45,51 @@ Experiments or canary behavior at `d.oxy.fi` may exercise this contract behind d
 alter the wire contract, activate the split, or authorize any production wire-minimum change. Wire behavior changes
 only through §8's fenced activation operation after that operation is deliberately enabled in product code.
 
+### 1.1 Per-household capability and wire gate
+
+Profile support is a **per-household state**, not a binary host feature. A conforming implementation resolves exactly
+one of these states independently for each household:
+
+| State | Authenticated household evidence | Behavior |
+|---|---|---|
+| `off` | legacy minimum below 5, no `profiles` row, preparation not enabled for this household | Ordinary legacy sync remains available. Every §8.1 profile-migration route is the same `404 not_found` before method, wire, authentication or body distinctions. |
+| `prepare` | legacy minimum below 5, no `profiles` row, preparation explicitly enabled for this household | Ordinary legacy sync remains available, including wire-4 Owner use. Only the exact authenticated §8.1 storage surface is added, and every request to it carries exactly `x-den-wire: 5`. Availability does not start or authorize migration. |
+| `runtime` | household minimum is at least 5 and its authenticated `profiles` row opens, has the logical name `profiles`, and passes den-core stored-directory validation | Profile-aware household sync is live. Ordinary household requests use wire 5; persistent profile libraries remain ordinary wire-4 libraries. The §8.1 surface remains available for attempt resolution, recovery and safe cleanup. |
+
+`runtime` is derived from durable household state. It is not another deployment switch: once §8 atomically commits a
+valid directory and minimum 5, a wire-5 client can immediately read, authenticate and validate that directory and
+enter profile runtime. No operator action may be required between commit and that read. Conversely, enabling
+`prepare` MUST NOT change the household minimum, reinterpret its rows, hide legacy Owner activity, or enter profile
+runtime. A prepare-capable client continues using the household as the legacy wire-4 Owner until the atomic commit.
+Because den-edge cannot decrypt rows, its transport gate derives the committed side from the stored minimum of 5;
+the client completes the `runtime` decision by authenticating and den-core-validating the directory. Failure of that
+client proof is the fail-closed recovery state below, not permission for the provider or client to infer legacy mode.
+
+The resolver is evaluated for the addressed household. One den-edge process MUST be able to serve, at the same time,
+an `off` legacy household, a `prepare` legacy household and a committed `runtime` household. A process-wide boolean
+MUST NOT be used as the runtime truth, and disabling preparation MUST NOT demote an already committed household.
+
+For a `prepare` or `runtime` household, the §8.1 routes accept only the methods and paths listed in
+`migrationStorageContract.routes`, only with the household credential (and the separately required candidate
+credential for retirement), and only with the literal decimal header `x-den-wire: 5`. Missing, lower or higher wire
+values perform no storage effect. All other routes keep their existing library-v3/v4 behavior; `prepare` does not
+create a second profile API or make an ordinary wire-5 legacy read profile-aware.
+
+After the committed minimum becomes 5, a wire-4 request that could read or mutate the household is refused with
+library-v3 §10's `426` and `x-den-wire-min: 5` (the existing non-data home-check exemption remains only that
+exemption). The client treats `426` as update-required, never as an empty, missing or reset library. A wire-5 client
+reads through the authenticated household head before selecting a profile. A missing `profiles` row, failed AEAD or
+logical-name binding, malformed directory, or failure of den-core validation with `stored: true` is recovery-blocked:
+the client MUST NOT fall back to legacy Owner, synthesize a directory, or expose profile activity. A visible
+`profiles` row below minimum 5 is likewise an inconsistent partial state and fails closed. A minimum above the
+client's supported wire remains update-required even if the client previously cached a valid directory.
+
+Clients MUST decode capability conservatively. `404` from an explicitly requested migration operation means that
+preparation is unavailable for that household; it is not a successful empty attempt and causes no local state
+transition. Merely observing `prepare`, probing a route, receiving a successful authenticated open, or caching a
+directory never supplies §8's owner intent, final confirmation or recovery authorization. Only the explicit
+PIN-gated actions and durable state machine in §8 may do so.
+
 The household key seals the directory, including all profile keys. Profiles are UX and data-isolation boundaries,
 not protection from a hostile device that holds the household key. Selectively wrapped private profiles are out of
 scope.
@@ -624,8 +669,9 @@ newly committed profile directory can make the evidence stale.
 
 This section names the required operations. The route names in the vectors are the interoperable HTTP surface;
 an in-process store may expose equivalent calls, but it MUST return the same evidence and errors. Every request is
-authenticated as the household library, carries `x-den-wire: 5`, and is unavailable unless the separately reviewed
-profile-migration feature is enabled. Defining the routes does not enable them.
+authenticated as the household library and carries exactly `x-den-wire: 5`. The surface is unavailable in `off`,
+available in `prepare`, and remains available in `runtime` for resolution and recovery as specified in §1.1.
+Defining the routes does not place any household in `prepare` or authorize activation.
 
 #### Canonical migration digests
 
