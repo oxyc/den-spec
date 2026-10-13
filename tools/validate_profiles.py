@@ -1327,29 +1327,43 @@ def profile_capability(value: object) -> dict:
             or type(authenticated) is not bool):
         fail("invalid_profile_capability")
 
-    # The ordinary library wire gate runs before an old client can read or decode the directory.
-    if request == "ordinary" and wire < wire_min:
+    # This v1 resolver understands household wire 5. A newer household gates every request before any v1 route or
+    # directory interpretation, even when the caller happens to advertise that newer number.
+    if wire_min > 5:
         return {"effect": "update-required", "requiredWire": wire_min}
 
-    if wire_min >= 5:
-        if directory != "valid":
-            fail("runtime_directory_required")
-        state = "runtime"
-    else:
+    if wire_min < 5:
         if directory != "absent":
             fail("inconsistent_profiles_state")
         state = enrollment
+        # Off is deliberately uniform: route existence reveals neither method, wire nor authentication differences.
+        if request == "migration" and state == "off":
+            return {"state": state, "effect": "not-found"}
+        if request == "ordinary" and wire < wire_min:
+            return {"effect": "update-required", "requiredWire": wire_min}
+        if request == "migration" and wire != 5:
+            return {"state": state, "effect": "migration-wire-required", "requiredWire": 5}
+        if not authenticated:
+            return {"state": state, "effect": "authentication-required"}
+        if request == "migration":
+            return {"state": state, "effect": "migration-storage"}
+        return {"state": state, "effect": "serve-legacy"}
 
-    # Off is deliberately uniform: route existence reveals neither method, wire nor authentication differences.
-    if request == "migration" and state == "off":
-        return {"state": state, "effect": "not-found"}
-    if request == "migration" and wire != 5:
-        return {"state": state, "effect": "migration-wire-required", "requiredWire": 5}
-    if not authenticated:
-        return {"state": state, "effect": "authentication-required"}
+    # Once minimum 5 commits, its migration transport remains reachable for lookup/restore even when the directory
+    # is missing or invalid. Only ordinary profile runtime depends on successfully decoding that directory.
+    if wire < 5:
+        return {"effect": "update-required", "requiredWire": 5}
     if request == "migration":
-        return {"state": state, "effect": "migration-storage"}
-    return {"state": state, "effect": "serve-runtime" if state == "runtime" else "serve-legacy"}
+        if wire != 5:
+            return {"effect": "migration-wire-required", "requiredWire": 5}
+        if not authenticated:
+            return {"effect": "authentication-required"}
+        return {"effect": "migration-storage"}
+    if directory != "valid":
+        fail("runtime_directory_required")
+    if not authenticated:
+        return {"state": "runtime", "effect": "authentication-required"}
+    return {"state": "runtime", "effect": "serve-runtime"}
 
 
 def main() -> int:
@@ -1811,7 +1825,7 @@ def main() -> int:
     if ({name: capability.get(name) for name in (
             "states", "scope", "migrationRequestWire", "runtimeHouseholdWire", "runtimeProfileWire",
             "offMigrationStatus", "oldRuntimeStatus", "runtimeDerivedFromStoredDirectory",
-            "operatorFlipAfterCommit",
+            "migrationTransportDirectoryIndependent", "newerMinimumPrecedesMigration", "operatorFlipAfterCommit",
     )} != {
         "states": ["off", "prepare", "runtime"],
         "scope": "per-household",
@@ -1821,6 +1835,8 @@ def main() -> int:
         "offMigrationStatus": 404,
         "oldRuntimeStatus": 426,
         "runtimeDerivedFromStoredDirectory": True,
+        "migrationTransportDirectoryIndependent": True,
+        "newerMinimumPrecedesMigration": True,
         "operatorFlipAfterCommit": False,
     }):
         fail("profile_capability_contract_mismatch")

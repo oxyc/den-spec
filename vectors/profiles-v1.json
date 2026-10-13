@@ -1200,6 +1200,8 @@
     "offMigrationStatus": 404,
     "oldRuntimeStatus": 426,
     "runtimeDerivedFromStoredDirectory": true,
+    "migrationTransportDirectoryIndependent": true,
+    "newerMinimumPrecedesMigration": true,
     "operatorFlipAfterCommit": false,
     "cases": [
       {"name": "off keeps an authenticated wire-4 Owner household usable", "input": {"enrollment":"off","wireMin":4,"directory":"absent","request":"ordinary","wire":4,"authenticated":true}, "expect": {"state":"off","effect":"serve-legacy"}},
@@ -1212,13 +1214,17 @@
       {"name": "prepare migration storage requires household authentication", "input": {"enrollment":"prepare","wireMin":4,"directory":"absent","request":"migration","wire":5,"authenticated":false}, "expect": {"state":"prepare","effect":"authentication-required"}},
       {"name": "a committed directory enters runtime without another operator flip", "input": {"enrollment":"prepare","wireMin":5,"directory":"valid","request":"ordinary","wire":5,"authenticated":true}, "expect": {"state":"runtime","effect":"serve-runtime"}},
       {"name": "disabling preparation cannot demote a committed household", "input": {"enrollment":"off","wireMin":5,"directory":"valid","request":"ordinary","wire":5,"authenticated":true}, "expect": {"state":"runtime","effect":"serve-runtime"}},
-      {"name": "runtime retains exact wire-5 migration recovery storage", "input": {"enrollment":"off","wireMin":5,"directory":"valid","request":"migration","wire":5,"authenticated":true}, "expect": {"state":"runtime","effect":"migration-storage"}},
-      {"name": "runtime also rejects a non-exact migration wire", "input": {"enrollment":"off","wireMin":5,"directory":"valid","request":"migration","wire":6,"authenticated":true}, "expect": {"state":"runtime","effect":"migration-wire-required","requiredWire":5}},
+      {"name": "a committed household retains exact wire-5 migration recovery storage", "input": {"enrollment":"off","wireMin":5,"directory":"valid","request":"migration","wire":5,"authenticated":true}, "expect": {"effect":"migration-storage"}},
+      {"name": "committed migration recovery remains available when the directory is missing", "input": {"enrollment":"off","wireMin":5,"directory":"absent","request":"migration","wire":5,"authenticated":true}, "expect": {"effect":"migration-storage"}},
+      {"name": "committed migration recovery remains available when the directory is invalid", "input": {"enrollment":"off","wireMin":5,"directory":"invalid","request":"migration","wire":5,"authenticated":true}, "expect": {"effect":"migration-storage"}},
+      {"name": "committed migration recovery still requires household authentication", "input": {"enrollment":"off","wireMin":5,"directory":"invalid","request":"migration","wire":5,"authenticated":false}, "expect": {"effect":"authentication-required"}},
+      {"name": "committed migration also rejects a non-exact migration wire", "input": {"enrollment":"off","wireMin":5,"directory":"valid","request":"migration","wire":6,"authenticated":true}, "expect": {"effect":"migration-wire-required","requiredWire":5}},
       {"name": "an old client is gated before it can decode runtime state", "input": {"enrollment":"off","wireMin":5,"directory":"invalid","request":"ordinary","wire":4,"authenticated":true}, "expect": {"effect":"update-required","requiredWire":5}},
       {"name": "a wire-5 client fails closed when the committed directory is missing", "input": {"enrollment":"prepare","wireMin":5,"directory":"absent","request":"ordinary","wire":5,"authenticated":true}, "error": "runtime_directory_required"},
       {"name": "a wire-5 client fails closed when the committed directory is invalid", "input": {"enrollment":"prepare","wireMin":5,"directory":"invalid","request":"ordinary","wire":5,"authenticated":true}, "error": "runtime_directory_required"},
       {"name": "a profiles row below wire 5 is an inconsistent partial state", "input": {"enrollment":"prepare","wireMin":4,"directory":"valid","request":"ordinary","wire":5,"authenticated":true}, "error": "inconsistent_profiles_state"},
       {"name": "a newer household minimum remains update-required", "input": {"enrollment":"off","wireMin":6,"directory":"valid","request":"ordinary","wire":5,"authenticated":true}, "expect": {"effect":"update-required","requiredWire":6}},
+      {"name": "a newer household minimum gates migration recovery before v1 decoding", "input": {"enrollment":"off","wireMin":6,"directory":"invalid","request":"migration","wire":5,"authenticated":true}, "expect": {"effect":"update-required","requiredWire":6}},
       {"name": "unknown capability enrollment fails closed", "input": {"enrollment":"enabled","wireMin":4,"directory":"absent","request":"ordinary","wire":4,"authenticated":true}, "error": "invalid_profile_capability"}
     ],
     "mixedHost": [

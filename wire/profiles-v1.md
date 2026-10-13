@@ -64,12 +64,17 @@ runtime. A prepare-capable client continues using the household as the legacy wi
 Because den-edge cannot decrypt rows, its transport gate derives the committed side from the stored minimum of 5;
 the client completes the `runtime` decision by authenticating and den-core-validating the directory. Failure of that
 client proof is the fail-closed recovery state below, not permission for the provider or client to infer legacy mode.
+Transport recovery and usable runtime are deliberately separate: at minimum 5 the authenticated §8.1 surface stays
+reachable when the directory is absent, unreadable or invalid, because attempt lookup and restore are how that state
+is diagnosed and repaired. Those routes do not make ordinary profile runtime usable and never relax the directory
+proof.
 
 The resolver is evaluated for the addressed household. One den-edge process MUST be able to serve, at the same time,
 an `off` legacy household, a `prepare` legacy household and a committed `runtime` household. A process-wide boolean
 MUST NOT be used as the runtime truth, and disabling preparation MUST NOT demote an already committed household.
 
-For a `prepare` or `runtime` household, the §8.1 routes accept only the methods and paths listed in
+For a legacy `prepare` household, and for every household whose stored minimum is 5 whether or not its directory can
+currently be validated, the §8.1 routes accept only the methods and paths listed in
 `migrationStorageContract.routes`, only with the household credential (and the separately required candidate
 credential for retirement), and only with the literal decimal header `x-den-wire: 5`. Missing, lower or higher wire
 values perform no storage effect. All other routes keep their existing library-v3/v4 behavior; `prepare` does not
@@ -82,7 +87,9 @@ reads through the authenticated household head before selecting a profile. A mis
 logical-name binding, malformed directory, or failure of den-core validation with `stored: true` is recovery-blocked:
 the client MUST NOT fall back to legacy Owner, synthesize a directory, or expose profile activity. A visible
 `profiles` row below minimum 5 is likewise an inconsistent partial state and fails closed. A minimum above the
-client's supported wire remains update-required even if the client previously cached a valid directory.
+client's supported wire remains update-required even if the client previously cached a valid directory. That newer
+minimum gate takes precedence for ordinary and migration requests alike: a wire-5 client receives `426` and performs
+no v1 attempt lookup, restore or other migration effect against a household whose minimum is greater than 5.
 
 Clients MUST decode capability conservatively. `404` from an explicitly requested migration operation means that
 preparation is unavailable for that household; it is not a successful empty attempt and causes no local state
@@ -669,9 +676,10 @@ newly committed profile directory can make the evidence stale.
 
 This section names the required operations. The route names in the vectors are the interoperable HTTP surface;
 an in-process store may expose equivalent calls, but it MUST return the same evidence and errors. Every request is
-authenticated as the household library and carries exactly `x-den-wire: 5`. The surface is unavailable in `off`,
-available in `prepare`, and remains available in `runtime` for resolution and recovery as specified in §1.1.
-Defining the routes does not place any household in `prepare` or authorize activation.
+authenticated as the household library and carries exactly `x-den-wire: 5`. The surface is unavailable for an `off`
+legacy household, available for a `prepare` legacy household, and remains available once the stored minimum is 5
+even when ordinary runtime is recovery-blocked by a missing or invalid directory. Defining the routes does not place
+any household in `prepare` or authorize activation.
 
 #### Canonical migration digests
 

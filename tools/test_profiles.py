@@ -31,6 +31,17 @@ class ProfilesVectorsTests(unittest.TestCase):
         self.assertEqual(validate_profiles.profile_capability(invalid),
                          {"effect": "update-required", "requiredWire": 5})
 
+    def test_profile_migration_transport_survives_invalid_directory_but_not_newer_wire(self):
+        recovery = {
+            "enrollment": "off", "wireMin": 5, "directory": "invalid",
+            "request": "migration", "wire": 5, "authenticated": True,
+        }
+        self.assertEqual(validate_profiles.profile_capability(recovery),
+                         {"effect": "migration-storage"})
+        recovery["wireMin"] = 6
+        self.assertEqual(validate_profiles.profile_capability(recovery),
+                         {"effect": "update-required", "requiredWire": 6})
+
     def test_numeric_policy_boundary_and_unknown(self):
         policy = {"maximumAge": 13, "unknownRatings": "block"}
         self.assertTrue(validate_profiles.policy_allows(policy, 13))
