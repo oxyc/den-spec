@@ -108,6 +108,31 @@ class ProfilesVectorsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "incomplete_protection"):
             validate_profiles.retirement_result(evidence, directory)
 
+    def test_restore_is_fresh_fenced_durable_and_never_lowers_wire_five(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        evidence = copy.deepcopy(vectors["migrationStorageContract"]["restoreBase"])
+        self.assertNotEqual(evidence["recoveryAttempt"], evidence["backup"]["attempt"])
+        self.assertEqual(validate_profiles.restore_result(evidence), "restored")
+        self.assertEqual(evidence["result"]["generation"], evidence["authority"]["generation"] + 1)
+        self.assertEqual(evidence["result"]["wireMin"], 5)
+
+        evidence["currentAuthority"]["head"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "migration_fence_moved"):
+            validate_profiles.restore_result(evidence)
+
+    def test_restore_lost_response_resolves_by_terminal_lookup(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        evidence = copy.deepcopy(vectors["migrationStorageContract"]["restoreBase"])
+        self.assertTrue(evidence["terminalLookupRetained"])
+        self.assertTrue(evidence["identicalRetryReturnsSameResult"])
+        self.assertEqual(evidence["conflictTerminalState"], "superseded")
+        self.assertEqual(evidence["unknownResolution"],
+                         ["lookup-attempt", "fresh-authenticated-read"])
+        first = copy.deepcopy(evidence["result"])
+        evidence["retry"] = True
+        self.assertEqual(validate_profiles.restore_result(evidence), "restored")
+        self.assertEqual(evidence["result"], first)
+
     def test_reset_waits_for_every_live_profile(self):
         vectors = json.loads(validate_profiles.VECTORS.read_text())
         profiles = copy.deepcopy(vectors["resetProfiles"])

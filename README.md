@@ -28,8 +28,9 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
   behavior, numeric maturity policy, owner-managed per-Kid title approvals, exact settings ownership, sticky local
   selection, backed-up/fenced initial migration and multi-profile reset. Its initial-migration contract includes
   the dormant den-edge storage surface for a durable attempt-addressed fence, verified pre-write backup, atomic
-  in-place household rewrite and directory-conditioned loser retirement. It defines wire 5 and its state machines
-  without activating the split, deploying anything or changing an existing library's minimum.
+  in-place household rewrite, explicit fenced/idempotent backup restore and directory-conditioned loser retirement.
+  It defines wire 5 and its state machines without activating the split, deploying anything or changing an existing
+  library's minimum.
 - [`schemas/profiles-v1.schema.json`](schemas/profiles-v1.schema.json) and
   [`vectors/profiles-v1.json`](vectors/profiles-v1.json): the profile-directory, per-Kid approval and local-selection
   schemas, accepted/rejected directories and approval documents, numeric policy decisions, topology, ownership,

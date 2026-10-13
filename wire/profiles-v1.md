@@ -474,7 +474,8 @@ The opened fence does **not** block ordinary household writes: any such write ma
 generation/base/head compare-and-swap. The source snapshot and staging area are durable across client process death,
 den-edge restart and an arbitrarily long Owner copy. They MUST NOT disappear on an idle timer.
 `GET /lib/{household}/profile-migration/{attempt}` returns the same open fence, or a durable terminal `committed`,
-`superseded` or `aborted` result. Thus a `commit-unknown` journal can look up the attempt before deciding anything.
+`restored`, `superseded` or `aborted` result. Thus a `commit-unknown` or `restore-unknown` journal can look up the
+attempt before deciding anything.
 Multiple attempts may open against the same legacy source; the first matching commit wins and makes the others
 `superseded`. `DELETE /lib/{household}/profile-migration/{attempt}` explicitly aborts only an uncommitted attempt
 and records the terminal tombstone. It is never inferred from idleness or client disconnect.
@@ -528,10 +529,78 @@ client uses attempt lookup and a fresh authenticated household read, never blind
 A committed lookup returns the resulting base/generation and staged digest, so a retry cannot create a second
 winner.
 
-Restoring a verified backup is another fresh transaction. It is allowed only when den-core returns
-`restore-backup`, uses the same id/key, never lowers a wire-5 committed household, and is fenced against the current
-authority. Restore is not a side effect of a failed commit: an atomic commit failure leaves the legacy source
-authoritative.
+Restore is not a side effect of a failed commit: an atomic commit failure leaves the legacy source authoritative.
+
+#### Explicit backup restore
+
+Restoring a verified backup is a **fresh**, attempt-addressed transaction. It never reopens or reuses the original
+migration attempt or its generation. After an explicit owner recovery action, the client freshly reads and
+authenticates the household as far as possible, proves that no den-core-valid committed directory is present, asks
+den-core for `restore-backup`, and chooses a new random `recoveryAttempt`.
+
+The idempotent operation is
+`POST /lib/{household}/profile-migration/{recoveryAttempt}/restore`. Its request is:
+
+```json
+{
+  "backup": {
+    "attempt": "0123456789abcdef0123456789abcdef",
+    "id": "backup-0123456789abcdef",
+    "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "authority": {
+    "generation": 9,
+    "base": 7,
+    "head": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "wireMin": 5
+  },
+  "profilesRow": {"present": true, "seq": 7, "digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"},
+  "directoryState": "invalid",
+  "plannerDecision": "restore-backup"
+}
+```
+
+`backup.attempt` identifies the original attempt that created the immutable backup; it MUST differ from
+`recoveryAttempt`. The provider re-verifies the artifact digest, manifest, original four-field source fence,
+household id and authorization member before using it. The request contains neither the household key nor raw
+credentials. `authority` is a fresh current CAS value in the profile-migration generation namespace, not
+`x-den-generation`. `profilesRow` is either `{"present":false}` or the exact sequence plus ciphertext digest of the
+current sealed `profiles` row. `directoryState` is the result of authenticating that exact row and running den-core:
+only `absent` or `invalid` is accepted. A valid committed directory forbids restore regardless of which attempt
+created it.
+
+On the first request den-edge durably binds the complete request to `recoveryAttempt`; a retry with different bytes
+returns `409 migration_attempt_mismatch`. Under the household lock it re-reads the exact generation, base,
+authenticated row-set head, wire minimum and sealed `profiles` row. Any difference returns
+`409 migration_fence_moved`, records durable terminal `superseded`, and changes nothing. This compare-and-swap pins
+the client's den-core decision to the bytes it inspected; den-edge cannot decrypt or independently validate the
+directory.
+
+If the CAS still matches, den-edge atomically restores the backup's rows, sequences, authorization representation
+and provider metadata under the **same** household id and token. Pairing/recovery records attached outside the
+library object remain attached. The resulting minimum is `max(current wireMin, backup wireMin)`, so restoration can
+never lower wire 5 (or any later minimum). The provider advances the migration generation exactly once from its
+retained high-water mark, refusing exhaustion rather than wrapping; it never restores the backup's old generation.
+It recomputes base and authenticated head from the restored visible state, advances the ordinary visible sync
+generation as usual, and durably records:
+
+```json
+{
+  "attempt": "fedcba9876543210fedcba9876543210",
+  "state": "restored",
+  "generation": 10,
+  "base": 418,
+  "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "wireMin": 5,
+  "backup": {"id": "backup-0123456789abcdef", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
+}
+```
+
+A lost response is `restore-unknown`: the client first calls the ordinary attempt lookup. `restored` is success;
+`superseded` requires another fresh authenticated read and den-core decision; `open` may resubmit only the identical
+request; `aborted` requires a new recovery attempt. The same request after `restored` returns the identical terminal
+result without advancing generation again. An explicit abort may tombstone an open recovery attempt, but never a
+terminal one.
 
 #### Atomic loser retirement
 

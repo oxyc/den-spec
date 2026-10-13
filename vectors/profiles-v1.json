@@ -504,6 +504,7 @@
       "backupRead": "GET /lib/{household}/profile-migration/{attempt}/backup",
       "stageRows": "POST /lib/{household}/profile-migration/{attempt}/rows",
       "commit": "POST /lib/{household}/profile-migration/{attempt}/commit",
+      "restore": "POST /lib/{household}/profile-migration/{attempt}/restore",
       "retireCandidate": "POST /lib/{household}/profile-migration/{attempt}/retire-candidate"
     },
     "requiredOrder": [
@@ -538,7 +539,7 @@
       "concurrentAttemptsCommitByFence": true,
       "concurrentAttemptsOnSameSnapshotShareGeneration": true,
       "restoreNeverReusesGeneration": true,
-      "terminalStates": ["committed", "superseded", "aborted"]
+      "terminalStates": ["committed", "restored", "superseded", "aborted"]
     },
     "backup": {
       "id": "backup-0123456789abcdef",
@@ -572,6 +573,82 @@
       "atomicRowsAndMinimum": true,
       "terminalResultDurable": true
     },
+    "restoreBase": {
+      "recoveryAttempt": "fedcba9876543210fedcba9876543210",
+      "backup": {
+        "attempt": "0123456789abcdef0123456789abcdef",
+        "id": "backup-0123456789abcdef",
+        "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "source": {
+          "generation": 7,
+          "base": 418,
+          "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "rewrite": "rewrite-0123456789abcdef"
+        },
+        "wireMin": 4,
+        "verified": true
+      },
+      "authority": {
+        "generation": 9,
+        "base": 7,
+        "head": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "wireMin": 5
+      },
+      "currentAuthority": {
+        "generation": 9,
+        "base": 7,
+        "head": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "wireMin": 5
+      },
+      "profilesRow": {
+        "present": true,
+        "seq": 7,
+        "digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      },
+      "currentProfilesRow": {
+        "present": true,
+        "seq": 7,
+        "digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      },
+      "directoryState": "invalid",
+      "plannerDecision": "restore-backup",
+      "sameHouseholdId": true,
+      "sameHouseholdToken": true,
+      "requestMatchesBoundAttempt": true,
+      "terminalLookupRetained": true,
+      "identicalRetryReturnsSameResult": true,
+      "conflictTerminalState": "superseded",
+      "unknownResolution": ["lookup-attempt", "fresh-authenticated-read"],
+      "result": {
+        "attempt": "fedcba9876543210fedcba9876543210",
+        "state": "restored",
+        "generation": 10,
+        "base": 418,
+        "head": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "wireMin": 5,
+        "backup": {
+          "id": "backup-0123456789abcdef",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      }
+    },
+    "restoreCases": [
+      {"name": "a verified backup restores under a fresh exact authority", "expect": "restored"},
+      {"name": "the identical retry returns the durable terminal result", "mutations": [{"path": "/retry", "value": true}], "expect": "restored"},
+      {"name": "a current authority change supersedes restore", "mutations": [{"path": "/currentAuthority/base", "value": 8}], "error": "migration_fence_moved"},
+      {"name": "a changed sealed profiles row supersedes restore", "mutations": [{"path": "/currentProfilesRow/digest", "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}], "error": "migration_fence_moved"},
+      {"name": "a valid committed directory forbids restore", "mutations": [{"path": "/directoryState", "value": "valid"}], "error": "committed_profiles_present"},
+      {"name": "den-core must explicitly choose restore", "mutations": [{"path": "/plannerDecision", "value": "activate"}], "error": "recovery_not_authorized"},
+      {"name": "an unverified backup cannot restore", "mutations": [{"path": "/backup/verified", "value": false}], "error": "backup_not_verified"},
+      {"name": "the recovery attempt must be fresh", "mutations": [{"path": "/recoveryAttempt", "value": "0123456789abcdef0123456789abcdef"}, {"path": "/result/attempt", "value": "0123456789abcdef0123456789abcdef"}], "error": "recovery_attempt_reused"},
+      {"name": "a bound attempt rejects a different request", "mutations": [{"path": "/requestMatchesBoundAttempt", "value": false}], "error": "migration_attempt_mismatch"},
+      {"name": "restore retains household identity and authorization", "mutations": [{"path": "/sameHouseholdToken", "value": false}], "error": "restore_identity_mismatch"},
+      {"name": "wire 5 can never be lowered by restore", "mutations": [{"path": "/result/wireMin", "value": 4}], "error": "wire_minimum_downgrade"},
+      {"name": "restore advances the durable migration generation exactly once", "mutations": [{"path": "/result/generation", "value": 11}], "error": "invalid_restore_generation"},
+      {"name": "migration generation exhaustion refuses restore", "mutations": [{"path": "/authority/generation", "value": 9007199254740991}, {"path": "/currentAuthority/generation", "value": 9007199254740991}, {"path": "/result/generation", "value": 9007199254740991}], "error": "migration_generation_exhausted"},
+      {"name": "a legacy minimum may remain legacy after restore", "mutations": [{"path": "/authority/wireMin", "value": 4}, {"path": "/currentAuthority/wireMin", "value": 4}, {"path": "/result/wireMin", "value": 4}], "expect": "restored"},
+      {"name": "terminal lookup evidence is mandatory", "mutations": [{"path": "/terminalLookupRetained", "value": false}], "error": "restore_terminal_not_durable"}
+    ],
     "retirementBase": {
       "source": {
         "generation": 7,

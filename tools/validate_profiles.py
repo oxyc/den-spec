@@ -399,6 +399,95 @@ def validate_authority(value: object) -> dict:
     return value
 
 
+def validate_restore_authority(value: object) -> dict:
+    if (not isinstance(value, dict) or set(value) != {"generation", "base", "head", "wireMin"}
+            or type(value["generation"]) is not int
+            or not 0 <= value["generation"] <= 9_007_199_254_740_991
+            or type(value["base"]) is not int or not 0 <= value["base"] <= 9_007_199_254_740_991
+            or not isinstance(value["head"], str) or not DIGEST.fullmatch(value["head"])
+            or type(value["wireMin"]) is not int
+            or not 1 <= value["wireMin"] <= 9_007_199_254_740_991):
+        fail("invalid_restore_authority")
+    return value
+
+
+def validate_profiles_row(value: object) -> dict:
+    if not isinstance(value, dict) or type(value.get("present")) is not bool:
+        fail("invalid_profiles_row_evidence")
+    if not value["present"]:
+        if set(value) != {"present"}:
+            fail("invalid_profiles_row_evidence")
+        return value
+    if (set(value) != {"present", "seq", "digest"}
+            or type(value["seq"]) is not int or not 0 <= value["seq"] <= 9_007_199_254_740_991
+            or not isinstance(value["digest"], str) or not DIGEST.fullmatch(value["digest"])):
+        fail("invalid_profiles_row_evidence")
+    return value
+
+
+def restore_result(value: object) -> str:
+    if not isinstance(value, dict):
+        fail("invalid_restore_evidence")
+    recovery_attempt = value.get("recoveryAttempt")
+    backup = value.get("backup")
+    result = value.get("result")
+    if not isinstance(recovery_attempt, str) or not ID.fullmatch(recovery_attempt):
+        fail("invalid_restore_evidence")
+    if (not isinstance(backup, dict)
+            or set(backup) != {"attempt", "id", "digest", "source", "wireMin", "verified"}
+            or not isinstance(backup.get("attempt"), str) or not ID.fullmatch(backup["attempt"])
+            or not isinstance(backup.get("id"), str) or not backup["id"]
+            or not isinstance(backup.get("digest"), str) or not DIGEST.fullmatch(backup["digest"])
+            or type(backup.get("wireMin")) is not int
+            or not 1 <= backup["wireMin"] <= 9_007_199_254_740_991
+            or type(backup.get("verified")) is not bool):
+        fail("invalid_restore_evidence")
+    validate_storage_fence(backup["source"])
+    if recovery_attempt == backup["attempt"]:
+        fail("recovery_attempt_reused")
+    if value.get("requestMatchesBoundAttempt") is not True:
+        fail("migration_attempt_mismatch")
+    if (value.get("terminalLookupRetained") is not True
+            or value.get("identicalRetryReturnsSameResult") is not True
+            or value.get("conflictTerminalState") != "superseded"
+            or value.get("unknownResolution") != ["lookup-attempt", "fresh-authenticated-read"]):
+        fail("restore_terminal_not_durable")
+    if value.get("sameHouseholdId") is not True or value.get("sameHouseholdToken") is not True:
+        fail("restore_identity_mismatch")
+    if not backup["verified"]:
+        fail("backup_not_verified")
+    authority = validate_restore_authority(value.get("authority"))
+    current = validate_restore_authority(value.get("currentAuthority"))
+    profiles_row = validate_profiles_row(value.get("profilesRow"))
+    current_profiles_row = validate_profiles_row(value.get("currentProfilesRow"))
+    if authority != current or profiles_row != current_profiles_row:
+        fail("migration_fence_moved")
+    directory_state = value.get("directoryState")
+    if directory_state == "valid":
+        fail("committed_profiles_present")
+    if directory_state not in ("absent", "invalid"):
+        fail("invalid_directory_state")
+    if value.get("plannerDecision") != "restore-backup":
+        fail("recovery_not_authorized")
+    if authority["generation"] == 9_007_199_254_740_991:
+        fail("migration_generation_exhausted")
+    if (not isinstance(result, dict)
+            or set(result) != {"attempt", "state", "generation", "base", "head", "wireMin", "backup"}
+            or result.get("attempt") != recovery_attempt or result.get("state") != "restored"
+            or type(result.get("generation")) is not int
+            or result["generation"] != authority["generation"] + 1
+            or type(result.get("base")) is not int or result["base"] != backup["source"]["base"]
+            or not isinstance(result.get("head"), str) or not DIGEST.fullmatch(result["head"])
+            or result.get("backup") != {"id": backup["id"], "digest": backup["digest"]}):
+        fail("invalid_restore_generation" if isinstance(result, dict)
+             and result.get("generation") != authority["generation"] + 1
+             else "invalid_restore_result")
+    expected_wire_min = max(authority["wireMin"], backup["wireMin"])
+    if result.get("wireMin") != expected_wire_min:
+        fail("wire_minimum_downgrade")
+    return "restored"
+
+
 def retirement_result(value: object, directory: dict) -> str:
     if not isinstance(value, dict):
         fail("invalid_retirement_evidence")
@@ -926,6 +1015,7 @@ def main() -> int:
         "backupRead": "GET /lib/{household}/profile-migration/{attempt}/backup",
         "stageRows": "POST /lib/{household}/profile-migration/{attempt}/rows",
         "commit": "POST /lib/{household}/profile-migration/{attempt}/commit",
+        "restore": "POST /lib/{household}/profile-migration/{attempt}/restore",
         "retireCandidate": "POST /lib/{household}/profile-migration/{attempt}/retire-candidate",
     }
     if (storage.get("publicSyncGenerationType") != "opaque-string"
@@ -956,7 +1046,7 @@ def main() -> int:
                 "restoreNeverReusesGeneration": True,
             }.items())):
         fail("migration_storage_open_mismatch")
-    if opened.get("terminalStates") != ["committed", "superseded", "aborted"]:
+    if opened.get("terminalStates") != ["committed", "restored", "superseded", "aborted"]:
         fail("migration_storage_open_mismatch")
     fence = validate_storage_fence(opened.get("fence"))
     backup = storage["backup"]
@@ -974,6 +1064,18 @@ def main() -> int:
             or commit.get("wireMin") != 5 or commit.get("atomicRowsAndMinimum") is not True
             or commit.get("terminalResultDurable") is not True):
         fail("migration_commit_proof_mismatch")
+    for case in storage["restoreCases"]:
+        evidence = copy.deepcopy(storage["restoreBase"])
+        for mutation in case.get("mutations", []):
+            mutate_pointer(evidence, mutation)
+        try:
+            actual = restore_result(evidence)
+        except ValueError as error:
+            if str(error) != case.get("error"):
+                fail(f"{case['name']}: wanted {case.get('error')}, got {error}")
+        else:
+            if actual != case.get("expect"):
+                fail(f"{case['name']}: wanted {case.get('expect')}, got {actual}")
     for case in storage["retirementCases"]:
         evidence = copy.deepcopy(storage["retirementBase"])
         for mutation in case.get("mutations", []):
@@ -1076,6 +1178,7 @@ def main() -> int:
         f"{len(vectors['playOnceCases'])} play once, "
         f"{len(vectors['selectionCases'])} selection, "
         f"{len(vectors['settingsPartitionCases'])} settings partition, "
+        f"{len(vectors['migrationStorageContract']['restoreCases'])} storage restore, "
         f"{len(vectors['migrationStorageContract']['retirementCases'])} storage retirement, "
         f"{len(vectors['migrationCases'])} migration, "
         f"{len(vectors['resetCases'])} reset cases passed"
