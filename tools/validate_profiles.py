@@ -756,6 +756,8 @@ def main() -> int:
             profiles.pop(case["removeProfile"])
         assembled = copy.deepcopy(case)
         assembled["profiles"] = list(profiles.values())
+        if "duplicateProfile" in case:
+            assembled["profiles"].append(copy.deepcopy(profiles[case["duplicateProfile"]]))
         try:
             actual = validate_reset(assembled, directory, fence)
         except ValueError as error:

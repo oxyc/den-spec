@@ -558,6 +558,7 @@
       "expect": {"effect": "complete"}
     },
     {"name": "omitting one live profile is never permission to commit", "householdCommitted": false, "oldHouseholdRetired": false, "removeProfile": "9999aaaabbbbccccddddeeeeffff0000", "error": "invalid_reset_profiles"},
+    {"name": "duplicating one live profile cannot stand in for exact coverage", "householdCommitted": false, "oldHouseholdRetired": false, "duplicateProfile": "11112222333344445555666677778888", "error": "invalid_reset_profiles"},
     {"name": "old key and version are bound to the directory entry", "householdCommitted": false, "oldHouseholdRetired": false, "profileMutations": [{"path": "/11112222333344445555666677778888/oldKey", "value": "ERERERERERERERERERERERERERERERERERERERERERE="}], "error": "profile_state_mismatch"},
     {"name": "profile key versions increment exactly once", "householdCommitted": false, "oldHouseholdRetired": false, "profileMutations": [{"path": "/00112233445566778899aabbccddeeff/newVersion", "value": 3}], "error": "invalid_key_version"},
     {"name": "successor keys cannot reuse any old profile key", "householdCommitted": false, "oldHouseholdRetired": false, "profileMutations": [{"path": "/00112233445566778899aabbccddeeff/newKey", "value": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI="}], "error": "reused_key"},
