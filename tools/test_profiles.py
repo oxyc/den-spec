@@ -132,6 +132,25 @@ class ProfilesVectorsTests(unittest.TestCase):
         self.assertTrue(storage["open"]["concurrentAttemptsOnSameSnapshotShareGeneration"])
         self.assertTrue(storage["open"]["restoreNeverReusesGeneration"])
 
+    def test_migration_open_requires_the_exact_pre_pin_source(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        observation = vectors["migrationStorageContract"]["sourceObservation"]
+        self.assertEqual(observation["sideEffects"], [])
+        exact = observation["cases"][0]
+        self.assertEqual(validate_profiles.migration_open_result(exact["input"]), exact["expect"])
+        raced = observation["cases"][1]
+        self.assertEqual(validate_profiles.migration_open_result(raced["input"]), raced["expect"])
+        self.assertEqual(raced["expect"]["sideEffects"], [])
+
+    def test_migration_open_replay_is_lookup_first_but_cannot_change_source(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        cases = vectors["migrationStorageContract"]["sourceObservation"]["cases"]
+        replay = next(case for case in cases if case["name"].startswith("an exact replay"))
+        self.assertEqual(validate_profiles.migration_open_result(replay["input"]), replay["expect"])
+        changed = next(case for case in cases if case["name"].startswith("replaying an attempt"))
+        with self.assertRaisesRegex(ValueError, "migration_attempt_mismatch"):
+            validate_profiles.migration_open_result(changed["input"])
+
     def test_one_pin_action_resumes_exact_attempt_and_binds_commit_without_second_prompt(self):
         vectors = json.loads(validate_profiles.VECTORS.read_text())
         fixture = vectors["migrationAuthorization"]

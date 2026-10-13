@@ -759,10 +759,36 @@ or activate a migration. Wire 5 remains library-v4 row encoding plus the profile
 
 #### Source fence and durable lookup
 
+Before asking for the Owner PIN, a client reads the exact source it proposes to authorize with
+`GET /lib/{household}/profile-migration/source`. The response is exactly:
+
+```json
+{"source":{"generation":7,"head":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}
+```
+
+This route uses the same household authentication and exact `x-den-wire: 5` requirement as every other migration
+route. It is read-only: it MUST NOT create an attempt, freeze a snapshot, allocate a rewrite handle, create a backup
+or staging area, or advance any counter. `generation` is the current profile-migration generation described below;
+`head` is the authenticated source digest described above. The observation deliberately excludes the public sync
+generation, `base` and a rewrite handle. The client binds this exact `{generation,head}` into the fresh Owner-PIN
+authorization for its newly generated attempt id.
+
 `POST /lib/{household}/profile-migration` with
-`{"attempt":"<32 lowercase hex>","purpose":"split"}` or `purpose: "restore"` opens the transaction. Purpose is
-immutable: repeating the same authenticated household, attempt and purpose is a lookup, while reusing an attempt
-with another purpose is `409 migration_attempt_mismatch`. A successful answer is:
+`{"attempt":"<32 lowercase hex>","purpose":"split","expectedSource":{"generation":7,"head":"<64 lowercase hex>"}}`
+or `purpose: "restore"` opens the transaction. `expectedSource` is required and exact. For a new attempt, the
+provider MUST hold the household's mutation lock, read the current authoritative generation and authenticated head,
+compare both with `expectedSource`, and only then create any durable attempt or frozen-source state. A mismatch is
+`409 {"error":"migration_source_changed"}` and has no side effect: in particular it creates no attempt record,
+source snapshot, rewrite handle, backup, staging area or counter change. The client invalidates the associated
+authorization. A split requires another explicit Enable Profiles action plus a fresh Owner PIN against a fresh
+source observation; a restore requires another explicit Restore action plus its own fresh Owner PIN and source
+observation. Recovery may not broaden or refresh either old authorization.
+
+Purpose and expected source are immutable. Repeating the same authenticated household, attempt, purpose and
+`expectedSource` is a lookup and returns the already stored result even if the household has since changed. This
+lookup-first rule resolves an unknown open response without accidentally creating a second attempt. Reusing an
+attempt with another purpose or expected source is `409 migration_attempt_mismatch`. It does not fall through to a
+current-source comparison and has no side effect. A successful new-open answer is:
 
 ```json
 {
@@ -877,8 +903,10 @@ Restore is not a side effect of a failed commit: an atomic commit failure leaves
 
 Restoring a verified backup is a **fresh**, attempt-addressed transaction. It never reopens or reuses the original
 migration attempt or its generation. After an explicit owner recovery action, the client chooses a new random
-`recoveryAttempt` and MUST first open it with
-`POST /lib/{household}/profile-migration {"attempt":recoveryAttempt,"purpose":"restore"}`. Only the returned
+`recoveryAttempt`, reads `GET /lib/{household}/profile-migration/source`, and binds that exact observation into the
+fresh recovery authorization. It MUST then open with
+`POST /lib/{household}/profile-migration
+{"attempt":recoveryAttempt,"purpose":"restore","expectedSource":observedSource}`. Only the returned
 `state: "open", purpose: "restore"`, four-field `fence` and `wireMin` authorize the next step. The client records
 that response, freshly reads and authenticates the household as far as possible against those exact bytes, proves
 that no den-core-valid committed directory is present, and asks den-core for `restore-backup`. Neither the public
