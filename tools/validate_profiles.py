@@ -184,6 +184,13 @@ def migration_partition_rows(value: object) -> dict:
                                           or name in ("set:prefs", "set:keys", "set:trackers",
                                                       "set:assistant-applied"))
 
+    def legacy_profile_name(name: object) -> bool:
+        return isinstance(name, str) and name.startswith(("rec:", "wat:", "snt:", "ep:",
+                                                          "set:tracker-event:"))
+
+    def profile_control_name(name: object) -> bool:
+        return name == "profiles" or (isinstance(name, str) and name.startswith("kid-title-approvals:"))
+
     def validate_settings_values(values: object) -> dict:
         if not isinstance(values, dict):
             fail("invalid_settings_row")
@@ -237,11 +244,15 @@ def migration_partition_rows(value: object) -> dict:
         destinations: list[str] = []
         if status == "unreadable":
             fail("unreadable_source_row")
+        # Identity is authenticated separately from the logical decoder. A framing/kind the decoder does not
+        # understand must not turn a known activity or control identity into household configuration.
+        if legacy_profile_name(name):
+            fail("legacy_source_row")
+        if profile_control_name(name):
+            fail("profiles_already_present")
         if reserved_profile_name(name) and status not in ("document", "row"):
             fail("newer_profile_row")
         if status == "newer":
-            if name == "profiles" or (isinstance(name, str) and name.startswith("kid-title-approvals:")):
-                fail("profiles_already_present")
             household.append(preserve(source_row))
             destinations.append("household")
         elif status == "document":

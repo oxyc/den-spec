@@ -382,6 +382,11 @@ UTF-8 bytes; `accounting` has the same order.
   inferred. For every decoded status, not only `newer`, an authenticated name that is profile-scoped or needs
   splitting is rejected before an unknown kind/framing can preserve. A client must not infer household scope merely
   because it does not understand the logical body.
+- The authenticated pre-v4 activity identities `rec:*`, `wat:*`, `snt:*`, `ep:*`, and
+  `set:tracker-event:*` are `legacy_source_row` for every decoded status, including `newer` and an unknown decoded
+  row kind. Likewise the authenticated control identities `profiles` and `kid-title-approvals:*` are
+  `profiles_already_present` for every decoded status. Identity classification precedes opaque preservation: a
+  future framing or kind cannot smuggle known profile state or profile controls into the household.
 - A `materialize` projection gives one authenticated logical `name` and complete logical `row`. The executor JCS
   encodes and seals it for its destination, then verifies the destination readback. It never trusts a client-side
   classification to decide the destination.
