@@ -396,10 +396,12 @@ UTF-8 bytes; `accounting` has the same order.
   document, `plaintext` is library-v4 `doc_encode`: `0x00` followed by raw DEFLATE of those JCS bytes. DEFLATE has
   no unique byte representation, so a conforming implementation may produce a different stream from the example
   vector only when it inflates exactly to the returned `jcs`; both clients call the same den-core implementation
-  and never compress or serialize the logical row themselves. Unknown kinds, newer formats, control documents,
-  extra/missing input members and name/identity disagreement are errors. The executor seals only the returned
-  `plaintext`, then verifies destination readback. It never trusts a client-side classification to decide the
-  destination.
+  and never compress or serialize the logical row themselves. Writer validation includes library-v4's self-check:
+  decoding the returned plaintext MUST reproduce the input row exactly. A row that the decoder would normalize —
+  for example, a play register beyond the 8-kept selection — is `invalid_materialize_input`, not a lossy successful
+  materialization. Unknown kinds, newer formats, control documents, extra/missing input members and name/identity
+  disagreement are errors. The executor seals only the returned `plaintext`, then verifies destination readback.
+  It never trusts a client-side classification to decide the destination.
 - `title:*`, `season:*`, `dlv:*`, `set:trackers`, `set:deliver:*`, `set:handoff:*`, and
   `set:assistant-applied` materialize only in Owner. They carry activity, credentials, receipts, pending/held
   decisions, lease epochs and delivery state together. `set:assistant-applied` is the durable receipt/replay guard

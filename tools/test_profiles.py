@@ -108,6 +108,17 @@ class ProfilesVectorsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "invalid_migration_digest"):
             validate_profiles.migration_digest(case["kind"], case["input"])
 
+    def test_materialization_rejects_a_document_the_v4_writer_would_normalize(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        valid = copy.deepcopy(vectors["migrationMaterializeCases"][1]["input"])
+        jcs, is_document = validate_profiles.materialize_identity(valid)
+        self.assertTrue(is_document)
+        self.assertEqual(json.loads(jcs), valid["row"])
+
+        valid["row"]["watch"]["plays"]["8"] = 1008
+        with self.assertRaisesRegex(ValueError, "invalid_materialize_input"):
+            validate_profiles.materialize_identity(valid)
+
     def test_atomic_retirement_requires_the_exact_live_directory_set(self):
         vectors = json.loads(validate_profiles.VECTORS.read_text())
         storage = vectors["migrationStorageContract"]

@@ -914,12 +914,20 @@
       "name": "a document projection returns JCS and seal-ready compressed plaintext",
       "input": {
         "name": "title:movie:550",
-        "row": {"format": 4, "kind": "title", "title": {"id": 550, "type": "movie"}, "watch": {"cleared": null, "plays": {"0": 1000, "1": 1001, "2": 1002, "3": 1003, "4": 1004, "5": 1005, "6": 1006, "7": 1007, "8": 1008}}}
+        "row": {"format": 4, "kind": "title", "title": {"id": 550, "type": "movie"}, "watch": {"cleared": null, "plays": {"0": 1000, "1": 1001, "2": 1002, "3": 1003, "4": 1004, "5": 1005, "6": 1006, "7": 1007}}}
       },
       "expect": {
-        "jcs": "eyJmb3JtYXQiOjQsImtpbmQiOiJ0aXRsZSIsInRpdGxlIjp7ImlkIjo1NTAsInR5cGUiOiJtb3ZpZSJ9LCJ3YXRjaCI6eyJjbGVhcmVkIjpudWxsLCJwbGF5cyI6eyIwIjoxMDAwLCIxIjoxMDAxLCIyIjoxMDAyLCIzIjoxMDAzLCI0IjoxMDA0LCI1IjoxMDA1LCI2IjoxMDA2LCI3IjoxMDA3LCI4IjoxMDA4fX19",
-        "plaintext": "AC3NWwqDMBCF4b2c5_OQqFHJboJNaWi8YNMWkey949Cn-fiZYU7c130OBb4jnmm5waOkkiP4n_5EkuqckXJsEjCvnxRRiW8o0-PamHIMe5S15Z0zseVwvK5u4K0xcmkVlmgUDdEqWqJTyHuncESv6IlBMRCjYqy1_gA"
+        "jcs": "eyJmb3JtYXQiOjQsImtpbmQiOiJ0aXRsZSIsInRpdGxlIjp7ImlkIjo1NTAsInR5cGUiOiJtb3ZpZSJ9LCJ3YXRjaCI6eyJjbGVhcmVkIjpudWxsLCJwbGF5cyI6eyIwIjoxMDAwLCIxIjoxMDAxLCIyIjoxMDAyLCIzIjoxMDAzLCI0IjoxMDA0LCI1IjoxMDA1LCI2IjoxMDA2LCI3IjoxMDA3fX19",
+        "plaintext": "AC3NTQqEMAyG4bt86yxatQq9TXE6TJn4g1ZFpHc3Bld5eEnIhe-0DCHDN4R_Gj_wyClzBL3TX0hSnTNSzlkChmlPEYVwhNz_no2eY1iirI0bM2HmcK5PN_DWGLm0CkuoFBWhVtSERiHvncIRWkVL6BRdKeUG"
       }
+    },
+    {
+      "name": "a document that library-v4 would normalize cannot materialize",
+      "input": {
+        "name": "title:movie:550",
+        "row": {"format": 4, "kind": "title", "title": {"id": 550, "type": "movie"}, "watch": {"cleared": null, "plays": {"0": 1000, "1": 1001, "2": 1002, "3": 1003, "4": 1004, "5": 1005, "6": 1006, "7": 1007, "8": 1008}}}
+      },
+      "error": "invalid_materialize_input"
     },
     {
       "name": "a materialized name must match the document identity",
