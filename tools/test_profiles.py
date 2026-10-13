@@ -98,6 +98,49 @@ class ProfilesVectorsTests(unittest.TestCase):
         self.assertTrue(storage["open"]["concurrentAttemptsOnSameSnapshotShareGeneration"])
         self.assertTrue(storage["open"]["restoreNeverReusesGeneration"])
 
+    def test_preparation_restart_cannot_commit_without_durable_final_confirmation(self):
+        prepared = {
+            "state": "awaiting-confirmation", "observed": "legacy",
+            "fence": {"generation": 7, "head": "a" * 64},
+            "observedFence": {"generation": 7, "head": "a" * 64},
+            "backupVerified": True,
+            "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=",
+            "ownerVerified": True, "candidateHead": "c" * 64,
+        }
+        self.assertEqual(validate_profiles.migration_next(prepared), "await-final-confirmation")
+        prepared["state"] = "ready-to-commit"
+        with self.assertRaisesRegex(ValueError, "commit_authorization_required"):
+            validate_profiles.migration_next(prepared)
+        prepared["commitAuthorized"] = True
+        self.assertEqual(validate_profiles.migration_next(prepared), "commit-fenced-household")
+
+    def test_commit_unknown_requires_lookup_then_fresh_authenticated_read(self):
+        case = {
+            "state": "commit-unknown", "observed": "legacy",
+            "fence": {"generation": 7, "head": "a" * 64},
+            "observedFence": {"generation": 7, "head": "a" * 64},
+            "commitAuthorized": True,
+        }
+        self.assertEqual(validate_profiles.migration_next(case), "lookup-attempt")
+        case["attemptLookup"] = "open"
+        self.assertEqual(validate_profiles.migration_next(case), "read-household")
+        case["householdFresh"] = True
+        self.assertEqual(validate_profiles.migration_next(case), "retry-bound-commit")
+
+    def test_cancelled_same_source_retirement_requires_terminal_abort(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        storage = vectors["migrationStorageContract"]
+        directory = vectors["validDirectories"][0]["document"]
+        case = next(item for item in storage["retirementCases"]
+                    if item["name"].startswith("an explicitly aborted attempt"))
+        evidence = copy.deepcopy(storage["retirementBase"])
+        for mutation in case["mutations"]:
+            validate_profiles.mutate_pointer(evidence, mutation)
+        self.assertEqual(validate_profiles.retirement_result(evidence, directory), "retired")
+        evidence["attemptState"] = "open"
+        with self.assertRaisesRegex(ValueError, "cancel_not_authorized"):
+            validate_profiles.retirement_result(evidence, directory)
+
     def test_migration_digest_sorts_rows_and_rejects_duplicate_evidence(self):
         vectors = json.loads(validate_profiles.VECTORS.read_text())
         case = copy.deepcopy(vectors["migrationDigestCases"][0])

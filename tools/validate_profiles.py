@@ -874,7 +874,7 @@ def validate_authority(value: object) -> dict:
             or not 0 <= value["generation"] <= 9_007_199_254_740_991
             or type(value["base"]) is not int or not 0 <= value["base"] <= 9_007_199_254_740_991
             or not isinstance(value["head"], str) or not DIGEST.fullmatch(value["head"])
-            or value["kind"] not in ("committed", "changed-legacy", "corrupt")):
+            or value["kind"] not in ("committed", "changed-legacy", "cancelled-legacy", "corrupt")):
         fail("invalid_retirement_authority")
     return value
 
@@ -1024,7 +1024,10 @@ def retirement_result(value: object, directory: dict) -> str:
         expected = {household_id}
         source_authority = {name: source[name] for name in ("generation", "base", "head")}
         current_source = {name: authority[name] for name in ("generation", "base", "head")}
-        if source_authority == current_source:
+        if authority["kind"] == "cancelled-legacy":
+            if value.get("attemptState") != "aborted" or source_authority != current_source:
+                fail("cancel_not_authorized")
+        elif source_authority == current_source:
             fail("same_legacy_fence")
     if set(protected) != expected:
         fail("incomplete_protection")
@@ -1038,7 +1041,7 @@ def migration_next(value: dict) -> str:
         fail("invalid_evidence")
     state = value.get("state")
     if state not in {
-        "idle", "fenced", "backed-up", "owner-copied", "ready-to-commit",
+        "idle", "fenced", "backed-up", "owner-copied", "awaiting-confirmation", "ready-to-commit",
         "commit-unknown", "adopting", "cleaning-loser", "active", "restore-required",
     }:
         fail("invalid_state")
@@ -1046,10 +1049,24 @@ def migration_next(value: dict) -> str:
     if observed not in ("legacy", "committed", "corrupt"):
         fail("invalid_observation")
     for name in (
-        "explicitIntent", "backupVerified", "ownerVerified", "winnerVerified", "candidateRetired"
+        "explicitIntent", "backupVerified", "ownerVerified", "winnerVerified", "candidateRetired",
+        "commitAuthorized", "cancelRequested", "attemptAborted", "householdFresh", "recoveryIntent",
     ):
         if name in value and type(value[name]) is not bool:
             fail("invalid_evidence")
+
+    lookup = value.get("attemptLookup")
+    if "attemptLookup" in value and lookup not in ("open", "committed", "superseded", "aborted"):
+        fail("invalid_attempt_lookup")
+    if value.get("householdFresh", False) and lookup is None:
+        fail("invalid_attempt_lookup")
+    commit_authorized = value.get("commitAuthorized", False)
+    if commit_authorized and state in (
+        "idle", "fenced", "backed-up", "owner-copied", "awaiting-confirmation", "restore-required"
+    ):
+        fail("premature_commit_authorization")
+    if ((state == "ready-to-commit" and observed == "legacy") or state == "commit-unknown") and not commit_authorized:
+        fail("commit_authorization_required")
 
     candidate = validate_candidate_key(value["candidateKey"]) if "candidateKey" in value else None
     candidate_attempt = value.get("candidateAttempt")
@@ -1073,6 +1090,11 @@ def migration_next(value: dict) -> str:
     has_directory = "directory" in value
     directory = value.get("directory")
     if observed == "committed":
+        if state == "commit-unknown":
+            if lookup is None:
+                return "lookup-attempt"
+            if not value.get("householdFresh", False):
+                return "read-household"
         if not has_directory:
             fail("committed_directory_missing")
         if not isinstance(directory, dict):
@@ -1111,28 +1133,45 @@ def migration_next(value: dict) -> str:
         fail("invalid_evidence")
 
     if observed == "corrupt":
-        return "restore-backup" if value.get("backupVerified", False) else "recovery-blocked"
+        if state != "restore-required" or not value.get("backupVerified", False):
+            return "recovery-blocked"
+        return "open-recovery-attempt" if value.get("recoveryIntent", False) else "recovery-blocked"
     if state == "idle":
-        if not value.get("explicitIntent", False):
-            fail("explicit_intent_required")
-        return "acquire-fence"
+        return "acquire-fence" if value.get("explicitIntent", False) else "no-op"
 
     fence = validate_migration_fence(value.get("fence"))
     observed_fence = validate_migration_fence(value.get("observedFence"))
+    if value.get("cancelRequested", False):
+        if not value.get("attemptAborted", False):
+            return "abort-attempt"
+        if candidate is not None and not retired:
+            return "retire-losing-candidate"
+        return "discard-journal"
     if state == "commit-unknown":
-        return "read-household"
+        if lookup is None:
+            return "lookup-attempt"
+        if not value.get("householdFresh", False):
+            return "read-household"
+        if lookup == "open":
+            return "retry-bound-commit" if fence == observed_fence else (
+                "retire-losing-candidate" if candidate is not None and not retired else "restart"
+            )
+        if lookup == "aborted":
+            return "retire-losing-candidate" if candidate is not None and not retired else "discard-journal"
+        fail("terminal_household_mismatch")
     if fence != observed_fence:
         return "retire-losing-candidate" if candidate is not None and not retired else "restart"
-    if state in ("backed-up", "owner-copied", "ready-to-commit") and not value.get("backupVerified", False):
+    if state in ("backed-up", "owner-copied", "awaiting-confirmation", "ready-to-commit") and not value.get("backupVerified", False):
         fail("invalid_evidence")
-    if state in ("owner-copied", "ready-to-commit") and candidate is None:
+    if state in ("owner-copied", "awaiting-confirmation", "ready-to-commit") and candidate is None:
         fail("invalid_evidence")
-    if state == "ready-to-commit" and not owner_verified:
+    if state in ("awaiting-confirmation", "ready-to-commit") and not owner_verified:
         return "verify-owner-library"
     answer = {
         "fenced": "create-backup",
         "backed-up": "create-owner-library",
         "owner-copied": "verify-owner-library",
+        "awaiting-confirmation": "await-final-confirmation",
         "ready-to-commit": "commit-fenced-household",
     }.get(state)
     if answer is None:
@@ -1535,10 +1574,30 @@ def main() -> int:
         fail("migration_storage_surface_mismatch")
     expected_order = [
         "open-fence", "create-backup", "verify-backup", "create-owner-library", "copy-owner",
-        "verify-owner", "stage-household", "commit-household", "read-winner", "retire-loser", "activate",
+        "verify-owner", "stage-household", "await-final-confirmation", "record-commit-authorization",
+        "commit-household", "read-winner", "retire-loser", "activate",
     ]
     if storage.get("requiredOrder") != expected_order:
         fail("migration_storage_order_mismatch")
+    if storage.get("activation") != {
+        "noJournalWithoutCurrentIntent": "no-op",
+        "initialPinActionAuthorizes": "prepare-only",
+        "preparedState": "awaiting-confirmation",
+        "preparedRestartEffect": "await-final-confirmation",
+        "finalConfirmRequiresOwnerPin": True,
+        "durableField": "commitAuthorized",
+        "durableValueBeforeCommitIo": True,
+        "authorizationBoundTo": [
+            "attempt", "fence", "backup", "candidateKey", "candidateHead", "stagedDigest", "wireMin",
+        ],
+        "changedBoundEvidenceClearsAuthorization": True,
+        "commitUnknownOrder": ["lookup-attempt", "fresh-authenticated-read", "adopt-or-cleanup"],
+        "cancelOrder": [
+            "abort-attempt", "fresh-authenticated-read", "retire-unreferenced-candidate", "discard-journal",
+        ],
+        "restoreAuthorization": "separate-owner-pin-and-fresh-restore-attempt",
+    }:
+        fail("migration_activation_contract_mismatch")
     opened = storage["open"]
     if (not isinstance(opened.get("attempt"), str) or not ID.fullmatch(opened["attempt"])
             or opened.get("purpose") != "split" or opened.get("state") != "open"
