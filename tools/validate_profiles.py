@@ -22,10 +22,113 @@ DEVICE = re.compile(r"^(?:|[0-9a-f]{16})$")
 AVATAR = re.compile(r"^[0-9A-Za-z_-]{1,64}$")
 TITLE_KEY = re.compile(r"^(?:movie|tv):([1-9][0-9]*)$")
 DIGEST = re.compile(r"^[0-9a-f]{64}$")
+ROW_KEY = re.compile(r"^[0-9a-f]{64}$")
+SAFE_INTEGER = 9_007_199_254_740_991
 
 
 def fail(message: str) -> None:
     raise ValueError(message)
+
+
+def canonical_json(value: object) -> bytes:
+    """RFC 8785 bytes for the migration schemas, whose numbers are safe integers only."""
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode()
+
+
+def migration_digest(kind: str, value: object) -> tuple[str, str]:
+    if not isinstance(value, dict):
+        fail("invalid_migration_digest")
+
+    def safe_integer(number: object, *, positive: bool = False) -> int:
+        lower = 1 if positive else 0
+        if type(number) is not int or not lower <= number <= SAFE_INTEGER:
+            fail("invalid_migration_digest")
+        return number
+
+    def rows(raw: object, *, sequenced: bool, base: int | None = None) -> list[dict]:
+        if not isinstance(raw, list):
+            fail("invalid_migration_digest")
+        keys: set[str] = set()
+        sequences: set[int] = set()
+        answer: list[dict] = []
+        expected = {"k", "seq", "v"} if sequenced else {"k", "v"}
+        for row in raw:
+            if not isinstance(row, dict) or set(row) != expected:
+                fail("invalid_migration_digest")
+            key = row["k"]
+            if (not isinstance(key, str) or not ROW_KEY.fullmatch(key) or key in keys
+                    or not isinstance(row["v"], str)):
+                fail("invalid_migration_digest")
+            keys.add(key)
+            if sequenced:
+                sequence = safe_integer(row["seq"], positive=True)
+                if sequence in sequences or base is None or sequence > base:
+                    fail("invalid_migration_digest")
+                sequences.add(sequence)
+            answer.append(copy.deepcopy(row))
+        return sorted(answer, key=lambda row: row["k"].encode())
+
+    def library_id(identifier: object) -> str:
+        if not isinstance(identifier, str) or not ID.fullmatch(identifier):
+            fail("invalid_migration_digest")
+        return identifier
+
+    if kind in ("source", "owner"):
+        expected = {"libraryId", "base", "wireMin", "rows"}
+        if kind == "source":
+            expected.add("generation")
+        if set(value) != expected:
+            fail("invalid_migration_digest")
+        base = safe_integer(value["base"])
+        normalized = {
+            "libraryId": library_id(value["libraryId"]),
+            "base": base,
+            "wireMin": safe_integer(value["wireMin"], positive=True),
+            "rows": rows(value["rows"], sequenced=True, base=base),
+        }
+        if kind == "source":
+            normalized["generation"] = safe_integer(value["generation"])
+    elif kind == "staged":
+        if set(value) != {"rows"}:
+            fail("invalid_migration_digest")
+        normalized = rows(value["rows"], sequenced=False)
+        if not normalized:
+            fail("invalid_migration_digest")
+    elif kind == "backup":
+        if set(value) != {"id", "householdId", "attempt", "source", "wireMin", "authorization", "rows"}:
+            fail("invalid_migration_digest")
+        source = value["source"]
+        authorization = value["authorization"]
+        if (not isinstance(value["id"], str) or not 1 <= len(value["id"]) <= 256
+                or not isinstance(value["attempt"], str) or not ID.fullmatch(value["attempt"])
+                or not isinstance(source, dict) or set(source) != {"generation", "base", "head", "rewrite"}
+                or not isinstance(source["head"], str) or not DIGEST.fullmatch(source["head"])
+                or not isinstance(source["rewrite"], str) or not source["rewrite"]
+                or not isinstance(authorization, dict)
+                or set(authorization) != {"tokenHash", "memberHash"}
+                or not isinstance(authorization["tokenHash"], str)
+                or not DIGEST.fullmatch(authorization["tokenHash"])
+                or (authorization["memberHash"] is not None
+                    and (not isinstance(authorization["memberHash"], str)
+                         or not DIGEST.fullmatch(authorization["memberHash"])) )):
+            fail("invalid_migration_digest")
+        base = safe_integer(source["base"])
+        normalized = {
+            "id": value["id"],
+            "householdId": library_id(value["householdId"]),
+            "attempt": value["attempt"],
+            "source": {
+                "generation": safe_integer(source["generation"]), "base": base,
+                "head": source["head"], "rewrite": source["rewrite"],
+            },
+            "wireMin": safe_integer(value["wireMin"], positive=True),
+            "authorization": copy.deepcopy(authorization),
+            "rows": rows(value["rows"], sequenced=True, base=base),
+        }
+    else:
+        fail("invalid_migration_digest_kind")
+    canonical = canonical_json(normalized)
+    return canonical.decode(), hashlib.sha256(canonical).hexdigest()
 
 
 def validate_stamp(value: object) -> None:
@@ -778,6 +881,11 @@ def main() -> int:
     if vectors.get("directoryName") != "profiles" or vectors.get("approvalNamePrefix") != "kid-title-approvals:":
         fail("document_name_mismatch")
 
+    for case in vectors["migrationDigestCases"]:
+        canonical, digest = migration_digest(case["kind"], case["input"])
+        if canonical != case["canonical"] or digest != case["expect"]:
+            fail(f"{case['name']}: migration digest mismatch")
+
     base = vectors["validDirectories"][0]["document"]
     for case in vectors["validDirectories"]:
         validate_directory(case["document"])
@@ -1188,6 +1296,7 @@ def main() -> int:
         f"{len(vectors['playOnceCases'])} play once, "
         f"{len(vectors['selectionCases'])} selection, "
         f"{len(vectors['settingsPartitionCases'])} settings partition, "
+        f"{len(vectors['migrationDigestCases'])} migration digests, "
         f"{len(vectors['migrationStorageContract']['restoreCases'])} storage restore, "
         f"{len(vectors['migrationStorageContract']['retirementCases'])} storage retirement, "
         f"{len(vectors['migrationCases'])} migration, "

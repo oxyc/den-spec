@@ -130,8 +130,10 @@ The directory is one document named `profiles`. Its row key is
 - A directory stored by the initial split MUST contain `migration`. `attempt` is a random 16-byte id. `source`
   identifies the exact den-edge rewrite generation and head that the backup and copy came from. `backup.id` is the
   durable provider handle and `backup.digest` authenticates the verified backup artifact. `ownerProfile` MUST equal
-  `owner`, and `ownerHead` is the verified head of that entry's destination library before commit. All digests and
-  heads are 32 bytes in lowercase hexadecimal. These values are immutable evidence, not a progress register;
+  `owner`, and `ownerHead` is the verified activity-snapshot digest of that entry's destination library before
+  commit, as defined in §8.1. It is deliberately not den-edge's opaque public sync generation and cannot reuse the
+  household source head, whose input contains a provider-only migration generation. All digests and heads are 32
+  bytes in lowercase hexadecimal. These values are immutable evidence, not a progress register;
   pre-commit progress lives only in the local journal in §8.
 
 The schema permits extension fields so a newer client can add display or lifecycle facts. A writer keeps unknown
@@ -437,6 +439,36 @@ This section names the required operations. The route names in the vectors are t
 an in-process store may expose equivalent calls, but it MUST return the same evidence and errors. Every request is
 authenticated as the household library, carries `x-den-wire: 5`, and is unavailable unless the separately reviewed
 profile-migration feature is enabled. Defining the routes does not enable them.
+
+#### Canonical migration digests
+
+Every digest in this section is lowercase hexadecimal SHA-256 of RFC 8785 JCS bytes. Integers are nonnegative JSON
+safe integers. A snapshot row is exactly `{k, seq, v}`; a staged row is exactly `{k, v}`. Before canonicalization,
+rows are sorted by the raw UTF-8 bytes of `k`. Duplicate row keys are invalid; snapshot rows also require distinct,
+positive `seq` values. No implementation may substitute a platform's ordinary sorted-key JSON mode unless it is
+proved byte-identical to RFC 8785 for the complete accepted input domain. The
+`profiles_migration_digest(kind, input)` den-core operation is the cross-client canonical boundary and is pinned by
+`vectors/profiles-v1.json`:
+
+- `kind: "source"` hashes JCS of
+  `{libraryId, generation, base, wireMin, rows}`. This is the authenticated `head` in an opened household source
+  fence. It includes the profile-migration generation, not the opaque public sync generation.
+- `kind: "backup"` hashes JCS of the complete immutable manifest
+  `{id, householdId, attempt, source, wireMin, authorization, rows}`. `source` is the complete four-field storage
+  fence `{generation, base, head, rewrite}`; `authorization` is the provider's non-secret
+  `{tokenHash, memberHash}` representation, with `memberHash: null` when no member exists.
+- `kind: "staged"` hashes JCS of the sorted array of complete staged `{k, v}` rows. There is no wrapper object and
+  sequences are absent because the in-place rewrite assigns them atomically.
+- `kind: "owner"` hashes JCS of `{libraryId, base, wireMin, rows}` for the verified ordinary library-v4 Owner
+  destination. This value is the directory's `migration.ownerHead` and the planner's `candidateHead`. It excludes
+  both the household migration generation and the destination's opaque public sync generation, neither of which is
+  part of an ordinary profile snapshot. `base` and every `{k, seq, v}` are read back from that destination through
+  its observed head; `wireMin` is 4 for the initial Owner library.
+
+The four kinds are domain-separated by their distinct exact JSON shapes. Extra or missing members, a malformed id,
+digest, fence or row, values outside the safe-integer range, an unsatisfied `base`/sequence snapshot, or a digest
+request of another kind is an error. The operation computes evidence only; it performs no I/O and does not authorize
+or activate a migration. Wire 5 remains library-v4 row encoding plus the profile topology, not a new row format.
 
 #### Source fence and durable lookup
 

@@ -98,6 +98,16 @@ class ProfilesVectorsTests(unittest.TestCase):
         self.assertTrue(storage["open"]["concurrentAttemptsOnSameSnapshotShareGeneration"])
         self.assertTrue(storage["open"]["restoreNeverReusesGeneration"])
 
+    def test_migration_digest_sorts_rows_and_rejects_duplicate_evidence(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        case = copy.deepcopy(vectors["migrationDigestCases"][0])
+        canonical, digest = validate_profiles.migration_digest(case["kind"], case["input"])
+        self.assertEqual(canonical, case["canonical"])
+        self.assertEqual(digest, case["expect"])
+        case["input"]["rows"][1]["k"] = case["input"]["rows"][0]["k"]
+        with self.assertRaisesRegex(ValueError, "invalid_migration_digest"):
+            validate_profiles.migration_digest(case["kind"], case["input"])
+
     def test_atomic_retirement_requires_the_exact_live_directory_set(self):
         vectors = json.loads(validate_profiles.VECTORS.read_text())
         storage = vectors["migrationStorageContract"]

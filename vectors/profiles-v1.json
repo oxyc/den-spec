@@ -491,6 +491,69 @@
     "generation": 7,
     "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
+  "migrationDigestCases": [
+    {
+      "name": "source authority includes the private migration generation",
+      "kind": "source",
+      "input": {
+        "libraryId": "0123456789abcdef0123456789abcdef",
+        "generation": 7,
+        "base": 2,
+        "wireMin": 4,
+        "rows": [
+          {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2, "v": "sealed-β"},
+          {"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "sealed-a"}
+        ]
+      },
+      "canonical": "{\"base\":2,\"generation\":7,\"libraryId\":\"0123456789abcdef0123456789abcdef\",\"rows\":[{\"k\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"seq\":1,\"v\":\"sealed-a\"},{\"k\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"seq\":2,\"v\":\"sealed-β\"}],\"wireMin\":4}",
+      "expect": "768265809617d97f163f9bfe9bc4be81855bfa4d24888f29877aa91e54c28ee8"
+    },
+    {
+      "name": "backup covers the complete immutable manifest",
+      "kind": "backup",
+      "input": {
+        "id": "backup-0123456789abcdef",
+        "householdId": "0123456789abcdef0123456789abcdef",
+        "attempt": "11111111111111111111111111111111",
+        "source": {"generation": 7, "base": 2, "head": "1111111111111111111111111111111111111111111111111111111111111111", "rewrite": "rewrite-0123456789abcdef"},
+        "wireMin": 4,
+        "authorization": {"tokenHash": "2222222222222222222222222222222222222222222222222222222222222222", "memberHash": "3333333333333333333333333333333333333333333333333333333333333333"},
+        "rows": [
+          {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2, "v": "sealed-β"},
+          {"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "sealed-a"}
+        ]
+      },
+      "canonical": "{\"attempt\":\"11111111111111111111111111111111\",\"authorization\":{\"memberHash\":\"3333333333333333333333333333333333333333333333333333333333333333\",\"tokenHash\":\"2222222222222222222222222222222222222222222222222222222222222222\"},\"householdId\":\"0123456789abcdef0123456789abcdef\",\"id\":\"backup-0123456789abcdef\",\"rows\":[{\"k\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"seq\":1,\"v\":\"sealed-a\"},{\"k\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"seq\":2,\"v\":\"sealed-β\"}],\"source\":{\"base\":2,\"generation\":7,\"head\":\"1111111111111111111111111111111111111111111111111111111111111111\",\"rewrite\":\"rewrite-0123456789abcdef\"},\"wireMin\":4}",
+      "expect": "68056362a0662435c032689d482345fd119016d9b7a34e66971769c070c65b82"
+    },
+    {
+      "name": "staged rows hash as an unwrapped sorted array",
+      "kind": "staged",
+      "input": {
+        "rows": [
+          {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "v": "sealed-β"},
+          {"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "v": "sealed-a"}
+        ]
+      },
+      "canonical": "[{\"k\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"v\":\"sealed-a\"},{\"k\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"v\":\"sealed-β\"}]",
+      "expect": "ce6925812e2cf7942d0121d34a73f4642d12b30b7bbd5b91c12e67266ced6fd3"
+    },
+    {
+      "name": "owner activity head excludes provider-only generations",
+      "kind": "owner",
+      "input": {
+        "libraryId": "fedcba9876543210fedcba9876543210",
+        "base": 2,
+        "wireMin": 4,
+        "rows": [
+          {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2, "v": "sealed-β"},
+          {"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "sealed-a"}
+        ]
+      },
+      "canonical": "{\"base\":2,\"libraryId\":\"fedcba9876543210fedcba9876543210\",\"rows\":[{\"k\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"seq\":1,\"v\":\"sealed-a\"},{\"k\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"seq\":2,\"v\":\"sealed-β\"}],\"wireMin\":4}",
+      "expect": "8d91158e1f4928a0df53257d027014537dd3f3c058c7dcb65b70483214fbe8e5"
+    }
+  ],
   "migrationStorageContract": {
     "publicSyncGenerationType": "opaque-string",
     "transactionGenerationType": "safe-integer",
