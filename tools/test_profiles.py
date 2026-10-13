@@ -59,9 +59,12 @@ class ProfilesVectorsTests(unittest.TestCase):
         self.assertEqual(validate_profiles.merge_unknown_set(newer, expected, older, {"future": "old"}), expected)
 
     def test_losing_migration_candidate_is_cleaned_before_adoption(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
         case = {
             "state": "ready-to-commit", "observed": "committed",
-            "candidateLibrary": "loser", "winnerLibrary": "winner",
+            "directory": vectors["validDirectories"][0]["document"],
+            "candidateAttempt": "fedcba9876543210fedcba9876543210",
+            "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=",
             "winnerVerified": True, "candidateRetired": False,
         }
         self.assertEqual(validate_profiles.migration_next(case), "retire-losing-candidate")
@@ -69,10 +72,13 @@ class ProfilesVectorsTests(unittest.TestCase):
         self.assertEqual(validate_profiles.migration_next(case), "activate")
 
     def test_cleanup_never_targets_winner(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
         case = {
             "state": "cleaning-loser", "observed": "committed",
-            "candidateLibrary": "winner", "winnerLibrary": "winner",
-            "winnerVerified": True, "cleanupRequested": True,
+            "directory": vectors["validDirectories"][0]["document"],
+            "candidateAttempt": "fedcba9876543210fedcba9876543210",
+            "candidateKey": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI=",
+            "winnerVerified": True,
         }
         self.assertEqual(validate_profiles.migration_next(case), "cleanup_targets_winner")
 

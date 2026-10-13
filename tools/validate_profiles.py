@@ -346,42 +346,132 @@ def selection_decision(marker: object, directory: dict) -> dict:
     return {"action": "open", "profileId": profile_id}
 
 
+def validate_migration_fence(value: object) -> dict:
+    if (not isinstance(value, dict) or set(value) != {"generation", "head"}
+            or type(value["generation"]) is not int
+            or not 0 <= value["generation"] <= 9_007_199_254_740_991
+            or not isinstance(value["head"], str) or not DIGEST.fullmatch(value["head"])):
+        fail("invalid_migration_fence")
+    return value
+
+
+def validate_candidate_key(value: object) -> str:
+    if not isinstance(value, str):
+        fail("invalid_library_key")
+    try:
+        raw = base64.b64decode(value, validate=True)
+    except (TypeError, ValueError):
+        fail("invalid_library_key")
+    if len(raw) != 32 or base64.b64encode(raw).decode() != value:
+        fail("invalid_library_key")
+    return value
+
+
 def migration_next(value: dict) -> str:
-    state = value["state"]
-    observed = value["observed"]
-    candidate = value.get("candidateLibrary")
-    winner = value.get("winnerLibrary")
+    if not isinstance(value, dict):
+        fail("invalid_evidence")
+    state = value.get("state")
+    if state not in {
+        "idle", "fenced", "backed-up", "owner-copied", "ready-to-commit",
+        "commit-unknown", "adopting", "cleaning-loser", "active", "restore-required",
+    }:
+        fail("invalid_state")
+    observed = value.get("observed")
+    if observed not in ("legacy", "committed", "corrupt"):
+        fail("invalid_observation")
+    for name in (
+        "explicitIntent", "backupVerified", "ownerVerified", "winnerVerified", "candidateRetired"
+    ):
+        if name in value and type(value[name]) is not bool:
+            fail("invalid_evidence")
+
+    candidate = validate_candidate_key(value["candidateKey"]) if "candidateKey" in value else None
+    candidate_attempt = value.get("candidateAttempt")
+    if "candidateAttempt" in value and (
+        candidate is None or not isinstance(candidate_attempt, str) or not ID.fullmatch(candidate_attempt)
+    ):
+        fail("invalid_candidate_attempt")
+    retired = value.get("candidateRetired", False)
+    if retired and candidate is None:
+        fail("invalid_evidence")
+    owner_verified = value.get("ownerVerified", False)
+    candidate_head = value.get("candidateHead")
+    if owner_verified:
+        if candidate is None:
+            fail("invalid_evidence")
+        if not isinstance(candidate_head, str) or not DIGEST.fullmatch(candidate_head):
+            fail("invalid_copy_head")
+    elif "candidateHead" in value:
+        fail("invalid_copy_head")
+
+    has_directory = "directory" in value
+    directory = value.get("directory")
     if observed == "committed":
-        if winner is None:
-            return "invalid_evidence"
-        if candidate is not None and candidate != winner and not value.get("candidateRetired", False):
+        if not has_directory:
+            fail("committed_directory_missing")
+        if not isinstance(directory, dict):
+            # Match den-core's stored-directory boundary rather than treating an explicit null as absence.
+            fail("invalid_profiles")
+        validate_directory(directory, require_migration=True)
+        if candidate is not None and candidate_attempt is None:
+            fail("invalid_candidate_attempt")
+        live_keys = {
+            entry["library"]["value"]["key"]
+            for entry in directory["profiles"].values()
+            if not entry["deleted"]["value"]
+        }
+        if candidate in live_keys:
+            if retired:
+                fail("committed_key_retired")
+            owner = directory["owner"]
+            migration = directory["migration"]
+            owns_winner = (
+                candidate == directory["profiles"][owner]["library"]["value"]["key"]
+                and candidate_attempt == migration["attempt"]
+                and owner_verified
+                and candidate_head == migration["ownerHead"]
+            )
+            if owns_winner:
+                return "activate" if value.get("winnerVerified", False) else "verify-winner"
+            if state == "cleaning-loser":
+                return "cleanup_targets_winner"
+            fail("winner_evidence_mismatch")
+        if candidate is not None and not retired:
             return "retire-losing-candidate"
-        if candidate is not None and candidate == winner and value.get("cleanupRequested", False):
-            return "cleanup_targets_winner"
         if not value.get("winnerVerified", False):
             return "verify-winner"
         return "activate"
-    if state == "commit-unknown":
-        return "read-household"
+    if has_directory:
+        fail("invalid_evidence")
+
     if observed == "corrupt":
         return "restore-backup" if value.get("backupVerified", False) else "recovery-blocked"
-    if observed != "legacy":
-        return "invalid_observation"
-    if value.get("fence") == "changed":
-        return "retire-losing-candidate" if candidate is not None and not value.get("candidateRetired", False) else "restart"
+    if state == "idle":
+        if not value.get("explicitIntent", False):
+            fail("explicit_intent_required")
+        return "acquire-fence"
+
+    fence = validate_migration_fence(value.get("fence"))
+    observed_fence = validate_migration_fence(value.get("observedFence"))
+    if state == "commit-unknown":
+        return "read-household"
+    if fence != observed_fence:
+        return "retire-losing-candidate" if candidate is not None and not retired else "restart"
     if state in ("backed-up", "owner-copied", "ready-to-commit") and not value.get("backupVerified", False):
-        return "invalid_evidence"
+        fail("invalid_evidence")
     if state in ("owner-copied", "ready-to-commit") and candidate is None:
-        return "invalid_evidence"
-    if state == "ready-to-commit" and not value.get("ownerVerified", False):
+        fail("invalid_evidence")
+    if state == "ready-to-commit" and not owner_verified:
         return "verify-owner-library"
-    return {
-        "idle": "acquire-fence",
+    answer = {
         "fenced": "create-backup",
         "backed-up": "create-owner-library",
         "owner-copied": "verify-owner-library",
         "ready-to-commit": "commit-fenced-household",
-    }.get(state, "invalid_state")
+    }.get(state)
+    if answer is None:
+        fail("invalid_state")
+    return answer
 
 
 def validate_reset(case: dict, directory: dict, fence: dict) -> dict:
@@ -739,8 +829,31 @@ def main() -> int:
         fail("settings_ownership_exact_keys")
 
     for case in vectors["migrationCases"]:
-        if migration_next(case) != case["expect"]:
-            fail(f"{case['name']}: migration decision mismatch")
+        assembled = copy.deepcopy(case)
+        if case.get("observed") == "committed" and not case.get("omitDirectory", False):
+            assembled["directory"] = copy.deepcopy(base)
+            if "directoryMutation" in case:
+                mutate_pointer(assembled["directory"], case["directoryMutation"])
+        if case.get("observed") == "legacy" and case.get("state") != "idle":
+            assembled["fence"] = copy.deepcopy(vectors["migrationFence"])
+            if not case.get("omitObservedFence", False):
+                assembled["observedFence"] = copy.deepcopy(vectors["migrationFence"])
+            if "fenceMutation" in case:
+                mutate_pointer(assembled["fence"], case["fenceMutation"])
+            if "observedFenceMutation" in case:
+                mutate_pointer(assembled["observedFence"], case["observedFenceMutation"])
+        if case.get("omitState", False):
+            assembled.pop("state", None)
+        if case.get("omitObserved", False):
+            assembled.pop("observed", None)
+        try:
+            actual = migration_next(assembled)
+        except ValueError as error:
+            if str(error) != case.get("error"):
+                fail(f"{case['name']}: wanted {case.get('error')}, got {error}")
+        else:
+            if actual != case.get("expect"):
+                fail(f"{case['name']}: wanted {case.get('expect')}, got {actual}")
 
     for case in vectors["resetCases"]:
         directory = copy.deepcopy(base)
