@@ -522,6 +522,9 @@
     ],
     "open": {
       "attempt": "0123456789abcdef0123456789abcdef",
+      "purpose": "split",
+      "state": "open",
+      "wireMin": 4,
       "householdId": "5e1ab5db12f9b30e640e3ee80fb3e072",
       "householdKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
       "fence": {
@@ -575,6 +578,19 @@
     },
     "restoreBase": {
       "recoveryAttempt": "fedcba9876543210fedcba9876543210",
+      "open": {
+        "attempt": "fedcba9876543210fedcba9876543210",
+        "state": "open",
+        "purpose": "restore",
+        "wireMin": 5,
+        "fence": {
+          "generation": 9,
+          "base": 7,
+          "head": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "rewrite": "rewrite-fedcba9876543210"
+        },
+        "lookupReturnsSameOpen": true
+      },
       "backup": {
         "attempt": "0123456789abcdef0123456789abcdef",
         "id": "backup-0123456789abcdef",
@@ -588,18 +604,20 @@
         "wireMin": 4,
         "verified": true
       },
-      "authority": {
+      "fence": {
         "generation": 9,
         "base": 7,
         "head": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-        "wireMin": 5
+        "rewrite": "rewrite-fedcba9876543210"
       },
-      "currentAuthority": {
+      "wireMin": 5,
+      "currentFence": {
         "generation": 9,
         "base": 7,
         "head": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-        "wireMin": 5
+        "rewrite": "rewrite-fedcba9876543210"
       },
+      "currentWireMin": 5,
       "profilesRow": {
         "present": true,
         "seq": 7,
@@ -635,7 +653,14 @@
     "restoreCases": [
       {"name": "a verified backup restores under a fresh exact authority", "expect": "restored"},
       {"name": "the identical retry returns the durable terminal result", "mutations": [{"path": "/retry", "value": true}], "expect": "restored"},
-      {"name": "a current authority change supersedes restore", "mutations": [{"path": "/currentAuthority/base", "value": 8}], "error": "migration_fence_moved"},
+      {"name": "restore requires a previously opened recovery attempt", "mutations": [{"path": "/open/state", "value": "missing"}], "error": "restore_attempt_not_open"},
+      {"name": "a split attempt cannot authorize restore", "mutations": [{"path": "/open/purpose", "value": "split"}], "error": "invalid_restore_attempt"},
+      {"name": "restore path must name the opened recovery attempt", "mutations": [{"path": "/open/attempt", "value": "11111111111111111111111111111111"}], "error": "restore_attempt_mismatch"},
+      {"name": "restore must send the exact returned fence", "mutations": [{"path": "/fence/base", "value": 8}], "error": "restore_fence_mismatch"},
+      {"name": "restore must send the exact returned wire minimum", "mutations": [{"path": "/wireMin", "value": 4}], "error": "restore_fence_mismatch"},
+      {"name": "open lookup must retain the original recovery fence", "mutations": [{"path": "/open/lookupReturnsSameOpen", "value": false}], "error": "restore_open_not_durable"},
+      {"name": "a current authority change supersedes restore", "mutations": [{"path": "/currentFence/base", "value": 8}], "error": "migration_fence_moved"},
+      {"name": "a current wire minimum change supersedes restore", "mutations": [{"path": "/currentWireMin", "value": 6}], "error": "migration_fence_moved"},
       {"name": "a changed sealed profiles row supersedes restore", "mutations": [{"path": "/currentProfilesRow/digest", "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}], "error": "migration_fence_moved"},
       {"name": "a valid committed directory forbids restore", "mutations": [{"path": "/directoryState", "value": "valid"}], "error": "committed_profiles_present"},
       {"name": "den-core must explicitly choose restore", "mutations": [{"path": "/plannerDecision", "value": "activate"}], "error": "recovery_not_authorized"},
@@ -645,8 +670,8 @@
       {"name": "restore retains household identity and authorization", "mutations": [{"path": "/sameHouseholdToken", "value": false}], "error": "restore_identity_mismatch"},
       {"name": "wire 5 can never be lowered by restore", "mutations": [{"path": "/result/wireMin", "value": 4}], "error": "wire_minimum_downgrade"},
       {"name": "restore advances the durable migration generation exactly once", "mutations": [{"path": "/result/generation", "value": 11}], "error": "invalid_restore_generation"},
-      {"name": "migration generation exhaustion refuses restore", "mutations": [{"path": "/authority/generation", "value": 9007199254740991}, {"path": "/currentAuthority/generation", "value": 9007199254740991}, {"path": "/result/generation", "value": 9007199254740991}], "error": "migration_generation_exhausted"},
-      {"name": "a legacy minimum may remain legacy after restore", "mutations": [{"path": "/authority/wireMin", "value": 4}, {"path": "/currentAuthority/wireMin", "value": 4}, {"path": "/result/wireMin", "value": 4}], "expect": "restored"},
+      {"name": "migration generation exhaustion refuses restore", "mutations": [{"path": "/open/fence/generation", "value": 9007199254740991}, {"path": "/fence/generation", "value": 9007199254740991}, {"path": "/currentFence/generation", "value": 9007199254740991}, {"path": "/result/generation", "value": 9007199254740991}], "error": "migration_generation_exhausted"},
+      {"name": "a legacy minimum may remain legacy after restore", "mutations": [{"path": "/open/wireMin", "value": 4}, {"path": "/wireMin", "value": 4}, {"path": "/currentWireMin", "value": 4}, {"path": "/result/wireMin", "value": 4}], "expect": "restored"},
       {"name": "terminal lookup evidence is mandatory", "mutations": [{"path": "/terminalLookupRetained", "value": false}], "error": "restore_terminal_not_durable"}
     ],
     "retirementBase": {

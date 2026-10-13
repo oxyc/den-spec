@@ -399,18 +399,6 @@ def validate_authority(value: object) -> dict:
     return value
 
 
-def validate_restore_authority(value: object) -> dict:
-    if (not isinstance(value, dict) or set(value) != {"generation", "base", "head", "wireMin"}
-            or type(value["generation"]) is not int
-            or not 0 <= value["generation"] <= 9_007_199_254_740_991
-            or type(value["base"]) is not int or not 0 <= value["base"] <= 9_007_199_254_740_991
-            or not isinstance(value["head"], str) or not DIGEST.fullmatch(value["head"])
-            or type(value["wireMin"]) is not int
-            or not 1 <= value["wireMin"] <= 9_007_199_254_740_991):
-        fail("invalid_restore_authority")
-    return value
-
-
 def validate_profiles_row(value: object) -> dict:
     if not isinstance(value, dict) or type(value.get("present")) is not bool:
         fail("invalid_profiles_row_evidence")
@@ -429,6 +417,7 @@ def restore_result(value: object) -> str:
     if not isinstance(value, dict):
         fail("invalid_restore_evidence")
     recovery_attempt = value.get("recoveryAttempt")
+    opened = value.get("open")
     backup = value.get("backup")
     result = value.get("result")
     if not isinstance(recovery_attempt, str) or not ID.fullmatch(recovery_attempt):
@@ -445,6 +434,22 @@ def restore_result(value: object) -> str:
     validate_storage_fence(backup["source"])
     if recovery_attempt == backup["attempt"]:
         fail("recovery_attempt_reused")
+    if not isinstance(opened, dict) or opened.get("state") != "open":
+        fail("restore_attempt_not_open")
+    if opened.get("purpose") != "restore":
+        fail("invalid_restore_attempt")
+    if opened.get("attempt") != recovery_attempt:
+        fail("restore_attempt_mismatch")
+    opened_fence = validate_storage_fence(opened.get("fence"))
+    if (type(opened.get("wireMin")) is not int
+            or not 1 <= opened["wireMin"] <= 9_007_199_254_740_991):
+        fail("invalid_restore_authority")
+    if opened.get("lookupReturnsSameOpen") is not True:
+        fail("restore_open_not_durable")
+    fence = validate_storage_fence(value.get("fence"))
+    wire_min = value.get("wireMin")
+    if fence != opened_fence or wire_min != opened["wireMin"]:
+        fail("restore_fence_mismatch")
     if value.get("requestMatchesBoundAttempt") is not True:
         fail("migration_attempt_mismatch")
     if (value.get("terminalLookupRetained") is not True
@@ -456,11 +461,14 @@ def restore_result(value: object) -> str:
         fail("restore_identity_mismatch")
     if not backup["verified"]:
         fail("backup_not_verified")
-    authority = validate_restore_authority(value.get("authority"))
-    current = validate_restore_authority(value.get("currentAuthority"))
+    current = validate_storage_fence(value.get("currentFence"))
+    current_wire_min = value.get("currentWireMin")
+    if (type(current_wire_min) is not int
+            or not 1 <= current_wire_min <= 9_007_199_254_740_991):
+        fail("invalid_restore_authority")
     profiles_row = validate_profiles_row(value.get("profilesRow"))
     current_profiles_row = validate_profiles_row(value.get("currentProfilesRow"))
-    if authority != current or profiles_row != current_profiles_row:
+    if fence != current or wire_min != current_wire_min or profiles_row != current_profiles_row:
         fail("migration_fence_moved")
     directory_state = value.get("directoryState")
     if directory_state == "valid":
@@ -469,20 +477,20 @@ def restore_result(value: object) -> str:
         fail("invalid_directory_state")
     if value.get("plannerDecision") != "restore-backup":
         fail("recovery_not_authorized")
-    if authority["generation"] == 9_007_199_254_740_991:
+    if fence["generation"] == 9_007_199_254_740_991:
         fail("migration_generation_exhausted")
     if (not isinstance(result, dict)
             or set(result) != {"attempt", "state", "generation", "base", "head", "wireMin", "backup"}
             or result.get("attempt") != recovery_attempt or result.get("state") != "restored"
             or type(result.get("generation")) is not int
-            or result["generation"] != authority["generation"] + 1
+            or result["generation"] != fence["generation"] + 1
             or type(result.get("base")) is not int or result["base"] != backup["source"]["base"]
             or not isinstance(result.get("head"), str) or not DIGEST.fullmatch(result["head"])
             or result.get("backup") != {"id": backup["id"], "digest": backup["digest"]}):
         fail("invalid_restore_generation" if isinstance(result, dict)
-             and result.get("generation") != authority["generation"] + 1
+             and result.get("generation") != fence["generation"] + 1
              else "invalid_restore_result")
-    expected_wire_min = max(authority["wireMin"], backup["wireMin"])
+    expected_wire_min = max(wire_min, backup["wireMin"])
     if result.get("wireMin") != expected_wire_min:
         fail("wire_minimum_downgrade")
     return "restored"
@@ -1033,6 +1041,8 @@ def main() -> int:
         fail("migration_storage_order_mismatch")
     opened = storage["open"]
     if (not isinstance(opened.get("attempt"), str) or not ID.fullmatch(opened["attempt"])
+            or opened.get("purpose") != "split" or opened.get("state") != "open"
+            or opened.get("wireMin") != 4
             or library_id(opened.get("householdKey")) != opened.get("householdId")
             or any(opened.get(name) is not expected for name, expected in {
                 "reopenReturnsSameFence": True,

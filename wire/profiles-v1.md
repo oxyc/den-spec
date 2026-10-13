@@ -440,14 +440,17 @@ profile-migration feature is enabled. Defining the routes does not enable them.
 
 #### Source fence and durable lookup
 
-`POST /lib/{household}/profile-migration` with `{"attempt":"<32 lowercase hex>"}` opens the transaction.
-Repeating it for the same authenticated household and attempt is a lookup, not a second attempt. A successful answer
-is:
+`POST /lib/{household}/profile-migration` with
+`{"attempt":"<32 lowercase hex>","purpose":"split"}` or `purpose: "restore"` opens the transaction. Purpose is
+immutable: repeating the same authenticated household, attempt and purpose is a lookup, while reusing an attempt
+with another purpose is `409 migration_attempt_mismatch`. A successful answer is:
 
 ```json
 {
   "attempt": "0123456789abcdef0123456789abcdef",
   "state": "open",
+  "purpose": "split",
+  "wireMin": 4,
   "fence": {
     "generation": 7,
     "base": 418,
@@ -457,7 +460,8 @@ is:
 }
 ```
 
-`generation` is a durable monotone safe-integer counter per household in the **profile-migration fence namespace**.
+`wireMin` is the minimum observed in the same locked read as `fence`. `generation` is a durable monotone
+safe-integer counter per household in the **profile-migration fence namespace**.
 Opening an attempt reads the current value; it does not allocate a random value or advance it. Every visible
 household mutation (an applied ordinary batch, migration rewrite or restore) advances it atomically, so attempts
 opened on the same snapshot share a generation and any later write invalidates all of their compare-and-swaps. It
@@ -473,9 +477,11 @@ is an opaque handle.
 The opened fence does **not** block ordinary household writes: any such write makes its later commit lose the
 generation/base/head compare-and-swap. The source snapshot and staging area are durable across client process death,
 den-edge restart and an arbitrarily long Owner copy. They MUST NOT disappear on an idle timer.
-`GET /lib/{household}/profile-migration/{attempt}` returns the same open fence, or a durable terminal `committed`,
-`restored`, `superseded` or `aborted` result. Thus a `commit-unknown` or `restore-unknown` journal can look up the
-attempt before deciding anything.
+`GET /lib/{household}/profile-migration/{attempt}` returns the same open `{attempt,state,purpose,wireMin,fence}`
+byte-for-byte, or a durable terminal `committed`, `restored`, `superseded` or `aborted` result. In particular, an
+open recovery attempt remains `state: "open", purpose: "restore"` across client/server restart and returns the
+original fence; it never silently refreshes to the current household. Thus a `commit-unknown` or `restore-unknown`
+journal can look up the attempt before deciding anything.
 Multiple attempts may open against the same legacy source; the first matching commit wins and makes the others
 `superseded`. `DELETE /lib/{household}/profile-migration/{attempt}` explicitly aborts only an uncommitted attempt
 and records the terminal tombstone. It is never inferred from idleness or client disconnect.
@@ -534,9 +540,13 @@ Restore is not a side effect of a failed commit: an atomic commit failure leaves
 #### Explicit backup restore
 
 Restoring a verified backup is a **fresh**, attempt-addressed transaction. It never reopens or reuses the original
-migration attempt or its generation. After an explicit owner recovery action, the client freshly reads and
-authenticates the household as far as possible, proves that no den-core-valid committed directory is present, asks
-den-core for `restore-backup`, and chooses a new random `recoveryAttempt`.
+migration attempt or its generation. After an explicit owner recovery action, the client chooses a new random
+`recoveryAttempt` and MUST first open it with
+`POST /lib/{household}/profile-migration {"attempt":recoveryAttempt,"purpose":"restore"}`. Only the returned
+`state: "open", purpose: "restore"`, four-field `fence` and `wireMin` authorize the next step. The client records
+that response, freshly reads and authenticates the household as far as possible against those exact bytes, proves
+that no den-core-valid committed directory is present, and asks den-core for `restore-backup`. Neither the public
+`x-den-generation` header nor an ordinary `/changes` read can manufacture or substitute for this authority.
 
 The idempotent operation is
 `POST /lib/{household}/profile-migration/{recoveryAttempt}/restore`. Its request is:
@@ -548,12 +558,13 @@ The idempotent operation is
     "id": "backup-0123456789abcdef",
     "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   },
-  "authority": {
+  "fence": {
     "generation": 9,
     "base": 7,
     "head": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-    "wireMin": 5
+    "rewrite": "rewrite-fedcba9876543210"
   },
+  "wireMin": 5,
   "profilesRow": {"present": true, "seq": 7, "digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"},
   "directoryState": "invalid",
   "plannerDecision": "restore-backup"
@@ -563,15 +574,16 @@ The idempotent operation is
 `backup.attempt` identifies the original attempt that created the immutable backup; it MUST differ from
 `recoveryAttempt`. The provider re-verifies the artifact digest, manifest, original four-field source fence,
 household id and authorization member before using it. The request contains neither the household key nor raw
-credentials. `authority` is a fresh current CAS value in the profile-migration generation namespace, not
-`x-den-generation`. `profilesRow` is either `{"present":false}` or the exact sequence plus ciphertext digest of the
+credentials. `fence` and `wireMin` MUST equal the values returned when this same `recoveryAttempt` was opened; an
+attempt that is absent, terminal, opened for `split`, or supplied with any other fence/minimum is rejected without
+mutation. `profilesRow` is either `{"present":false}` or the exact sequence plus ciphertext digest of the
 current sealed `profiles` row. `directoryState` is the result of authenticating that exact row and running den-core:
 only `absent` or `invalid` is accepted. A valid committed directory forbids restore regardless of which attempt
 created it.
 
-On the first request den-edge durably binds the complete request to `recoveryAttempt`; a retry with different bytes
-returns `409 migration_attempt_mismatch`. Under the household lock it re-reads the exact generation, base,
-authenticated row-set head, wire minimum and sealed `profiles` row. Any difference returns
+On the first restore request den-edge durably binds the complete request to the already-open `recoveryAttempt`; a
+retry with different bytes returns `409 migration_attempt_mismatch`. Under the household lock it re-reads the exact
+generation, base, authenticated row-set head, wire minimum and sealed `profiles` row. Any difference returns
 `409 migration_fence_moved`, records durable terminal `superseded`, and changes nothing. This compare-and-swap pins
 the client's den-core decision to the bytes it inspected; den-edge cannot decrypt or independently validate the
 directory.

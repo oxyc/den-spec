@@ -112,12 +112,22 @@ class ProfilesVectorsTests(unittest.TestCase):
         vectors = json.loads(validate_profiles.VECTORS.read_text())
         evidence = copy.deepcopy(vectors["migrationStorageContract"]["restoreBase"])
         self.assertNotEqual(evidence["recoveryAttempt"], evidence["backup"]["attempt"])
+        self.assertEqual(evidence["open"]["purpose"], "restore")
+        self.assertEqual(evidence["fence"], evidence["open"]["fence"])
         self.assertEqual(validate_profiles.restore_result(evidence), "restored")
-        self.assertEqual(evidence["result"]["generation"], evidence["authority"]["generation"] + 1)
+        self.assertEqual(evidence["result"]["generation"], evidence["fence"]["generation"] + 1)
         self.assertEqual(evidence["result"]["wireMin"], 5)
 
-        evidence["currentAuthority"]["head"] = "0" * 64
+        evidence["currentFence"]["head"] = "0" * 64
         with self.assertRaisesRegex(ValueError, "migration_fence_moved"):
+            validate_profiles.restore_result(evidence)
+
+    def test_restore_requires_exact_fence_from_durable_recovery_open(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        evidence = copy.deepcopy(vectors["migrationStorageContract"]["restoreBase"])
+        self.assertTrue(evidence["open"]["lookupReturnsSameOpen"])
+        evidence["fence"]["rewrite"] = "not-the-opened-handle"
+        with self.assertRaisesRegex(ValueError, "restore_fence_mismatch"):
             validate_profiles.restore_result(evidence)
 
     def test_restore_lost_response_resolves_by_terminal_lookup(self):
