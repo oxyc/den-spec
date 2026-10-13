@@ -898,6 +898,96 @@
     {"name": "an old profile cannot retire before successor commit", "householdCommitted": false, "oldHouseholdRetired": false, "profileMutations": [{"path": "/00112233445566778899aabbccddeeff/oldRetired", "value": true}], "error": "premature_retirement"},
     {"name": "a successor cannot be committed before every copy verifies", "householdCommitted": true, "oldHouseholdRetired": false, "error": "commit_without_verification"}
   ],
+  "migrationPartitionCases": [
+    {
+      "name": "every legacy row is canonically accounted into household Owner or policy material",
+      "input": {
+        "base": 9,
+        "ownerPolicyAt": [1800000000000, 9, "a1b2c3d4e5f60718"],
+        "rows": [
+          {"k": "0101010101010101010101010101010101010101010101010101010101010101", "seq": 1, "v": "sealed-prefs", "opened": {"status": "row", "name": "set:prefs", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "prefs", "values": {"den.watchRegion": {"value": {"string": "FI"}, "at": [1, 0, "a1b2c3d4e5f60718"]}, "den.hideWatched": {"value": {"bool": true}, "at": [2, 0, "a1b2c3d4e5f60718"]}, "den.maturityCeiling": {"value": {"string": "pg13"}, "at": [3, 0, "a1b2c3d4e5f60718"]}, "future.preference": {"value": {"int": 7}, "at": [4, 0, "a1b2c3d4e5f60718"]}}, "extension": "kept"}}},
+          {"k": "0202020202020202020202020202020202020202020202020202020202020202", "seq": 2, "v": "sealed-title", "opened": {"status": "document", "name": "title:movie:550", "document": {"format": 4, "kind": "title", "schema": 1, "title": {"type": "movie", "id": 550}}, "dropped": []}},
+          {"k": "0303030303030303030303030303030303030303030303030303030303030303", "seq": 3, "v": "sealed-trackers", "opened": {"status": "row", "name": "set:trackers", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "trackers", "values": {"simkl:1": {"value": {"string": "token"}, "at": [5, 0, "a1b2c3d4e5f60718"]}}}}},
+          {"k": "0404040404040404040404040404040404040404040404040404040404040404", "seq": 4, "v": "sealed-deliver", "opened": {"status": "row", "name": "set:deliver:simkl:1", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "deliver:simkl:1", "values": {"lease": {"value": {"strings": ["", "4"]}, "at": [6, 0, "a1b2c3d4e5f60718"]}}}}},
+          {"k": "0505050505050505050505050505050505050505050505050505050505050505", "seq": 5, "v": "sealed-handoff", "opened": {"status": "row", "name": "set:handoff:simkl:1:a1b2c3d4e5f60718", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "handoff:simkl:1:a1b2c3d4e5f60718", "values": {}}}},
+          {"k": "0606060606060606060606060606060606060606060606060606060606060606", "seq": 6, "v": "sealed-download", "opened": {"status": "row", "name": "set:download:movie:550:-1:-1", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "download:movie:550:-1:-1", "values": {}}}},
+          {"k": "0707070707070707070707070707070707070707070707070707070707070707", "seq": 7, "v": "sealed-keys", "opened": {"status": "row", "name": "set:keys", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "keys", "values": {"simkl": {"value": {"string": "legacy-token"}, "at": [7, 0, "a1b2c3d4e5f60718"]}, "parentalPIN": {"value": {"string": "sha256:salt:hash"}, "at": [8, 0, "a1b2c3d4e5f60718"]}}, "extension": "kept"}}},
+          {"k": "0808080808080808080808080808080808080808080808080808080808080808", "seq": 8, "v": "sealed-plugins", "opened": {"status": "row", "name": "set:plugins", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "plugins", "values": {}}}},
+          {"k": "0909090909090909090909090909090909090909090909090909090909090909", "seq": 9, "v": "sealed-future", "opened": {"status": "newer", "reason": "framing"}}
+        ]
+      },
+      "expect": {
+        "household": [
+          {"source": {"k": "0101010101010101010101010101010101010101010101010101010101010101", "seq": 1}, "mode": "materialize", "name": "set:prefs", "row": {"kind": "set", "schema": 2, "name": "prefs", "values": {"den.watchRegion": {"value": {"string": "FI"}, "at": [1, 0, "a1b2c3d4e5f60718"]}, "future.preference": {"value": {"int": 7}, "at": [4, 0, "a1b2c3d4e5f60718"]}}, "extension": "kept"}},
+          {"source": {"k": "0606060606060606060606060606060606060606060606060606060606060606", "seq": 6}, "mode": "preserve", "k": "0606060606060606060606060606060606060606060606060606060606060606", "v": "sealed-download"},
+          {"source": {"k": "0707070707070707070707070707070707070707070707070707070707070707", "seq": 7}, "mode": "materialize", "name": "set:keys", "row": {"kind": "set", "schema": 2, "name": "keys", "values": {"parentalPIN": {"value": {"string": "sha256:salt:hash"}, "at": [8, 0, "a1b2c3d4e5f60718"]}}, "extension": "kept"}},
+          {"source": {"k": "0808080808080808080808080808080808080808080808080808080808080808", "seq": 8}, "mode": "preserve", "k": "0808080808080808080808080808080808080808080808080808080808080808", "v": "sealed-plugins"},
+          {"source": {"k": "0909090909090909090909090909090909090909090909090909090909090909", "seq": 9}, "mode": "preserve", "k": "0909090909090909090909090909090909090909090909090909090909090909", "v": "sealed-future"}
+        ],
+        "owner": [
+          {"source": {"k": "0101010101010101010101010101010101010101010101010101010101010101", "seq": 1}, "mode": "materialize", "name": "set:prefs", "row": {"kind": "set", "schema": 2, "name": "prefs", "values": {"den.hideWatched": {"value": {"bool": true}, "at": [2, 0, "a1b2c3d4e5f60718"]}}, "extension": "kept"}},
+          {"source": {"k": "0202020202020202020202020202020202020202020202020202020202020202", "seq": 2}, "mode": "materialize", "name": "title:movie:550", "row": {"format": 4, "kind": "title", "schema": 1, "title": {"type": "movie", "id": 550}}},
+          {"source": {"k": "0303030303030303030303030303030303030303030303030303030303030303", "seq": 3}, "mode": "materialize", "name": "set:trackers", "row": {"kind": "set", "schema": 2, "name": "trackers", "values": {"simkl:1": {"value": {"string": "token"}, "at": [5, 0, "a1b2c3d4e5f60718"]}}}},
+          {"source": {"k": "0404040404040404040404040404040404040404040404040404040404040404", "seq": 4}, "mode": "materialize", "name": "set:deliver:simkl:1", "row": {"kind": "set", "schema": 2, "name": "deliver:simkl:1", "values": {"lease": {"value": {"strings": ["", "4"]}, "at": [6, 0, "a1b2c3d4e5f60718"]}}}},
+          {"source": {"k": "0505050505050505050505050505050505050505050505050505050505050505", "seq": 5}, "mode": "materialize", "name": "set:handoff:simkl:1:a1b2c3d4e5f60718", "row": {"kind": "set", "schema": 2, "name": "handoff:simkl:1:a1b2c3d4e5f60718", "values": {}}},
+          {"source": {"k": "0707070707070707070707070707070707070707070707070707070707070707", "seq": 7}, "mode": "materialize", "name": "set:keys", "row": {"kind": "set", "schema": 2, "name": "keys", "values": {"simkl": {"value": {"string": "legacy-token"}, "at": [7, 0, "a1b2c3d4e5f60718"]}}, "extension": "kept"}}
+        ],
+        "ownerPolicy": {"value": {"maximumAge": 13, "unknownRatings": "allow"}, "at": [3, 0, "a1b2c3d4e5f60718"]},
+        "accounting": [
+          {"k": "0101010101010101010101010101010101010101010101010101010101010101", "seq": 1, "destinations": ["household", "owner", "ownerPolicy"]},
+          {"k": "0202020202020202020202020202020202020202020202020202020202020202", "seq": 2, "destinations": ["owner"]},
+          {"k": "0303030303030303030303030303030303030303030303030303030303030303", "seq": 3, "destinations": ["owner"]},
+          {"k": "0404040404040404040404040404040404040404040404040404040404040404", "seq": 4, "destinations": ["owner"]},
+          {"k": "0505050505050505050505050505050505050505050505050505050505050505", "seq": 5, "destinations": ["owner"]},
+          {"k": "0606060606060606060606060606060606060606060606060606060606060606", "seq": 6, "destinations": ["household"]},
+          {"k": "0707070707070707070707070707070707070707070707070707070707070707", "seq": 7, "destinations": ["household", "owner"]},
+          {"k": "0808080808080808080808080808080808080808080808080808080808080808", "seq": 8, "destinations": ["household"]},
+          {"k": "0909090909090909090909090909090909090909090909090909090909090909", "seq": 9, "destinations": ["household"]}
+        ]
+      }
+    },
+    {"name": "an unreadable source row is never preserved", "input": {"base": 1, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "sealed", "opened": {"status": "unreadable", "reason": "identity"}}]}, "error": "unreadable_source_row"},
+    {"name": "a newer profile-scoped row is not leaked into household", "input": {"base": 1, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "sealed", "opened": {"status": "newer", "reason": "format", "name": "title:movie:550", "document": {"format": 5, "kind": "title", "schema": 1, "title": {"type": "movie", "id": 550}}, "dropped": []}}]}, "error": "newer_profile_row"},
+    {"name": "an unknown decoded kind cannot smuggle a reserved profile name into household", "input": {"base": 1, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "sealed", "opened": {"status": "row", "name": "set:prefs", "legacy": false, "row": {"kind": "future", "schema": 1}}}]}, "error": "newer_profile_row"},
+    {"name": "assistant applied receipts move to Owner without moving assistant configuration", "input": {"base": 2, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "sealed-applied", "opened": {"status": "row", "name": "set:assistant-applied", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "assistant-applied", "values": {"command-1": {"value": {"bool": true}, "at": [1, 0, "a1b2c3d4e5f60718"]}}}}}, {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2, "v": "sealed-config", "opened": {"status": "row", "name": "set:assistant", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "assistant", "values": {}}}}]}, "expect": {"household": [{"source": {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2}, "mode": "preserve", "k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "v": "sealed-config"}], "owner": [{"source": {"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1}, "mode": "materialize", "name": "set:assistant-applied", "row": {"kind": "set", "schema": 2, "name": "assistant-applied", "values": {"command-1": {"value": {"bool": true}, "at": [1, 0, "a1b2c3d4e5f60718"]}}}}], "ownerPolicy": {"value": {"maximumAge": null, "unknownRatings": "allow"}, "at": [1, 0, "a1b2c3d4e5f60718"]}, "accounting": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "destinations": ["owner"]}, {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2, "destinations": ["household"]}]}},
+    {"name": "a household setting with a malformed stamp is rejected before preserve", "input": {"base": 1, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "sealed", "opened": {"status": "row", "name": "set:plugins", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "plugins", "values": {"https://example.test/manifest.json": {"value": {"bool": true}, "at": [1, -1, "a1b2c3d4e5f60718"]}}}}}]}, "error": "invalid_settings_row"},
+    {"name": "an Owner setting with an unknown value tag is rejected before materialize", "input": {"base": 1, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "sealed", "opened": {"status": "row", "name": "set:trackers", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "trackers", "values": {"simkl:1": {"value": {"future": "token"}, "at": [1, 0, "a1b2c3d4e5f60718"]}}}}}]}, "error": "invalid_settings_row"},
+    {"name": "a non-integral tagged int is rejected before Owner materialize", "input": {"base": 1, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "sealed", "opened": {"status": "row", "name": "set:assistant-applied", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "assistant-applied", "values": {"command-1": {"value": {"int": 1.5}, "at": [1, 0, "a1b2c3d4e5f60718"]}}}}}]}, "error": "invalid_settings_row"},
+    {"name": "a boolean owner policy stamp component is not an integer", "input": {"base": 0, "ownerPolicyAt": [true, 0, "a1b2c3d4e5f60718"], "rows": []}, "error": "invalid_partition_input"},
+    {"name": "all row envelopes are validated before key sorting", "input": {"base": 2, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": 7, "seq": 1, "v": "sealed", "opened": {"status": "newer", "reason": "framing"}}, {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2, "v": "sealed", "opened": {"status": "newer", "reason": "framing"}}]}, "error": "invalid_source_row"},
+    {"name": "split preferences and keys retain stamped-value extensions", "input": {"base": 2, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "sealed-prefs", "opened": {"status": "row", "name": "set:prefs", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "prefs", "values": {"den.watchRegion": {"value": {"string": "FI"}, "at": [1, 0, "a1b2c3d4e5f60718"], "futureStampedMember": "household"}, "den.hideWatched": {"value": {"bool": true}, "at": [1, 1, "a1b2c3d4e5f60718"], "futureStampedMember": "owner"}}}}}, {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2, "v": "sealed-keys", "opened": {"status": "row", "name": "set:keys", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "keys", "values": {"parentalPIN": {"value": {"string": "hash"}, "at": [2, 0, "a1b2c3d4e5f60718"], "futureStampedMember": "household"}, "simkl": {"value": {"string": "token"}, "at": [2, 1, "a1b2c3d4e5f60718"], "futureStampedMember": "owner"}}}}}]}, "expect": {"household": [{"source": {"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1}, "mode": "materialize", "name": "set:prefs", "row": {"kind": "set", "schema": 2, "name": "prefs", "values": {"den.watchRegion": {"value": {"string": "FI"}, "at": [1, 0, "a1b2c3d4e5f60718"], "futureStampedMember": "household"}}}}, {"source": {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2}, "mode": "materialize", "name": "set:keys", "row": {"kind": "set", "schema": 2, "name": "keys", "values": {"parentalPIN": {"value": {"string": "hash"}, "at": [2, 0, "a1b2c3d4e5f60718"], "futureStampedMember": "household"}}}}], "owner": [{"source": {"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1}, "mode": "materialize", "name": "set:prefs", "row": {"kind": "set", "schema": 2, "name": "prefs", "values": {"den.hideWatched": {"value": {"bool": true}, "at": [1, 1, "a1b2c3d4e5f60718"], "futureStampedMember": "owner"}}}}, {"source": {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2}, "mode": "materialize", "name": "set:keys", "row": {"kind": "set", "schema": 2, "name": "keys", "values": {"simkl": {"value": {"string": "token"}, "at": [2, 1, "a1b2c3d4e5f60718"], "futureStampedMember": "owner"}}}}], "ownerPolicy": {"value": {"maximumAge": null, "unknownRatings": "allow"}, "at": [1, 0, "a1b2c3d4e5f60718"]}, "accounting": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "destinations": ["household", "owner"]}, {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2, "destinations": ["household", "owner"]}]}},
+    {"name": "legacy activity must finish the ordinary v4 switch first", "input": {"base": 1, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "sealed", "opened": {"status": "row", "name": "rec:movie:550", "legacy": true, "row": {"kind": "rec", "schema": 2, "title": {"type": "movie", "id": 550}}}}]}, "error": "legacy_source_row"},
+    {"name": "a legacy split cannot overwrite an existing profiles document", "input": {"base": 1, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "sealed", "opened": {"status": "row", "name": null, "legacy": false, "row": {"format": 4, "kind": "profiles", "schema": 1}}}]}, "error": "profiles_already_present"},
+    {"name": "duplicate authenticated logical names are rejected", "input": {"base": 2, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "one", "opened": {"status": "row", "name": "set:plugins", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "plugins", "values": {}}}}, {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2, "v": "two", "opened": {"status": "row", "name": "set:plugins", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "plugins", "values": {}}}}]}, "error": "duplicate_logical_name"},
+    {
+      "name": "a malformed legacy maturity setting cannot weaken Owner policy",
+      "input": {
+        "base": 1,
+        "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"],
+        "rows": [
+          {
+            "k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "seq": 1,
+            "v": "sealed",
+            "opened": {
+              "status": "row", "name": "set:prefs", "legacy": false,
+              "row": {
+                "kind": "set", "schema": 2, "name": "prefs",
+                "values": {
+                  "den.maturityCeiling": {
+                    "value": {"string": "future"},
+                    "at": [1, 0, "a1b2c3d4e5f60718"]
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "error": "invalid_legacy_policy"
+    },
+    {"name": "a row beyond the fenced base is rejected", "input": {"base": 1, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 2, "v": "sealed", "opened": {"status": "row", "name": "set:plugins", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "plugins", "values": {}}}}]}, "error": "invalid_source_row"}
+  ],
   "wireTopology": {
     "rowEncoding": "library-v4",
     "householdRequestWireAfterActivation": 5,

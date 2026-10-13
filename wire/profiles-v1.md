@@ -324,6 +324,100 @@ The operation never infers scope from a prefix, never interprets a stamped setti
 input. The split executor MUST use its result rather than maintaining a second key list. An empty `owner` or
 `household` object means that destination has no `set:prefs` row to write; the executor does not invent an empty row.
 
+### 6.1 Canonical initial-split row materialization
+
+The initial split MUST NOT classify the remaining rows independently in Swift and TypeScript.
+`profiles_migration_partition_rows(input)` is den-core's pure, canonical boundary. Its input is:
+
+```json
+{
+  "base": 418,
+  "ownerPolicyAt": [1800000000000, 2, "a1b2c3d4e5f60718"],
+  "rows": [
+    {
+      "k": "<64 lowercase hex>", "seq": 7, "v": "<original sealed value>",
+      "opened": {"status": "row", "name": "set:prefs", "legacy": false, "row": {}}
+    }
+  ]
+}
+```
+
+`rows` contains every source row through `base` exactly once. `k` and `seq` are unique, `seq` is positive and at
+most `base`, and `v` is the exact sealed value in the verified backup. `opened` is the result of authenticated
+opening under the household key, including the row-key/logical-name binding, and then applying library-v4
+`doc_decode`: `document`, `row`, or `newer`. An `unreadable` result, an AEAD failure, a failed name binding, a known
+document with any dropped part, or a missing row is an error; none is converted into an opaque preserved row.
+
+The result is:
+
+```json
+{
+  "household": [
+    {"source": {"k": "<source k>", "seq": 7},
+     "mode": "preserve", "k": "<same k>", "v": "<same v>"}
+  ],
+  "owner": [
+    {"source": {"k": "<source k>", "seq": 9},
+     "mode": "materialize", "name": "title:movie:550", "row": {}}
+  ],
+  "ownerPolicy": {
+    "value": {"maximumAge": 13, "unknownRatings": "allow"},
+    "at": [1800000000000, 2, "a1b2c3d4e5f60718"]
+  },
+  "accounting": [
+    {"k": "<source k>", "seq": 7, "destinations": ["household"]},
+    {"k": "<source k>", "seq": 9, "destinations": ["owner"]}
+  ]
+}
+```
+
+Every input row has exactly one `accounting` entry. `destinations` is sorted in the fixed order `household`,
+`owner`, `ownerPolicy`, contains no duplicate, and names every output derived from that source. A source may feed
+both libraries only for the two split settings rows below. A maturity-only preferences row has destination
+`ownerPolicy` and no invented empty settings row. `household` and `owner` projections are ordered by source `k` raw
+UTF-8 bytes; `accounting` has the same order.
+
+- A `preserve` projection is permitted only in `household` and repeats the input `k` and `v` byte-for-byte. It is
+  used for whole household settings and for an authenticated unknown/newer logical row whose scope cannot safely be
+  inferred. For every decoded status, not only `newer`, an authenticated name that is profile-scoped or needs
+  splitting is rejected before an unknown kind/framing can preserve. A client must not infer household scope merely
+  because it does not understand the logical body.
+- A `materialize` projection gives one authenticated logical `name` and complete logical `row`. The executor JCS
+  encodes and seals it for its destination, then verifies the destination readback. It never trusts a client-side
+  classification to decide the destination.
+- `title:*`, `season:*`, `dlv:*`, `set:trackers`, `set:deliver:*`, `set:handoff:*`, and
+  `set:assistant-applied` materialize only in Owner. They carry activity, credentials, receipts, pending/held
+  decisions, lease epochs and delivery state together. `set:assistant-applied` is the durable receipt/replay guard
+  for assistant actions that default to Owner; this is an exact-name rule, not an `assistant` prefix rule.
+- The assistant connection/configuration rows `set:assistant`, `set:assistant-grants`, `set:assistant-read`, and
+  `set:assistant-play` remain whole household rows.
+- `set:download:*`, `set:download-lease`, and every other ordinary household settings row preserve only in the
+  household. Successfully opened rows of a genuinely unknown kind or framing also preserve only there.
+- `set:prefs` is cloned with all unknown root members retained and its `values` replaced by the two results of
+  `profiles_partition_preferences`; an empty side is omitted. Its legacy maturity setting is omitted from both and
+  contributes `ownerPolicy`.
+- `set:keys` is cloned in the same way: the complete stamped `simkl` value, when present, materializes only in
+  Owner, while every other value preserves in the household. An empty side is omitted. Modern `set:trackers`
+  remains the authoritative credential row; retaining the legacy setting does not make it authoritative again.
+- Before any known `set` row is preserved or materialized, every setting is validated by library-v2's canonical
+  generic settings decoder: it has a valid stamp and its value is either null or exactly one of the `bool`, `int`,
+  `string`, `ints`, or `strings` tags with the corresponding type; every integer is an integral signed safe integer.
+  The canonical specialized validator is also applied for a setting name that has one. An unknown tag, malformed
+  stamp, non-integral/unsafe integer, or specialized validation failure is `invalid_settings_row`. This validation
+  happens in den-core, not in whichever client happened to decode the authenticated JSON.
+- `ownerPolicy.value` is `profile_policy_normalize_legacy` of the legacy maturity setting's tagged string
+  (`pg13`, `r`, or null). When present, its original stamp is retained. When absent, the explicit constructor stamp
+  `ownerPolicyAt` is used; den-core never invents a clock value.
+
+A pre-v4 `rec`, `wat`, `snt`, `ep` or `set:tracker-event:*` row, an already-present `profiles` or Kid-approval row,
+a duplicate authenticated logical name, malformed known identity/settings/policy, or any known row whose scope is
+ambiguous is an error. The caller must first finish the ordinary library-v4 conversion or stop for recovery.
+
+This operation deliberately does not fabricate the complete `profiles` document: Owner display, random id/key and
+their constructor stamps are explicit product inputs, while `migration.ownerHead` exists only after the Owner
+library is written and read back. The executor uses `ownerPolicy` and the verified Owner material to construct that
+document through the existing den-core lifecycle/validation operations.
+
 ## 7. Sticky device-local selection
 
 Selection is local, never a library row. Its JSON shape is `profile-selection-v1` in the schema and vectors:
