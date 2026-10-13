@@ -1318,6 +1318,10 @@ def migration_next(value: dict) -> str:
 
     if authorization_required and state != "idle":
         validate_split_authorization(value.get("splitAuthorization"), value)
+    if (state == "commit-unknown" and lookup in ("committed", "superseded")
+            and value.get("householdFresh", False)
+            and candidate_attempt != value["splitAuthorization"]["intent"]["attempt"]):
+        fail("terminal_directory_mismatch")
 
     has_directory = "directory" in value
     directory = value.get("directory")

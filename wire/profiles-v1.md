@@ -642,7 +642,10 @@ and the following evidence when applicable:
   also carries its authenticated `candidateHead`; an unverified candidate has no head;
 - `candidateKey`, when a candidate exists, is its canonical padded base64 32-byte library key.
   `candidateAttempt` is the local journal's random attempt id when comparing that candidate with a committed
-  directory, and `candidateRetired` reports confirmed absence.
+  directory, and `candidateRetired` reports confirmed absence. For `commit-unknown`, `candidateAttempt` MUST equal
+  the attempt in the validated split authorization before either a `committed` or `superseded` lookup can verify,
+  activate or clean up anything; a caller-supplied attempt copied from the fresh directory cannot replace the
+  authorized journal identity.
 
 `profiles_migration_authorization({intent, evidence})` is the only operation that constructs the durable
 authorization value. `intent` has exactly `{version: 1, action: "enable-profiles", attempt, householdId, source}`;
@@ -678,7 +681,8 @@ After any conflict, timeout or process death, resolve the durable journal as fol
   attempt and cannot manufacture authorization from a capable server or an ordinary launch.
 - `commit-unknown` first returns `lookup-attempt`. Only after that durable result does it return `read-household`.
   This ordering takes precedence over a missing, stale or corrupt household observation: none is interpreted before
-  lookup and the subsequent fresh read. A `committed` lookup is valid only when the fresh directory's migration
+  lookup and the subsequent fresh read. After both, the local candidate attempt must still equal the exact
+  authorized journal attempt. A `committed` lookup is valid only when the fresh directory's migration
   attempt, Owner key and Owner head are the exact local attempt and verified candidate evidence. A `superseded`
   lookup is valid only when the fresh directory names a different attempt and that winner's Owner library has been
   verified; only then may the distinct local candidate be conditionally retired. `committed` with another winner,
