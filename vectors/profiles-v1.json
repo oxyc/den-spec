@@ -487,21 +487,31 @@
       "error": "invalid_preferences"
     }
   ],
+  "migrationFence": {
+    "generation": 7,
+    "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
   "migrationCases": [
-    {"name": "explicit intent first acquires a fence", "state": "idle", "observed": "legacy", "fence": "same", "expect": "acquire-fence"},
-    {"name": "backup precedes any Owner destination write", "state": "fenced", "observed": "legacy", "fence": "same", "expect": "create-backup"},
-    {"name": "verified backup permits Owner creation", "state": "backed-up", "observed": "legacy", "fence": "same", "backupVerified": true, "expect": "create-owner-library"},
-    {"name": "copied Owner must be verified", "state": "owner-copied", "observed": "legacy", "fence": "same", "backupVerified": true, "candidateLibrary": "candidate-a", "expect": "verify-owner-library"},
-    {"name": "only ready state attempts fenced commit", "state": "ready-to-commit", "observed": "legacy", "fence": "same", "backupVerified": true, "candidateLibrary": "candidate-a", "ownerVerified": true, "expect": "commit-fenced-household"},
-    {"name": "ready journal without backup evidence is rejected", "state": "ready-to-commit", "observed": "legacy", "fence": "same", "backupVerified": false, "candidateLibrary": "candidate-a", "ownerVerified": true, "expect": "invalid_evidence"},
-    {"name": "unknown commit is resolved by read", "state": "commit-unknown", "observed": "legacy", "fence": "same", "candidateLibrary": "candidate-a", "expect": "read-household"},
-    {"name": "fence loser retires its unreferenced candidate", "state": "ready-to-commit", "observed": "committed", "candidateLibrary": "candidate-a", "winnerLibrary": "winner-b", "winnerVerified": true, "candidateRetired": false, "expect": "retire-losing-candidate"},
-    {"name": "loser cleanup is idempotent then adopts winner", "state": "cleaning-loser", "observed": "committed", "candidateLibrary": "candidate-a", "winnerLibrary": "winner-b", "winnerVerified": true, "candidateRetired": true, "expect": "activate"},
-    {"name": "cleanup can never target committed Owner", "state": "cleaning-loser", "observed": "committed", "candidateLibrary": "winner-b", "winnerLibrary": "winner-b", "winnerVerified": true, "cleanupRequested": true, "expect": "cleanup_targets_winner"},
-    {"name": "winner is verified before activation", "state": "adopting", "observed": "committed", "winnerLibrary": "winner-b", "winnerVerified": false, "expect": "verify-winner"},
-    {"name": "changed legacy fence restarts after candidate cleanup", "state": "owner-copied", "observed": "legacy", "fence": "changed", "candidateLibrary": "candidate-a", "candidateRetired": false, "expect": "retire-losing-candidate"},
+    {"name": "explicit intent first acquires a fence", "state": "idle", "observed": "legacy", "explicitIntent": true, "expect": "acquire-fence"},
+    {"name": "idle without explicit intent cannot start", "state": "idle", "observed": "legacy", "explicitIntent": false, "error": "explicit_intent_required"},
+    {"name": "backup precedes any Owner destination write", "state": "fenced", "observed": "legacy", "expect": "create-backup"},
+    {"name": "verified backup permits Owner creation", "state": "backed-up", "observed": "legacy", "backupVerified": true, "expect": "create-owner-library"},
+    {"name": "copied Owner must be verified", "state": "owner-copied", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "expect": "verify-owner-library"},
+    {"name": "only a head-bound verified Owner permits commit", "state": "ready-to-commit", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "expect": "commit-fenced-household"},
+    {"name": "verified Owner without a copied head is rejected", "state": "ready-to-commit", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "error": "invalid_copy_head"},
+    {"name": "ready journal without backup evidence is rejected", "state": "ready-to-commit", "observed": "legacy", "backupVerified": false, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "error": "invalid_evidence"},
+    {"name": "unknown commit is resolved by read", "state": "commit-unknown", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "expect": "read-household"},
+    {"name": "fence loser retires its unreferenced candidate", "state": "ready-to-commit", "observed": "committed", "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "winnerVerified": true, "candidateRetired": false, "expect": "retire-losing-candidate"},
+    {"name": "loser cleanup is idempotent then adopts winner", "state": "cleaning-loser", "observed": "committed", "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "winnerVerified": true, "candidateRetired": true, "expect": "activate"},
+    {"name": "cleanup can never target committed Owner", "state": "cleaning-loser", "observed": "committed", "candidateKey": "ERERERERERERERERERERERERERERERERERERERERERE=", "winnerVerified": true, "expect": "cleanup_targets_winner"},
+    {"name": "cleanup can never target any other live profile", "state": "cleaning-loser", "observed": "committed", "candidateKey": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI=", "winnerVerified": true, "expect": "cleanup_targets_winner"},
+    {"name": "retired evidence cannot claim a committed key was deleted", "state": "cleaning-loser", "observed": "committed", "candidateKey": "ERERERERERERERERERERERERERERERERERERERERERE=", "candidateRetired": true, "winnerVerified": true, "error": "committed_key_retired"},
+    {"name": "winner is verified before activation", "state": "adopting", "observed": "committed", "winnerVerified": false, "expect": "verify-winner"},
+    {"name": "committed observation requires a valid stored directory", "state": "adopting", "observed": "committed", "omitDirectory": true, "winnerVerified": true, "error": "committed_directory_missing"},
+    {"name": "changed legacy fence restarts after candidate cleanup", "state": "owner-copied", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "observedFenceMutation": {"path": "/generation", "value": 8}, "expect": "retire-losing-candidate"},
+    {"name": "malformed source fence is rejected", "state": "fenced", "observed": "legacy", "fenceMutation": {"path": "/head", "value": "bad"}, "error": "invalid_migration_fence"},
     {"name": "verified backup may repair corrupt legacy household", "state": "restore-required", "observed": "corrupt", "backupVerified": true, "expect": "restore-backup"},
-    {"name": "backup never restores over committed winner", "state": "restore-required", "observed": "committed", "backupVerified": true, "winnerLibrary": "winner-b", "winnerVerified": true, "expect": "activate"}
+    {"name": "backup never restores over committed winner", "state": "restore-required", "observed": "committed", "backupVerified": true, "winnerVerified": true, "expect": "activate"}
   ],
   "resetFence": {
     "generation": 14,

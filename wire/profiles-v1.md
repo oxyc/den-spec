@@ -379,10 +379,27 @@ den-edge generation/base-fenced rewrite commits the staged rows and `x-den-wire-
 existing household key, id, membership and links. A split is not a §12 reset and never asks a device to pair again.
 
 den-edge alone selects a concurrent winner by accepting one fence. `profiles_migration_next(input)` in den-core is
-the canonical pure decision operation. Its input contains the validated local journal (or none), the observed
-household kind/minimum/generation/head, the validated committed directory (or none), backup verification, candidate
-Owner verification, and candidate retirement observation. It returns one of the effects named in the table or an
-error. Swift and web MUST execute that answer and MUST NOT infer success from their own request outcome.
+the canonical pure decision operation. Its input contains `state`, `observed` (`legacy`, `committed` or `corrupt`),
+and the following evidence when applicable:
+
+- `explicitIntent` is true before `idle` may return `acquire-fence`;
+- `fence` is the journal's `{generation, head}` and `observedFence` is the legacy household's current pair. Both use
+  a nonnegative safe-integer generation and a 32-byte lowercase-hex head. Post-`idle` legacy states require both;
+- `directory` is the stored, canonically validated committed directory. It is required for a `committed`
+  observation and forbidden as evidence of a legacy or corrupt household;
+- `backupVerified`, `ownerVerified` and `winnerVerified` are observations, not commands. A verified candidate Owner
+  also carries its authenticated `candidateHead`; an unverified candidate has no head;
+- `candidateKey`, when a candidate exists, is its canonical padded base64 32-byte library key, and
+  `candidateRetired` reports confirmed absence.
+
+The operation validates all supplied evidence before deciding. In particular, cleanup compares `candidateKey`
+with the library key of **every live profile** in the committed directory. A referenced key returns
+`cleanup_targets_winner`; evidence claiming that such a key is already retired is the contradiction
+`committed_key_retired`. Only a valid, distinct, unreferenced candidate may produce
+`retire-losing-candidate`. A malformed/missing committed directory, malformed fence or key, verified copy without a
+head, missing explicit intent, or phase/evidence contradiction is an error rather than a next effect. The operation
+returns one of the effects named in the table or an error. Swift and web MUST execute that answer and MUST NOT infer
+success from their own request outcome.
 
 After any conflict, timeout or process death, read the household first:
 
