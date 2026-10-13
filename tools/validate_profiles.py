@@ -388,6 +388,11 @@ def migration_next(value: dict) -> str:
     candidate = value.get("candidateKey")
     if candidate is not None:
         candidate = validate_candidate_key(candidate)
+    candidate_attempt = value.get("candidateAttempt")
+    if candidate_attempt is not None and (
+        candidate is None or not isinstance(candidate_attempt, str) or not ID.fullmatch(candidate_attempt)
+    ):
+        fail("invalid_candidate_attempt")
     retired = value.get("candidateRetired", False)
     if retired and candidate is None:
         fail("invalid_evidence")
@@ -406,6 +411,8 @@ def migration_next(value: dict) -> str:
         if directory is None:
             fail("committed_directory_missing")
         validate_directory(directory, require_migration=True)
+        if candidate is not None and candidate_attempt is None:
+            fail("invalid_candidate_attempt")
         live_keys = {
             entry["library"]["value"]["key"]
             for entry in directory["profiles"].values()
@@ -414,7 +421,19 @@ def migration_next(value: dict) -> str:
         if candidate in live_keys:
             if retired:
                 fail("committed_key_retired")
-            return "cleanup_targets_winner"
+            owner = directory["owner"]
+            migration = directory["migration"]
+            owns_winner = (
+                candidate == directory["profiles"][owner]["library"]["value"]["key"]
+                and candidate_attempt == migration["attempt"]
+                and owner_verified
+                and candidate_head == migration["ownerHead"]
+            )
+            if owns_winner:
+                return "activate" if value.get("winnerVerified", False) else "verify-winner"
+            if state == "cleaning-loser":
+                return "cleanup_targets_winner"
+            fail("winner_evidence_mismatch")
         if candidate is not None and not retired:
             return "retire-losing-candidate"
         if not value.get("winnerVerified", False):
@@ -442,12 +461,15 @@ def migration_next(value: dict) -> str:
         fail("invalid_evidence")
     if state == "ready-to-commit" and not owner_verified:
         return "verify-owner-library"
-    return {
+    answer = {
         "fenced": "create-backup",
         "backed-up": "create-owner-library",
         "owner-copied": "verify-owner-library",
         "ready-to-commit": "commit-fenced-household",
-    }.get(state, "invalid_state")
+    }.get(state)
+    if answer is None:
+        fail("invalid_state")
+    return answer
 
 
 def validate_reset(case: dict, directory: dict, fence: dict) -> dict:
@@ -806,15 +828,22 @@ def main() -> int:
 
     for case in vectors["migrationCases"]:
         assembled = copy.deepcopy(case)
-        if case["observed"] == "committed" and not case.get("omitDirectory", False):
+        if case.get("observed") == "committed" and not case.get("omitDirectory", False):
             assembled["directory"] = copy.deepcopy(base)
-        if case["observed"] == "legacy" and case["state"] != "idle":
+            if "directoryMutation" in case:
+                mutate_pointer(assembled["directory"], case["directoryMutation"])
+        if case.get("observed") == "legacy" and case.get("state") != "idle":
             assembled["fence"] = copy.deepcopy(vectors["migrationFence"])
-            assembled["observedFence"] = copy.deepcopy(vectors["migrationFence"])
+            if not case.get("omitObservedFence", False):
+                assembled["observedFence"] = copy.deepcopy(vectors["migrationFence"])
             if "fenceMutation" in case:
                 mutate_pointer(assembled["fence"], case["fenceMutation"])
             if "observedFenceMutation" in case:
                 mutate_pointer(assembled["observedFence"], case["observedFenceMutation"])
+        if case.get("omitState", False):
+            assembled.pop("state", None)
+        if case.get("omitObserved", False):
+            assembled.pop("observed", None)
         try:
             actual = migration_next(assembled)
         except ValueError as error:

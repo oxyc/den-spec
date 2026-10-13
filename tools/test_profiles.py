@@ -63,6 +63,7 @@ class ProfilesVectorsTests(unittest.TestCase):
         case = {
             "state": "ready-to-commit", "observed": "committed",
             "directory": vectors["validDirectories"][0]["document"],
+            "candidateAttempt": "fedcba9876543210fedcba9876543210",
             "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=",
             "winnerVerified": True, "candidateRetired": False,
         }
@@ -75,6 +76,7 @@ class ProfilesVectorsTests(unittest.TestCase):
         case = {
             "state": "cleaning-loser", "observed": "committed",
             "directory": vectors["validDirectories"][0]["document"],
+            "candidateAttempt": "fedcba9876543210fedcba9876543210",
             "candidateKey": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI=",
             "winnerVerified": True,
         }

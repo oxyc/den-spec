@@ -389,12 +389,16 @@ and the following evidence when applicable:
   observation and forbidden as evidence of a legacy or corrupt household;
 - `backupVerified`, `ownerVerified` and `winnerVerified` are observations, not commands. A verified candidate Owner
   also carries its authenticated `candidateHead`; an unverified candidate has no head;
-- `candidateKey`, when a candidate exists, is its canonical padded base64 32-byte library key, and
-  `candidateRetired` reports confirmed absence.
+- `candidateKey`, when a candidate exists, is its canonical padded base64 32-byte library key.
+  `candidateAttempt` is the local journal's random attempt id when comparing that candidate with a committed
+  directory, and `candidateRetired` reports confirmed absence.
 
-The operation validates all supplied evidence before deciding. In particular, cleanup compares `candidateKey`
-with the library key of **every live profile** in the committed directory. A referenced key returns
-`cleanup_targets_winner`; evidence claiming that such a key is already retired is the contradiction
+The operation validates all supplied evidence before deciding. A local candidate is the committed Owner only when
+its `candidateAttempt`, `candidateKey` and verified `candidateHead` equal the directory's immutable migration
+attempt, Owner key and Owner head. That winner is verified and activated; it never enters loser cleanup. Cleanup
+compares any actual losing `candidateKey` with the library key of **every live profile** in the committed directory.
+A referenced key while in `cleaning-loser` returns `cleanup_targets_winner`; the same mismatch outside cleanup is
+`winner_evidence_mismatch`. Evidence claiming that a committed key is already retired is the contradiction
 `committed_key_retired`. Only a valid, distinct, unreferenced candidate may produce
 `retire-losing-candidate`. A malformed/missing committed directory, malformed fence or key, verified copy without a
 head, missing explicit intent, or phase/evidence contradiction is an error rather than a next effect. The operation
