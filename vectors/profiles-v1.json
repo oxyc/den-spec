@@ -503,67 +503,66 @@
     {"name": "verified backup may repair corrupt legacy household", "state": "restore-required", "observed": "corrupt", "backupVerified": true, "expect": "restore-backup"},
     {"name": "backup never restores over committed winner", "state": "restore-required", "observed": "committed", "backupVerified": true, "winnerLibrary": "winner-b", "winnerVerified": true, "expect": "activate"}
   ],
+  "resetFence": {
+    "generation": 14,
+    "head": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "resetProfiles": {
+    "00112233445566778899aabbccddeeff": {"profile": "00112233445566778899aabbccddeeff", "oldKey": "ERERERERERERERERERERERERERERERERERERERERERE=", "newKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "oldVersion": 1, "newVersion": 2, "copiedHead": null, "verified": false, "oldRetired": false},
+    "11112222333344445555666677778888": {"profile": "11112222333344445555666677778888", "oldKey": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI=", "newKey": "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=", "oldVersion": 1, "newVersion": 2, "copiedHead": null, "verified": false, "oldRetired": false},
+    "9999aaaabbbbccccddddeeeeffff0000": {"profile": "9999aaaabbbbccccddddeeeeffff0000", "oldKey": "MzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM=", "newKey": "ZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmY=", "oldVersion": 1, "newVersion": 2, "copiedHead": null, "verified": false, "oldRetired": false}
+  },
   "resetCases": [
     {
-      "name": "all live profiles must verify before successor publication",
+      "name": "planner names every live profile still awaiting verification",
       "householdCommitted": false,
       "oldHouseholdRetired": false,
-      "profiles": [
-        {"oldKey": "owner-old", "newKey": "owner-new", "oldVersion": 1, "newVersion": 2, "deleted": false, "verified": true, "oldRetired": false},
-        {"oldKey": "kid-a-old", "newKey": "kid-a-new", "oldVersion": 3, "newVersion": 4, "deleted": false, "verified": false, "oldRetired": false},
-        {"oldKey": "kid-deleted-old", "newKey": "unused", "oldVersion": 1, "newVersion": 1, "deleted": true, "verified": false, "oldRetired": false}
+      "profileMutations": [
+        {"path": "/00112233445566778899aabbccddeeff/verified", "value": true},
+        {"path": "/00112233445566778899aabbccddeeff/copiedHead", "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
       ],
-      "expect": "move-live-profiles"
+      "expect": {"effect": "move-live-profiles", "profiles": ["11112222333344445555666677778888", "9999aaaabbbbccccddddeeeeffff0000"]}
     },
     {
       "name": "verified live moves permit one successor commit",
       "householdCommitted": false,
       "oldHouseholdRetired": false,
-      "profiles": [
-        {"oldKey": "owner-old", "newKey": "owner-new", "oldVersion": 1, "newVersion": 2, "deleted": false, "verified": true, "oldRetired": false},
-        {"oldKey": "kid-a-old", "newKey": "kid-a-new", "oldVersion": 3, "newVersion": 4, "deleted": false, "verified": true, "oldRetired": false}
+      "profileMutations": [
+        {"path": "/00112233445566778899aabbccddeeff/verified", "value": true}, {"path": "/00112233445566778899aabbccddeeff/copiedHead", "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+        {"path": "/11112222333344445555666677778888/verified", "value": true}, {"path": "/11112222333344445555666677778888/copiedHead", "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+        {"path": "/9999aaaabbbbccccddddeeeeffff0000/verified", "value": true}, {"path": "/9999aaaabbbbccccddddeeeeffff0000/copiedHead", "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
       ],
-      "expect": "commit-successor-household"
+      "expect": {"effect": "commit-successor-household"}
     },
     {
-      "name": "old libraries retire only after commit",
+      "name": "retirement answer names every old library and household still live",
       "householdCommitted": true,
       "oldHouseholdRetired": false,
-      "profiles": [
-        {"oldKey": "owner-old", "newKey": "owner-new", "oldVersion": 1, "newVersion": 2, "deleted": false, "verified": true, "oldRetired": false},
-        {"oldKey": "kid-a-old", "newKey": "kid-a-new", "oldVersion": 3, "newVersion": 4, "deleted": false, "verified": true, "oldRetired": false}
+      "profileMutations": [
+        {"path": "/00112233445566778899aabbccddeeff/verified", "value": true}, {"path": "/00112233445566778899aabbccddeeff/copiedHead", "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+        {"path": "/11112222333344445555666677778888/verified", "value": true}, {"path": "/11112222333344445555666677778888/copiedHead", "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+        {"path": "/9999aaaabbbbccccddddeeeeffff0000/verified", "value": true}, {"path": "/9999aaaabbbbccccddddeeeeffff0000/copiedHead", "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
+        {"path": "/00112233445566778899aabbccddeeff/oldRetired", "value": true}
       ],
-      "expect": "retire-old-libraries"
+      "expect": {"effect": "retire-old-libraries", "profiles": ["11112222333344445555666677778888", "9999aaaabbbbccccddddeeeeffff0000"], "household": true}
     },
     {
       "name": "revocation completes only after every old library is retired",
       "householdCommitted": true,
       "oldHouseholdRetired": true,
-      "profiles": [
-        {"oldKey": "owner-old", "newKey": "owner-new", "oldVersion": 1, "newVersion": 2, "deleted": false, "verified": true, "oldRetired": true},
-        {"oldKey": "kid-a-old", "newKey": "kid-a-new", "oldVersion": 3, "newVersion": 4, "deleted": false, "verified": true, "oldRetired": true}
+      "profileMutations": [
+        {"path": "/00112233445566778899aabbccddeeff/verified", "value": true}, {"path": "/00112233445566778899aabbccddeeff/copiedHead", "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, {"path": "/00112233445566778899aabbccddeeff/oldRetired", "value": true},
+        {"path": "/11112222333344445555666677778888/verified", "value": true}, {"path": "/11112222333344445555666677778888/copiedHead", "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}, {"path": "/11112222333344445555666677778888/oldRetired", "value": true},
+        {"path": "/9999aaaabbbbccccddddeeeeffff0000/verified", "value": true}, {"path": "/9999aaaabbbbccccddddeeeeffff0000/copiedHead", "value": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}, {"path": "/9999aaaabbbbccccddddeeeeffff0000/oldRetired", "value": true}
       ],
-      "expect": "complete"
+      "expect": {"effect": "complete"}
     },
-    {
-      "name": "profile key versions increment exactly once",
-      "householdCommitted": false,
-      "oldHouseholdRetired": false,
-      "profiles": [
-        {"oldKey": "owner-old", "newKey": "owner-new", "oldVersion": 1, "newVersion": 3, "deleted": false, "verified": true, "oldRetired": false}
-      ],
-      "expect": "invalid_key_version"
-    },
-    {
-      "name": "successor keys cannot reuse an old profile key",
-      "householdCommitted": false,
-      "oldHouseholdRetired": false,
-      "profiles": [
-        {"oldKey": "owner-old", "newKey": "kid-old", "oldVersion": 1, "newVersion": 2, "deleted": false, "verified": true, "oldRetired": false},
-        {"oldKey": "kid-old", "newKey": "kid-new", "oldVersion": 1, "newVersion": 2, "deleted": false, "verified": true, "oldRetired": false}
-      ],
-      "expect": "reused_key"
-    }
+    {"name": "omitting one live profile is never permission to commit", "householdCommitted": false, "oldHouseholdRetired": false, "removeProfile": "9999aaaabbbbccccddddeeeeffff0000", "error": "invalid_reset_profiles"},
+    {"name": "old key and version are bound to the directory entry", "householdCommitted": false, "oldHouseholdRetired": false, "profileMutations": [{"path": "/11112222333344445555666677778888/oldKey", "value": "ERERERERERERERERERERERERERERERERERERERERERE="}], "error": "profile_state_mismatch"},
+    {"name": "profile key versions increment exactly once", "householdCommitted": false, "oldHouseholdRetired": false, "profileMutations": [{"path": "/00112233445566778899aabbccddeeff/newVersion", "value": 3}], "error": "invalid_key_version"},
+    {"name": "successor keys cannot reuse any old profile key", "householdCommitted": false, "oldHouseholdRetired": false, "profileMutations": [{"path": "/00112233445566778899aabbccddeeff/newKey", "value": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI="}], "error": "reused_key"},
+    {"name": "verified copy requires an authenticated destination head", "householdCommitted": false, "oldHouseholdRetired": false, "profileMutations": [{"path": "/00112233445566778899aabbccddeeff/verified", "value": true}], "error": "invalid_copy_head"},
+    {"name": "reset decisions are bound to a valid household fence", "householdCommitted": false, "oldHouseholdRetired": false, "fenceMutate": {"path": "/head", "value": "bad"}, "error": "invalid_reset_fence"}
   ],
   "wireTopology": {
     "rowEncoding": "library-v4",

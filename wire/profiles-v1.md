@@ -417,6 +417,19 @@ the household move fence, and for each live profile the old key/version, propose
 verification state. Its phases are `prepared`, `profiles-moving`, `ready-to-publish`, `committed`, `retiring-old`
 and `complete`. It returns the next profiles to copy/verify or the one permitted commit/retirement effect.
 
+The input MUST contain exactly one evidence entry for every live directory profile, identified by profile id, and
+none for a deleted or unknown profile. Each entry's old key and version MUST equal that profile's current directory
+field. Its successor key is a canonical padded base64 encoding of 32 bytes, is distinct from every old and proposed
+key, and its version is exactly the old version plus one. A verified move has a 32-byte lowercase-hex `copiedHead`;
+an unverified move has `copiedHead: null`. The fence is `{generation, head}` with a safe nonnegative generation and
+a 32-byte lowercase-hex head. Omitting a live profile, duplicating an entry, relabelling another profile's old key,
+or supplying malformed evidence is an error, never permission to publish.
+
+The answer is an object with `effect`. `move-live-profiles` additionally carries the sorted profile ids still to
+copy or verify. `retire-old-libraries` carries the sorted profile ids whose old libraries remain live and a
+`household` boolean indicating whether the old household remains live. The other effects are
+`commit-successor-household` and `complete`. Errors use the operation's error envelope rather than an `ok` value.
+
 The successor directory is not published until every live profile move is verified. The household move then
 publishes that directory under the successor household, commits its fence, and only afterward retires the old
 household and every old profile library. A conflict or unknown outcome is resolved by reading the committed
