@@ -177,6 +177,20 @@
       "expect": {"role": "kid", "maximumAge": 8, "unknownRatings": "block"}
     },
     {
+      "name": "Kid creation forces unknown ratings closed even when a caller asks to allow them",
+      "operation": "create",
+      "profile": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "entry": {
+        "id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "role": "kid",
+        "display": {"value": {"name": "Jo"}, "at": [1800000005001, 0, "a1b2c3d4e5f60718"]},
+        "library": {"value": {"keyVersion": 1, "key": "ZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmY="}, "at": [1800000005001, 1, "a1b2c3d4e5f60718"]},
+        "policy": {"value": {"maximumAge": 11, "unknownRatings": "allow"}, "at": [1800000005001, 2, "a1b2c3d4e5f60718"]},
+        "deleted": {"value": false, "at": [1800000005001, 3, "a1b2c3d4e5f60718"]}
+      },
+      "expect": {"role": "kid", "maximumAge": 11, "unknownRatings": "block"}
+    },
+    {
       "name": "rename preserves identity and library",
       "operation": "rename",
       "profile": "11112222333344445555666677778888",
@@ -199,6 +213,56 @@
       "at": [1800000008000, 0, "a1b2c3d4e5f60718"],
       "expect": {"deleted": true, "libraryKeyVersion": 1}
     }
+  ],
+  "profilesMaterializeCases": [
+    {"name": "a stored profiles directory materializes to its exact JCS and v4 document frame", "source": "base", "expectJcsBytes": 1974, "expectJcsSha256": "0a98eab7966cdea454f063c59164f2745a06ce216801dcf4bae81b9f2c172b24"},
+    {"name": "an uncommitted directory without migration evidence cannot materialize", "source": "base", "remove": "/migration", "error": "profiles_migration_required"},
+    {"name": "an invalid directory cannot cross the stored materialization boundary", "source": "base", "mutation": {"path": "/owner", "value": "ffffffffffffffffffffffffffffffff"}, "error": "invalid_profiles_materialize"},
+    {"name": "a stored directory deeper than library-v4 can read is rejected", "source": "base", "nestedExtensionDepth": 33, "error": "invalid_profiles_materialize"},
+    {"name": "an adversarially deep extension fails closed before recursion", "source": "base", "nestedExtensionDepth": 1500, "error": "invalid_profiles_materialize"},
+    {"name": "a directory beyond the library-v4 inflation limit cannot materialize", "source": "base", "oversizeExtensionBytes": 8388609, "error": "profiles_materialize_too_large"},
+    {"name": "a materialized document rejects trailing compressed bytes on round trip", "source": "base", "roundTripMutation": "append-zero", "error": "profiles_materialize_roundtrip"}
+  ],
+  "profileCreateJournal": {
+    "version": 1,
+    "profile": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "key": "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=",
+    "display": {"value": {"name": "Sam", "avatar": "fox"}, "at": [1800000005000, 0, "a1b2c3d4e5f60718"]},
+    "libraryAt": [1800000005000, 1, "a1b2c3d4e5f60718"],
+    "maximumAge": 8,
+    "policyAt": [1800000005000, 2, "a1b2c3d4e5f60718"],
+    "deletedAt": [1800000005000, 3, "a1b2c3d4e5f60718"]
+  },
+  "profileCreateAuthority": {"base": 41, "generation": "store-a.library-9"},
+  "profileCreateCases": [
+    {"name": "ordinary launch cannot begin Kid creation", "state": "idle", "explicitIntent": false, "omitJournal": true, "expect": "no-op"},
+    {"name": "explicit creation first persists all random material and stamps", "state": "idle", "explicitIntent": true, "expect": "persist-journal"},
+    {"name": "only a durable journal may create the profile library", "state": "journaled", "expect": "create-profile-library"},
+    {"name": "the durable journal constructs the conservative Kid entry", "state": "library-created", "expect": "apply-create"},
+    {"name": "a ready candidate uses the authenticated row base and generation CAS", "state": "ready", "expect": "cas-directory"},
+    {"name": "a candidate cannot loosen the journal-derived unknown-rating policy", "state": "ready", "candidateMutation": {"path": "/profiles/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/policy/value/unknownRatings", "value": "allow"}, "error": "create_candidate_mismatch"},
+    {"name": "a candidate cannot change the owner-selected maximum age", "state": "ready", "candidateMutation": {"path": "/profiles/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/policy/value/maximumAge", "value": 13}, "error": "create_candidate_mismatch"},
+    {"name": "a candidate cannot change journal display or stamps", "state": "ready", "candidateMutation": {"path": "/profiles/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/display/value/name", "value": "Other"}, "error": "create_candidate_mismatch"},
+    {"name": "an unknown CAS result reads the directory before interpretation", "state": "cas-unknown", "householdFresh": false, "omitCurrent": true, "expect": "read-directory"},
+    {"name": "a conflict reads the directory before merge", "state": "conflict", "householdFresh": false, "omitCurrent": true, "expect": "read-directory"},
+    {"name": "unknown commit adopts only when the fresh directory already contains the candidate", "state": "cas-unknown", "householdFresh": true, "current": "candidate", "expect": "adopt"},
+    {"name": "unknown commit cannot adopt when merge would still add the candidate", "state": "cas-unknown", "householdFresh": true, "current": "base", "expect": "cas-directory"},
+    {"name": "a fresh conflicting directory is merged by core and retried at its authority", "state": "conflict", "householdFresh": true, "current": "base", "expect": "cas-directory"},
+    {"name": "directory authority wins a concurrent rename after Kid creation", "state": "cas-unknown", "householdFresh": true, "current": "renamed-candidate", "expect": "adopt"},
+    {"name": "directory authority retires the journal key after a concurrent reset wins", "state": "cas-unknown", "householdFresh": true, "current": "rekeyed-candidate", "expect": "retire-profile-library"},
+    {"name": "directory tombstone retires the journal key before cleanup", "state": "cas-unknown", "householdFresh": true, "current": "tombstoned-candidate", "expect": "retire-profile-library"},
+    {"name": "a retired journal key may be discarded after the directory tombstone wins", "state": "cas-unknown", "householdFresh": true, "current": "tombstoned-candidate", "candidateRetired": true, "expect": "discard-journal"},
+    {"name": "a successful CAS response still verifies the fresh directory before adoption", "state": "committed", "householdFresh": false, "omitCurrent": true, "expect": "read-directory"},
+    {"name": "a successful CAS is adopted only from a fresh directory that subsumes it", "state": "committed", "householdFresh": true, "current": "candidate", "expect": "adopt"},
+    {"name": "cancellation also requires a fresh directory read", "state": "cancelling", "householdFresh": false, "omitCurrent": true, "expect": "read-directory"},
+    {"name": "fresh absence permits retirement but not immediate journal discard", "state": "cancelling", "householdFresh": true, "current": "base", "expect": "retire-profile-library"},
+    {"name": "confirmed retirement after fresh absence permits journal discard", "state": "cancelling", "householdFresh": true, "current": "base", "candidateRetired": true, "expect": "discard-journal"},
+    {"name": "cancellation adopts a Kid that the directory already contains", "state": "cancelling", "householdFresh": true, "current": "candidate", "expect": "adopt"},
+    {"name": "active selection still needs fresh directory authority before journal discard", "state": "active", "householdFresh": false, "omitCurrent": true, "expect": "read-directory"},
+    {"name": "active selection discards the completed journal after fresh proof", "state": "active", "householdFresh": true, "current": "candidate", "expect": "discard-journal"},
+    {"name": "post-intent work without durable journal material fails closed", "state": "journaled", "omitJournal": true, "error": "invalid_create_journal"},
+    {"name": "Kid creation requires an owner-selected finite age ceiling", "state": "idle", "explicitIntent": true, "journalMutation": {"path": "/maximumAge", "value": null}, "error": "invalid_create_journal"},
+    {"name": "a ready write requires exact authenticated CAS authority", "state": "ready", "authorityMutation": {"path": "/generation", "value": true}, "error": "invalid_create_authority"}
   ],
   "directoryMergeCases": [
     {
