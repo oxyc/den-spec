@@ -21,6 +21,19 @@ class ProfilesVectorsTests(unittest.TestCase):
         stricter_unknown = {"maximumAge": 13, "unknownRatings": "block"}
         self.assertEqual(validate_profiles.policy_relation(stricter_age, stricter_unknown), "incomparable")
 
+    def test_preference_partition_keeps_unknowns_in_household(self):
+        hidden = {"value": {"bool": True}, "at": [1, 0, "a1b2c3d4e5f60718"]}
+        future = {"value": {"string": "kept"}, "at": [2, 0, "a1b2c3d4e5f60718"]}
+        maturity = {"value": {"string": "r"}, "at": [3, 0, "a1b2c3d4e5f60718"]}
+        self.assertEqual(validate_profiles.partition_preferences({
+            "den.hideWatched": hidden,
+            "future.preference": future,
+            "den.maturityCeiling": maturity,
+        }), {"household": {"future.preference": future},
+             "owner": {"den.hideWatched": hidden}, "ownerMaturity": maturity})
+        with self.assertRaisesRegex(ValueError, "invalid_preferences"):
+            validate_profiles.partition_preferences([])
+
     def test_kid_discovery_uses_audience_intent_and_teen_band(self):
         child = {"maximumAge": 8, "unknownRatings": "block"}
         teen = {"maximumAge": 13, "unknownRatings": "block"}

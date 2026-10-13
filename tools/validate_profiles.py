@@ -402,6 +402,40 @@ def validate_reset(case: dict) -> str:
     return "complete"
 
 
+PROFILE_PREFERENCE_KEYS = {
+    "den.excludedGenreIDs",
+    "den.excludedLanguages",
+    "den.preferredSubtitleLanguage",
+    "den.hasExplicitSubtitlePreference",
+    "den.shownSubtitleLanguages",
+    "den.maxSubtitlesPerLanguage",
+    "den.preferredAudioLanguage",
+    "den.autoSkipSegments",
+    "den.autoplayTrailers",
+    "den.hideAnime",
+    "den.hideWatched",
+    "den.minReleaseYear",
+    "den.enabledRatingSources",
+    "den.shownWarningCategories",
+}
+
+
+def partition_preferences(values: object) -> dict:
+    if not isinstance(values, dict):
+        raise ValueError("invalid_preferences")
+    household = {}
+    owner = {}
+    owner_maturity = None
+    for key, value in values.items():
+        if key in PROFILE_PREFERENCE_KEYS:
+            owner[key] = value
+        elif key == "den.maturityCeiling":
+            owner_maturity = value
+        else:
+            household[key] = value
+    return {"household": household, "owner": owner, "ownerMaturity": owner_maturity}
+
+
 def main() -> int:
     # Loading both files is part of validation: malformed JSON fails before any vector runs.
     schema = json.loads(SCHEMA.read_text())
@@ -510,6 +544,18 @@ def main() -> int:
     for case in vectors["policyOrderingCases"]:
         if policy_relation(case["a"], case["b"]) != case["relation"]:
             fail(f"{case['name']}: policy ordering mismatch")
+
+    for case in vectors["settingsPartitionCases"]:
+        try:
+            actual = partition_preferences(case["values"])
+        except ValueError as error:
+            if str(error) != case.get("error"):
+                fail(f"{case['name']}: wanted {case.get('error')}, got {error}")
+        else:
+            if "error" in case:
+                fail(f"{case['name']}: invalid preferences accepted")
+            if actual != case["expect"]:
+                fail(f"{case['name']}: preference partition mismatch")
     for case in vectors["kidDiscoveryCases"]:
         if "error" in case:
             try:
@@ -679,6 +725,7 @@ def main() -> int:
         f"{len(vectors['approvalWriterCases'])} approval writer, "
         f"{len(vectors['playOnceCases'])} play once, "
         f"{len(vectors['selectionCases'])} selection, "
+        f"{len(vectors['settingsPartitionCases'])} settings partition, "
         f"{len(vectors['migrationCases'])} migration, "
         f"{len(vectors['resetCases'])} reset cases passed"
     )
