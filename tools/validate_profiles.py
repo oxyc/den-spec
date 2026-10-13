@@ -246,6 +246,85 @@ def migration_digest(kind: str, value: object) -> tuple[str, str]:
     return canonical.decode(), hashlib.sha256(canonical).hexdigest()
 
 
+def migration_authorization(value: object) -> dict:
+    """Bind one PIN-authorized Enable Profiles action to one immutable split attempt."""
+    if not isinstance(value, dict) or set(value) != {"intent", "evidence"}:
+        fail("invalid_migration_authorization")
+    intent = value["intent"]
+    if (not isinstance(intent, dict)
+            or set(intent) != {"version", "action", "attempt", "householdId", "source"}
+            or intent.get("version") != 1 or intent.get("action") != "enable-profiles"
+            or not isinstance(intent.get("attempt"), str) or not ID.fullmatch(intent["attempt"])
+            or not isinstance(intent.get("householdId"), str) or not ID.fullmatch(intent["householdId"])):
+        fail("invalid_migration_authorization")
+    source = intent["source"]
+    if (not isinstance(source, dict) or set(source) != {"generation", "head"}
+            or type(source.get("generation")) is not int
+            or not 0 <= source["generation"] <= SAFE_INTEGER
+            or not isinstance(source.get("head"), str) or not DIGEST.fullmatch(source["head"])):
+        fail("invalid_migration_authorization")
+    normalized_intent = copy.deepcopy(intent)
+    intent_digest = hashlib.sha256(canonical_json(normalized_intent)).hexdigest()
+    evidence = value["evidence"]
+    if evidence is None:
+        return {"intent": normalized_intent, "intentDigest": intent_digest, "commitBinding": None}
+    if (not isinstance(evidence, dict)
+            or set(evidence) != {
+                "attempt", "householdId", "fence", "backupDigest", "candidateKey",
+                "candidateHead", "stagedDigest", "wireMin",
+            }
+            or evidence.get("attempt") != intent["attempt"]
+            or evidence.get("householdId") != intent["householdId"]
+            or evidence.get("fence") != source
+            or not isinstance(evidence.get("backupDigest"), str)
+            or not DIGEST.fullmatch(evidence["backupDigest"])
+            or not isinstance(evidence.get("candidateHead"), str)
+            or not DIGEST.fullmatch(evidence["candidateHead"])
+            or not isinstance(evidence.get("stagedDigest"), str)
+            or not DIGEST.fullmatch(evidence["stagedDigest"])
+            or evidence.get("wireMin") != 5):
+        fail("invalid_migration_authorization")
+    validate_candidate_key(evidence.get("candidateKey"))
+    binding = copy.deepcopy(evidence)
+    binding["authorization"] = intent_digest
+    canonical = canonical_json(binding)
+    return {
+        "intent": normalized_intent,
+        "intentDigest": intent_digest,
+        "commitBinding": hashlib.sha256(canonical).hexdigest(),
+    }
+
+
+def validate_split_authorization(value: object, planner: dict) -> None:
+    if (not isinstance(value, dict)
+            or set(value) != {"intent", "intentDigest", "commitBinding"}):
+        fail("migration_authorization_required")
+    prepared = migration_authorization({"intent": value["intent"], "evidence": None})
+    if value["intentDigest"] != prepared["intentDigest"]:
+        fail("invalid_migration_authorization")
+    intent = prepared["intent"]
+    if planner.get("attempt") != intent["attempt"] or planner.get("householdId") != intent["householdId"]:
+        fail("migration_authorization_mismatch")
+    commit_authorized = planner.get("commitAuthorized", False)
+    if not commit_authorized:
+        if value["commitBinding"] is not None:
+            fail("premature_commit_authorization")
+        return
+    evidence = {
+        "attempt": intent["attempt"],
+        "householdId": intent["householdId"],
+        "fence": planner.get("fence"),
+        "backupDigest": planner.get("backupDigest"),
+        "candidateKey": planner.get("candidateKey"),
+        "candidateHead": planner.get("candidateHead"),
+        "stagedDigest": planner.get("stagedDigest"),
+        "wireMin": planner.get("wireMin"),
+    }
+    bound = migration_authorization({"intent": intent, "evidence": evidence})
+    if value["commitBinding"] != bound["commitBinding"]:
+        fail("migration_authorization_mismatch")
+
+
 def unpadded_base64url(value: bytes) -> str:
     return base64.urlsafe_b64encode(value).decode().rstrip("=")
 
@@ -1181,6 +1260,20 @@ def migration_next(value: dict) -> str:
         fail("premature_commit_authorization")
     if state == "commit-unknown" and not commit_authorized:
         fail("commit_authorization_required")
+
+    authorization_required = (
+        (state == "idle" and value.get("explicitIntent", False))
+        or (state == "commit-unknown" and lookup is not None and value.get("householdFresh", False))
+        or (value.get("observed") == "legacy"
+            and state not in ("idle", "commit-unknown", "restore-required"))
+    )
+    if authorization_required:
+        if state == "idle" and "observedFence" not in value:
+            fail("migration_authorization_source_required")
+        if state == "idle":
+            validate_split_authorization(value.get("splitAuthorization"), value)
+            if value["observedFence"] != value["splitAuthorization"]["intent"]["source"]:
+                fail("migration_authorization_source_changed")
     if state == "commit-unknown":
         if lookup is None:
             return "lookup-attempt"
@@ -1218,6 +1311,13 @@ def migration_next(value: dict) -> str:
             fail("invalid_copy_head")
     elif "candidateHead" in value:
         fail("invalid_copy_head")
+
+    if (state == "commit-unknown" and observed == "corrupt"
+            and lookup in ("committed", "superseded")):
+        fail("terminal_household_mismatch")
+
+    if authorization_required and state != "idle":
+        validate_split_authorization(value.get("splitAuthorization"), value)
 
     has_directory = "directory" in value
     directory = value.get("directory")
@@ -1291,25 +1391,42 @@ def migration_next(value: dict) -> str:
         return "discard-journal"
     if state == "commit-unknown":
         if lookup == "open":
-            return "retry-bound-commit" if fence == observed_fence else (
-                "retire-losing-candidate" if candidate is not None and not retired else "restart"
-            )
+            authorized_source = value["splitAuthorization"]["intent"]["source"]
+            if fence != observed_fence or observed_fence != authorized_source:
+                return "retire-losing-candidate" if candidate is not None and not retired else "invalidate-authorization"
+            return "retry-bound-commit"
         if lookup == "aborted":
             return "retire-losing-candidate" if candidate is not None and not retired else "discard-journal"
         fail("terminal_household_mismatch")
-    if fence != observed_fence:
-        return "retire-losing-candidate" if candidate is not None and not retired else "restart"
+    authorized_source = value["splitAuthorization"]["intent"]["source"]
+    if fence != observed_fence or observed_fence != authorized_source:
+        return "retire-losing-candidate" if candidate is not None and not retired else "invalidate-authorization"
     if state in ("backed-up", "owner-copied", "awaiting-confirmation", "ready-to-commit") and not value.get("backupVerified", False):
         fail("invalid_evidence")
     if state in ("owner-copied", "awaiting-confirmation", "ready-to-commit") and candidate is None:
         fail("invalid_evidence")
     if state in ("awaiting-confirmation", "ready-to-commit") and not owner_verified:
         return "verify-owner-library"
+    if state == "awaiting-confirmation":
+        intent = value["splitAuthorization"]["intent"]
+        migration_authorization({
+            "intent": intent,
+            "evidence": {
+                "attempt": intent["attempt"],
+                "householdId": intent["householdId"],
+                "fence": fence,
+                "backupDigest": value.get("backupDigest"),
+                "candidateKey": value.get("candidateKey"),
+                "candidateHead": value.get("candidateHead"),
+                "stagedDigest": value.get("stagedDigest"),
+                "wireMin": value.get("wireMin"),
+            },
+        })
+        return "record-commit-binding"
     answer = {
         "fenced": "create-backup",
         "backed-up": "create-owner-library",
         "owner-copied": "verify-owner-library",
-        "awaiting-confirmation": "await-final-confirmation",
         "ready-to-commit": "commit-fenced-household",
     }.get(state)
     if answer is None:
@@ -1498,6 +1615,19 @@ def main() -> int:
         canonical, digest = migration_digest(case["kind"], case["input"])
         if canonical != case["canonical"] or digest != case["expect"]:
             fail(f"{case['name']}: migration digest mismatch")
+
+    authorization_fixture = vectors["migrationAuthorization"]
+    prepared_authorization = migration_authorization({
+        "intent": copy.deepcopy(authorization_fixture["intent"]), "evidence": None,
+    })
+    bound_authorization = migration_authorization({
+        "intent": copy.deepcopy(authorization_fixture["intent"]),
+        "evidence": copy.deepcopy(authorization_fixture["evidence"]),
+    })
+    if prepared_authorization != authorization_fixture["prepared"]:
+        fail("migration_prepared_authorization_mismatch")
+    if bound_authorization != authorization_fixture["bound"]:
+        fail("migration_bound_authorization_mismatch")
 
     for case in vectors["migrationMaterializeCases"]:
         validate_materialize_case(case)
@@ -1771,23 +1901,26 @@ def main() -> int:
         fail("migration_storage_surface_mismatch")
     expected_order = [
         "open-fence", "create-backup", "verify-backup", "create-owner-library", "copy-owner",
-        "verify-owner", "stage-household", "await-final-confirmation", "record-commit-authorization",
-        "commit-household", "read-winner", "retire-loser", "activate",
+        "verify-owner", "stage-household", "record-commit-binding", "commit-household", "read-winner",
+        "retire-loser", "activate",
     ]
     if storage.get("requiredOrder") != expected_order:
         fail("migration_storage_order_mismatch")
     if storage.get("activation") != {
         "noJournalWithoutCurrentIntent": "no-op",
-        "initialPinActionAuthorizes": "prepare-only",
+        "initialPinActionAuthorizes": "exact-attempt-through-commit",
         "preparedState": "awaiting-confirmation",
-        "preparedRestartEffect": "await-final-confirmation",
-        "finalConfirmRequiresOwnerPin": True,
+        "preparedRestartEffect": "record-commit-binding",
+        "finalConfirmRequiresOwnerPin": False,
         "durableField": "commitAuthorized",
         "durableValueBeforeCommitIo": True,
         "authorizationBoundTo": [
-            "attempt", "fence", "backup", "candidateKey", "candidateHead", "stagedDigest", "wireMin",
+            "action", "attempt", "householdId", "sourceGeneration", "sourceHead", "backupDigest",
+            "candidateKey", "candidateHead", "stagedDigest", "wireMin",
         ],
         "changedBoundEvidenceClearsAuthorization": True,
+        "ordinaryLaunchMayCreateAuthorization": False,
+        "restartMayResume": "exact-authorized-attempt-only",
         "commitUnknownOrder": ["lookup-attempt", "fresh-authenticated-read", "adopt-or-cleanup"],
         "cancelOrder": [
             "abort-attempt", "fresh-authenticated-read", "retire-unreferenced-candidate", "discard-journal",
@@ -1869,6 +2002,49 @@ def main() -> int:
                 mutate_pointer(assembled["fence"], case["fenceMutation"])
             if "observedFenceMutation" in case:
                 mutate_pointer(assembled["observedFence"], case["observedFenceMutation"])
+        needs_authorization = (
+            (case.get("state") == "idle" and case.get("explicitIntent", False))
+            or case.get("state") == "commit-unknown"
+            or (case.get("observed") == "legacy" and case.get("state") not in ("idle", "restore-required"))
+        )
+        if needs_authorization:
+            intent = copy.deepcopy(authorization_fixture["intent"])
+            assembled["attempt"] = intent["attempt"]
+            assembled["householdId"] = intent["householdId"]
+            if case.get("state") == "idle":
+                assembled["observedFence"] = copy.deepcopy(intent["source"])
+            if case.get("state") == "awaiting-confirmation":
+                assembled.setdefault("backupDigest", authorization_fixture["evidence"]["backupDigest"])
+                assembled.setdefault("stagedDigest", authorization_fixture["evidence"]["stagedDigest"])
+                assembled.setdefault("wireMin", 5)
+            if case.get("commitAuthorized", False):
+                evidence = copy.deepcopy(authorization_fixture["evidence"])
+                if case.get("state") == "commit-unknown":
+                    assembled.setdefault("fence", copy.deepcopy(intent["source"]))
+                    assembled.setdefault("backupVerified", True)
+                    assembled.setdefault("candidateKey", evidence["candidateKey"])
+                    assembled.setdefault("candidateHead", evidence["candidateHead"])
+                    assembled.setdefault("ownerVerified", True)
+                for key in ("candidateKey", "candidateHead", "backupDigest", "stagedDigest", "wireMin"):
+                    if key in assembled:
+                        evidence[key] = assembled[key]
+                    elif key in ("backupDigest", "stagedDigest", "wireMin"):
+                        assembled[key] = evidence[key]
+                evidence["fence"] = copy.deepcopy(assembled.get("fence", intent["source"]))
+                try:
+                    assembled["splitAuthorization"] = migration_authorization({
+                        "intent": intent, "evidence": evidence,
+                    })
+                except ValueError:
+                    assembled["splitAuthorization"] = copy.deepcopy(authorization_fixture["prepared"])
+            else:
+                assembled["splitAuthorization"] = copy.deepcopy(authorization_fixture["prepared"])
+            if "splitAuthorizationMutation" in case:
+                mutate_pointer(assembled["splitAuthorization"], case["splitAuthorizationMutation"])
+            if case.get("omitSplitAuthorization", False):
+                assembled.pop("splitAuthorization", None)
+            if "plannerAttempt" in case:
+                assembled["attempt"] = case["plannerAttempt"]
         if case.get("omitState", False):
             assembled.pop("state", None)
         if case.get("omitObserved", False):
