@@ -546,9 +546,10 @@ and the following evidence when applicable:
 - `commitAuthorized` is false or absent throughout preparation and in `awaiting-confirmation`. It is true only after
   the final PIN-verified Confirm has been durably recorded in the exact attempt journal. `ready-to-commit` and
   `commit-unknown` require it; earlier states reject it as premature;
-- `cancelRequested` is a separate explicit owner action. Before any winner exists it aborts the attempt, then retires
-  a candidate only through §8.1's conditional retirement proof, and finally discards the journal. It never deletes a
-  committed or otherwise referenced library;
+- `cancelRequested` is a separate explicit owner action. Before any winner exists it aborts the attempt, records the
+  durable `aborted` lookup, performs a new authenticated household read, then retires a candidate only through
+  §8.1's conditional retirement proof, and finally discards the journal. A pre-abort household observation cannot
+  authorize retirement. Cancellation never deletes a committed or otherwise referenced library;
 - `attemptLookup` is absent until durable attempt lookup completes, then is exactly `open`, `committed`,
   `superseded` or `aborted`; `householdFresh` is true only after a new authenticated household read performed after
   that lookup. A `commit-unknown` journal requires both in that order before it can adopt or clean up;
@@ -583,10 +584,15 @@ After any conflict, timeout or process death, resolve the durable journal as fol
   `await-final-confirmation` once preparation is complete. It can never return `commit-fenced-household`, including
   after restart. Final Confirm is recorded before the state changes to `ready-to-commit` and before commit I/O.
 - `commit-unknown` first returns `lookup-attempt`. Only after that durable result does it return `read-household`.
-  The read is fresh and authenticated; a valid committed directory is adopted, and a distinct local candidate is
-  conditionally retired. An `open` lookup plus the exact unchanged legacy fence may retry only the already-bound,
-  byte-identical authorized commit; it cannot construct a new commit. `aborted` cleans up and discards the journal.
-  A terminal result inconsistent with the fresh household is an error, not permission to guess.
+  This ordering takes precedence over a missing, stale or corrupt household observation: none is interpreted before
+  lookup and the subsequent fresh read. A `committed` lookup is valid only when the fresh directory's migration
+  attempt, Owner key and Owner head are the exact local attempt and verified candidate evidence. A `superseded`
+  lookup is valid only when the fresh directory names a different attempt and that winner's Owner library has been
+  verified; only then may the distinct local candidate be conditionally retired. `committed` with another winner,
+  `superseded` with itself, or any other terminal/directory mismatch is an error and can neither verify a winner nor
+  authorize cleanup. An `open` lookup plus the exact unchanged legacy fence may retry only the already-bound,
+  byte-identical authorized commit; it cannot construct a new commit. `aborted` cleans up and discards the journal
+  only after the same fresh-read checks.
 
 - A valid committed directory is the winner even when its `attempt` differs. Adopt it. If this client created a
   different Owner library, enter `cleaning-loser`; cleanup is idempotent and continues after restart.

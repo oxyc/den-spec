@@ -127,6 +127,28 @@ class ProfilesVectorsTests(unittest.TestCase):
         case["householdFresh"] = True
         self.assertEqual(validate_profiles.migration_next(case), "retry-bound-commit")
 
+        corrupt = {"state": "commit-unknown", "observed": "corrupt", "commitAuthorized": True}
+        self.assertEqual(validate_profiles.migration_next(corrupt), "lookup-attempt")
+        corrupt["attemptLookup"] = "committed"
+        self.assertEqual(validate_profiles.migration_next(corrupt), "read-household")
+        corrupt["householdFresh"] = True
+        with self.assertRaisesRegex(ValueError, "terminal_household_mismatch"):
+            validate_profiles.migration_next(corrupt)
+
+    def test_cancel_reads_fresh_household_after_terminal_abort(self):
+        case = {
+            "state": "awaiting-confirmation", "observed": "legacy",
+            "fence": {"generation": 7, "head": "a" * 64},
+            "observedFence": {"generation": 7, "head": "a" * 64},
+            "backupVerified": True,
+            "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=",
+            "ownerVerified": True, "candidateHead": "c" * 64,
+            "cancelRequested": True, "attemptAborted": True, "attemptLookup": "aborted",
+        }
+        self.assertEqual(validate_profiles.migration_next(case), "read-household")
+        case["householdFresh"] = True
+        self.assertEqual(validate_profiles.migration_next(case), "retire-losing-candidate")
+
     def test_cancelled_same_source_retirement_requires_terminal_abort(self):
         vectors = json.loads(validate_profiles.VECTORS.read_text())
         storage = vectors["migrationStorageContract"]

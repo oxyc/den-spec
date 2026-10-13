@@ -1045,9 +1045,6 @@ def migration_next(value: dict) -> str:
         "commit-unknown", "adopting", "cleaning-loser", "active", "restore-required",
     }:
         fail("invalid_state")
-    observed = value.get("observed")
-    if observed not in ("legacy", "committed", "corrupt"):
-        fail("invalid_observation")
     for name in (
         "explicitIntent", "backupVerified", "ownerVerified", "winnerVerified", "candidateRetired",
         "commitAuthorized", "cancelRequested", "attemptAborted", "householdFresh", "recoveryIntent",
@@ -1065,7 +1062,25 @@ def migration_next(value: dict) -> str:
         "idle", "fenced", "backed-up", "owner-copied", "awaiting-confirmation", "restore-required"
     ):
         fail("premature_commit_authorization")
-    if ((state == "ready-to-commit" and observed == "legacy") or state == "commit-unknown") and not commit_authorized:
+    if state == "commit-unknown" and not commit_authorized:
+        fail("commit_authorization_required")
+    if state == "commit-unknown":
+        if lookup is None:
+            return "lookup-attempt"
+        if not value.get("householdFresh", False):
+            return "read-household"
+    if value.get("cancelRequested", False):
+        if not value.get("attemptAborted", False):
+            return "abort-attempt"
+        if lookup != "aborted":
+            fail("cancel_abort_mismatch")
+        if not value.get("householdFresh", False):
+            return "read-household"
+
+    observed = value.get("observed")
+    if observed not in ("legacy", "committed", "corrupt"):
+        fail("invalid_observation")
+    if state == "ready-to-commit" and observed == "legacy" and not commit_authorized:
         fail("commit_authorization_required")
 
     candidate = validate_candidate_key(value["candidateKey"]) if "candidateKey" in value else None
@@ -1090,11 +1105,6 @@ def migration_next(value: dict) -> str:
     has_directory = "directory" in value
     directory = value.get("directory")
     if observed == "committed":
-        if state == "commit-unknown":
-            if lookup is None:
-                return "lookup-attempt"
-            if not value.get("householdFresh", False):
-                return "read-household"
         if not has_directory:
             fail("committed_directory_missing")
         if not isinstance(directory, dict):
@@ -1108,31 +1118,48 @@ def migration_next(value: dict) -> str:
             for entry in directory["profiles"].values()
             if not entry["deleted"]["value"]
         }
+        owner = directory["owner"]
+        migration = directory["migration"]
+        owns_winner = (
+            candidate is not None
+            and candidate == directory["profiles"][owner]["library"]["value"]["key"]
+            and candidate_attempt == migration["attempt"]
+            and owner_verified
+            and candidate_head == migration["ownerHead"]
+        )
+        if candidate in live_keys and retired:
+            fail("committed_key_retired")
+        if state == "commit-unknown":
+            if lookup == "committed":
+                if not owns_winner:
+                    fail("terminal_directory_mismatch")
+                return "activate" if value.get("winnerVerified", False) else "verify-winner"
+            if lookup == "superseded":
+                if candidate is None or candidate_attempt == migration["attempt"]:
+                    fail("terminal_directory_mismatch")
+                if candidate in live_keys:
+                    fail("terminal_directory_mismatch")
+                if not value.get("winnerVerified", False):
+                    return "verify-winner"
+                return "retire-losing-candidate" if not retired else "activate"
+            fail("terminal_directory_mismatch")
         if candidate in live_keys:
-            if retired:
-                fail("committed_key_retired")
-            owner = directory["owner"]
-            migration = directory["migration"]
-            owns_winner = (
-                candidate == directory["profiles"][owner]["library"]["value"]["key"]
-                and candidate_attempt == migration["attempt"]
-                and owner_verified
-                and candidate_head == migration["ownerHead"]
-            )
             if owns_winner:
                 return "activate" if value.get("winnerVerified", False) else "verify-winner"
             if state == "cleaning-loser":
                 return "cleanup_targets_winner"
             fail("winner_evidence_mismatch")
-        if candidate is not None and not retired:
-            return "retire-losing-candidate"
         if not value.get("winnerVerified", False):
             return "verify-winner"
+        if candidate is not None and not retired:
+            return "retire-losing-candidate"
         return "activate"
     if has_directory:
         fail("invalid_evidence")
 
     if observed == "corrupt":
+        if state == "commit-unknown" and lookup in ("committed", "superseded"):
+            fail("terminal_household_mismatch")
         if state != "restore-required" or not value.get("backupVerified", False):
             return "recovery-blocked"
         return "open-recovery-attempt" if value.get("recoveryIntent", False) else "recovery-blocked"
@@ -1142,16 +1169,10 @@ def migration_next(value: dict) -> str:
     fence = validate_migration_fence(value.get("fence"))
     observed_fence = validate_migration_fence(value.get("observedFence"))
     if value.get("cancelRequested", False):
-        if not value.get("attemptAborted", False):
-            return "abort-attempt"
         if candidate is not None and not retired:
             return "retire-losing-candidate"
         return "discard-journal"
     if state == "commit-unknown":
-        if lookup is None:
-            return "lookup-attempt"
-        if not value.get("householdFresh", False):
-            return "read-household"
         if lookup == "open":
             return "retry-bound-commit" if fence == observed_fence else (
                 "retire-losing-candidate" if candidate is not None and not retired else "restart"
