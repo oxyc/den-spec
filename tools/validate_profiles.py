@@ -384,22 +384,77 @@ def migration_next(value: dict) -> str:
     }.get(state, "invalid_state")
 
 
-def validate_reset(case: dict) -> str:
-    profiles = case["profiles"]
-    live = [profile for profile in profiles if not profile["deleted"]]
-    if any(profile["newVersion"] != profile["oldVersion"] + 1 for profile in live):
-        return "invalid_key_version"
-    old_keys = {profile["oldKey"] for profile in live}
-    new_keys = [profile["newKey"] for profile in live]
-    if len(set(new_keys)) != len(new_keys) or old_keys.intersection(new_keys):
-        return "reused_key"
-    if any(not profile["verified"] for profile in live):
-        return "move-live-profiles"
+def validate_reset(case: dict, directory: dict, fence: dict) -> dict:
+    validate_directory(directory, require_migration=True)
+    if (not isinstance(fence, dict) or set(fence) != {"generation", "head"}
+            or not isinstance(fence["generation"], int) or isinstance(fence["generation"], bool)
+            or not 0 <= fence["generation"] <= 9007199254740991
+            or not isinstance(fence["head"], str) or not DIGEST.fullmatch(fence["head"])):
+        fail("invalid_reset_fence")
+    profiles = case.get("profiles")
+    if not isinstance(profiles, list):
+        fail("invalid_reset_profiles")
+    live = {profile_id: entry for profile_id, entry in directory["profiles"].items()
+            if not entry["deleted"]["value"]}
+    evidence = {}
+    for profile in profiles:
+        if not isinstance(profile, dict) or not isinstance(profile.get("profile"), str):
+            fail("invalid_reset_profiles")
+        profile_id = profile["profile"]
+        if profile_id in evidence:
+            fail("invalid_reset_profiles")
+        evidence[profile_id] = profile
+    if set(evidence) != set(live):
+        fail("invalid_reset_profiles")
+
+    old_keys = {entry["library"]["value"]["key"] for entry in live.values()}
+    new_keys = set()
+    pending = []
+    unretired = []
+    for profile_id in sorted(live):
+        profile = evidence[profile_id]
+        current = live[profile_id]["library"]["value"]
+        if profile.get("oldKey") != current["key"] or profile.get("oldVersion") != current["keyVersion"]:
+            fail("profile_state_mismatch")
+        if profile.get("newVersion") != current["keyVersion"] + 1:
+            fail("invalid_key_version")
+        key = profile.get("newKey")
+        try:
+            raw_key = base64.b64decode(key, validate=True)
+        except (TypeError, ValueError):
+            fail("invalid_library_key")
+        if len(raw_key) != 32 or base64.b64encode(raw_key).decode() != key:
+            fail("invalid_library_key")
+        if key in old_keys or key in new_keys:
+            fail("reused_key")
+        new_keys.add(key)
+        if not isinstance(profile.get("verified"), bool) or not isinstance(profile.get("oldRetired"), bool):
+            fail("invalid_reset_profiles")
+        copied_head = profile.get("copiedHead")
+        if profile["verified"]:
+            if not isinstance(copied_head, str) or not DIGEST.fullmatch(copied_head):
+                fail("invalid_copy_head")
+        elif copied_head is not None:
+            fail("invalid_copy_head")
+        if not profile["verified"]:
+            pending.append(profile_id)
+        if not profile["oldRetired"]:
+            unretired.append(profile_id)
+
+    if not isinstance(case.get("householdCommitted"), bool) or not isinstance(case.get("oldHouseholdRetired"), bool):
+        fail("invalid_reset_profiles")
+    if not case["householdCommitted"] and (case["oldHouseholdRetired"] or unretired != sorted(live)):
+        fail("premature_retirement")
+    if case["householdCommitted"] and pending:
+        fail("commit_without_verification")
+    if pending:
+        return {"effect": "move-live-profiles", "profiles": pending}
     if not case["householdCommitted"]:
-        return "commit-successor-household"
-    if any(not profile["oldRetired"] for profile in live) or not case["oldHouseholdRetired"]:
-        return "retire-old-libraries"
-    return "complete"
+        return {"effect": "commit-successor-household"}
+    if unretired or not case["oldHouseholdRetired"]:
+        return {"effect": "retire-old-libraries", "profiles": unretired,
+                "household": not case["oldHouseholdRetired"]}
+    return {"effect": "complete"}
 
 
 PROFILE_PREFERENCE_KEYS = {
@@ -688,8 +743,31 @@ def main() -> int:
             fail(f"{case['name']}: migration decision mismatch")
 
     for case in vectors["resetCases"]:
-        if validate_reset(case) != case["expect"]:
-            fail(f"{case['name']}: reset decision mismatch")
+        directory = copy.deepcopy(base)
+        if "directoryMutate" in case:
+            mutate_pointer(directory, case["directoryMutate"])
+        fence = copy.deepcopy(vectors["resetFence"])
+        if "fenceMutate" in case:
+            mutate_pointer(fence, case["fenceMutate"])
+        profiles = copy.deepcopy(vectors["resetProfiles"])
+        for mutation in case.get("profileMutations", []):
+            mutate_pointer(profiles, mutation)
+        if "removeProfile" in case:
+            profiles.pop(case["removeProfile"])
+        assembled = copy.deepcopy(case)
+        assembled["profiles"] = list(profiles.values())
+        if "duplicateProfile" in case:
+            assembled["profiles"].append(copy.deepcopy(profiles[case["duplicateProfile"]]))
+        try:
+            actual = validate_reset(assembled, directory, fence)
+        except ValueError as error:
+            if str(error) != case.get("error"):
+                fail(f"{case['name']}: wanted {case.get('error')}, got {error}")
+        else:
+            if "error" in case:
+                fail(f"{case['name']}: invalid reset evidence accepted")
+            if actual != case["expect"]:
+                fail(f"{case['name']}: reset decision mismatch")
 
     topology = vectors["wireTopology"]
     expected = {

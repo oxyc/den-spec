@@ -1,3 +1,5 @@
+import copy
+import json
 import unittest
 
 import validate_profiles
@@ -75,16 +77,17 @@ class ProfilesVectorsTests(unittest.TestCase):
         self.assertEqual(validate_profiles.migration_next(case), "cleanup_targets_winner")
 
     def test_reset_waits_for_every_live_profile(self):
-        case = {
-            "householdCommitted": False, "oldHouseholdRetired": False,
-            "profiles": [
-                {"oldKey": "a", "newKey": "b", "oldVersion": 1, "newVersion": 2,
-                 "deleted": False, "verified": True, "oldRetired": False},
-                {"oldKey": "c", "newKey": "d", "oldVersion": 1, "newVersion": 2,
-                 "deleted": False, "verified": False, "oldRetired": False},
-            ],
-        }
-        self.assertEqual(validate_profiles.validate_reset(case), "move-live-profiles")
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        profiles = copy.deepcopy(vectors["resetProfiles"])
+        owner = profiles["00112233445566778899aabbccddeeff"]
+        owner["verified"] = True
+        owner["copiedHead"] = "a" * 64
+        case = {"householdCommitted": False, "oldHouseholdRetired": False,
+                "profiles": list(profiles.values())}
+        self.assertEqual(validate_profiles.validate_reset(
+            case, vectors["validDirectories"][0]["document"], vectors["resetFence"]),
+            {"effect": "move-live-profiles",
+             "profiles": ["11112222333344445555666677778888", "9999aaaabbbbccccddddeeeeffff0000"]})
 
 
 if __name__ == "__main__":
