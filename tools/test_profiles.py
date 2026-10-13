@@ -132,28 +132,49 @@ class ProfilesVectorsTests(unittest.TestCase):
         self.assertTrue(storage["open"]["concurrentAttemptsOnSameSnapshotShareGeneration"])
         self.assertTrue(storage["open"]["restoreNeverReusesGeneration"])
 
-    def test_preparation_restart_cannot_commit_without_durable_final_confirmation(self):
+    def test_one_pin_action_resumes_exact_attempt_and_binds_commit_without_second_prompt(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        fixture = vectors["migrationAuthorization"]
         prepared = {
             "state": "awaiting-confirmation", "observed": "legacy",
+            "attempt": fixture["intent"]["attempt"],
+            "householdId": fixture["intent"]["householdId"],
+            "splitAuthorization": copy.deepcopy(fixture["prepared"]),
             "fence": {"generation": 7, "head": "a" * 64},
             "observedFence": {"generation": 7, "head": "a" * 64},
             "backupVerified": True,
+            "backupDigest": "b" * 64,
             "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=",
             "ownerVerified": True, "candidateHead": "c" * 64,
+            "stagedDigest": "d" * 64, "wireMin": 5,
         }
-        self.assertEqual(validate_profiles.migration_next(prepared), "await-final-confirmation")
+        self.assertEqual(validate_profiles.migration_next(prepared), "record-commit-binding")
         prepared["state"] = "ready-to-commit"
         with self.assertRaisesRegex(ValueError, "commit_authorization_required"):
             validate_profiles.migration_next(prepared)
         prepared["commitAuthorized"] = True
+        prepared["splitAuthorization"] = copy.deepcopy(fixture["bound"])
         self.assertEqual(validate_profiles.migration_next(prepared), "commit-fenced-household")
+
+        prepared["observedFence"]["head"] = "e" * 64
+        self.assertEqual(validate_profiles.migration_next(prepared), "retire-losing-candidate")
+        prepared["candidateRetired"] = True
+        self.assertEqual(validate_profiles.migration_next(prepared), "invalidate-authorization")
 
     def test_commit_unknown_requires_lookup_then_fresh_authenticated_read(self):
         case = {
             "state": "commit-unknown", "observed": "legacy",
+            "attempt": "0123456789abcdef0123456789abcdef",
+            "householdId": "5e1ab5db12f9b30e640e3ee80fb3e072",
+            "splitAuthorization": json.loads(validate_profiles.VECTORS.read_text())["migrationAuthorization"]["bound"],
             "fence": {"generation": 7, "head": "a" * 64},
             "observedFence": {"generation": 7, "head": "a" * 64},
             "commitAuthorized": True,
+            "backupDigest": "b" * 64,
+            "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=",
+            "candidateHead": "c" * 64, "ownerVerified": True,
+            "stagedDigest": "d" * 64,
+            "wireMin": 5,
         }
         self.assertEqual(validate_profiles.migration_next(case), "lookup-attempt")
         case["attemptLookup"] = "open"
@@ -161,7 +182,15 @@ class ProfilesVectorsTests(unittest.TestCase):
         case["householdFresh"] = True
         self.assertEqual(validate_profiles.migration_next(case), "retry-bound-commit")
 
-        corrupt = {"state": "commit-unknown", "observed": "corrupt", "commitAuthorized": True}
+        corrupt = {
+            "state": "commit-unknown", "observed": "corrupt", "commitAuthorized": True,
+            "attempt": case["attempt"], "householdId": case["householdId"],
+            "splitAuthorization": case["splitAuthorization"],
+            "fence": case["fence"], "backupDigest": case["backupDigest"],
+            "candidateKey": case["candidateKey"], "candidateHead": case["candidateHead"],
+            "ownerVerified": True,
+            "stagedDigest": case["stagedDigest"], "wireMin": 5,
+        }
         self.assertEqual(validate_profiles.migration_next(corrupt), "lookup-attempt")
         corrupt["attemptLookup"] = "committed"
         self.assertEqual(validate_profiles.migration_next(corrupt), "read-household")
@@ -170,13 +199,19 @@ class ProfilesVectorsTests(unittest.TestCase):
             validate_profiles.migration_next(corrupt)
 
     def test_cancel_reads_fresh_household_after_terminal_abort(self):
+        fixture = json.loads(validate_profiles.VECTORS.read_text())["migrationAuthorization"]
         case = {
             "state": "awaiting-confirmation", "observed": "legacy",
+            "attempt": fixture["intent"]["attempt"],
+            "householdId": fixture["intent"]["householdId"],
+            "splitAuthorization": fixture["prepared"],
             "fence": {"generation": 7, "head": "a" * 64},
             "observedFence": {"generation": 7, "head": "a" * 64},
             "backupVerified": True,
+            "backupDigest": "b" * 64,
             "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=",
             "ownerVerified": True, "candidateHead": "c" * 64,
+            "stagedDigest": "d" * 64, "wireMin": 5,
             "cancelRequested": True, "attemptAborted": True, "attemptLookup": "aborted",
         }
         self.assertEqual(validate_profiles.migration_next(case), "read-household")

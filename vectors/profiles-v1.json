@@ -491,6 +491,59 @@
     "generation": 7,
     "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
+  "migrationAuthorization": {
+    "intent": {
+      "version": 1,
+      "action": "enable-profiles",
+      "attempt": "0123456789abcdef0123456789abcdef",
+      "householdId": "5e1ab5db12f9b30e640e3ee80fb3e072",
+      "source": {
+        "generation": 7,
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "prepared": {
+      "intent": {
+        "version": 1,
+        "action": "enable-profiles",
+        "attempt": "0123456789abcdef0123456789abcdef",
+        "householdId": "5e1ab5db12f9b30e640e3ee80fb3e072",
+        "source": {
+          "generation": 7,
+          "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      },
+      "intentDigest": "8dc337fda7f596b065a0b94f119ac361316a748d02a001871299ca0949e96c3a",
+      "commitBinding": null
+    },
+    "evidence": {
+      "attempt": "0123456789abcdef0123456789abcdef",
+      "householdId": "5e1ab5db12f9b30e640e3ee80fb3e072",
+      "fence": {
+        "generation": 7,
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "backupDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=",
+      "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "stagedDigest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "wireMin": 5
+    },
+    "bound": {
+      "intent": {
+        "version": 1,
+        "action": "enable-profiles",
+        "attempt": "0123456789abcdef0123456789abcdef",
+        "householdId": "5e1ab5db12f9b30e640e3ee80fb3e072",
+        "source": {
+          "generation": 7,
+          "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      },
+      "intentDigest": "8dc337fda7f596b065a0b94f119ac361316a748d02a001871299ca0949e96c3a",
+      "commitBinding": "e7de29e9391ed9e7ea519ee437a1afe72ec4956bd852f474c78d743312ef867b"
+    }
+  },
   "migrationDigestCases": [
     {
       "name": "source authority includes the private migration generation",
@@ -578,8 +631,7 @@
       "copy-owner",
       "verify-owner",
       "stage-household",
-      "await-final-confirmation",
-      "record-commit-authorization",
+      "record-commit-binding",
       "commit-household",
       "read-winner",
       "retire-loser",
@@ -587,14 +639,16 @@
     ],
     "activation": {
       "noJournalWithoutCurrentIntent": "no-op",
-      "initialPinActionAuthorizes": "prepare-only",
+      "initialPinActionAuthorizes": "exact-attempt-through-commit",
       "preparedState": "awaiting-confirmation",
-      "preparedRestartEffect": "await-final-confirmation",
-      "finalConfirmRequiresOwnerPin": true,
+      "preparedRestartEffect": "record-commit-binding",
+      "finalConfirmRequiresOwnerPin": false,
       "durableField": "commitAuthorized",
       "durableValueBeforeCommitIo": true,
-      "authorizationBoundTo": ["attempt", "fence", "backup", "candidateKey", "candidateHead", "stagedDigest", "wireMin"],
+      "authorizationBoundTo": ["action", "attempt", "householdId", "sourceGeneration", "sourceHead", "backupDigest", "candidateKey", "candidateHead", "stagedDigest", "wireMin"],
       "changedBoundEvidenceClearsAuthorization": true,
+      "ordinaryLaunchMayCreateAuthorization": false,
+      "restartMayResume": "exact-authorized-attempt-only",
       "commitUnknownOrder": ["lookup-attempt", "fresh-authenticated-read", "adopt-or-cleanup"],
       "cancelOrder": ["abort-attempt", "fresh-authenticated-read", "retire-unreferenced-candidate", "discard-journal"],
       "restoreAuthorization": "separate-owner-pin-and-fresh-restore-attempt"
@@ -812,14 +866,17 @@
   "migrationCases": [
     {"name": "explicit intent first acquires a fence", "state": "idle", "observed": "legacy", "explicitIntent": true, "expect": "acquire-fence"},
     {"name": "no journal and no explicit intent performs no work", "state": "idle", "observed": "legacy", "explicitIntent": false, "expect": "no-op"},
+    {"name": "old explicit-intent input without exact authorization fails closed", "state": "idle", "observed": "legacy", "explicitIntent": true, "omitSplitAuthorization": true, "error": "migration_authorization_required"},
+    {"name": "authorization cannot be copied to another attempt", "state": "idle", "observed": "legacy", "explicitIntent": true, "plannerAttempt": "fedcba9876543210fedcba9876543210", "error": "migration_authorization_mismatch"},
     {"name": "backup precedes any Owner destination write", "state": "fenced", "observed": "legacy", "expect": "create-backup"},
     {"name": "verified backup permits Owner creation", "state": "backed-up", "observed": "legacy", "backupVerified": true, "expect": "create-owner-library"},
     {"name": "copied Owner must be verified", "state": "owner-copied", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "expect": "verify-owner-library"},
-    {"name": "prepared journal stops for final confirmation", "state": "awaiting-confirmation", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "commitAuthorized": false, "expect": "await-final-confirmation"},
-    {"name": "unconfirmed prepared journal still stops after restart", "state": "awaiting-confirmation", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "expect": "await-final-confirmation"},
+    {"name": "prepared journal records its exact commit binding without another prompt", "state": "awaiting-confirmation", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "commitAuthorized": false, "expect": "record-commit-binding"},
+    {"name": "restart resumes the exact authorized attempt without another prompt", "state": "awaiting-confirmation", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "expect": "record-commit-binding"},
     {"name": "authorization cannot be recorded before preparation finishes", "state": "owner-copied", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "commitAuthorized": true, "error": "premature_commit_authorization"},
-    {"name": "ready state without durable final authorization cannot commit", "state": "ready-to-commit", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "commitAuthorized": false, "error": "commit_authorization_required"},
-    {"name": "only a confirmed head-bound verified Owner permits commit", "state": "ready-to-commit", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "commitAuthorized": true, "expect": "commit-fenced-household"},
+    {"name": "ready state without the durable exact-attempt binding cannot commit", "state": "ready-to-commit", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "commitAuthorized": false, "error": "commit_authorization_required"},
+    {"name": "the PIN-authorized exact-attempt binding permits automatic commit", "state": "ready-to-commit", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "commitAuthorized": true, "expect": "commit-fenced-household"},
+    {"name": "tampered exact-attempt binding cannot commit", "state": "ready-to-commit", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "commitAuthorized": true, "splitAuthorizationMutation": {"path": "/commitBinding", "value": "0000000000000000000000000000000000000000000000000000000000000000"}, "error": "migration_authorization_mismatch"},
     {"name": "verified Owner without a copied head is rejected", "state": "ready-to-commit", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "commitAuthorized": true, "error": "invalid_copy_head"},
     {"name": "ready journal without backup evidence is rejected", "state": "ready-to-commit", "observed": "legacy", "backupVerified": false, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "commitAuthorized": true, "error": "invalid_evidence"},
     {"name": "unknown commit without durable final authorization is contradictory", "state": "commit-unknown", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "commitAuthorized": false, "error": "commit_authorization_required"},

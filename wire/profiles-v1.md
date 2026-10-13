@@ -94,7 +94,7 @@ no v1 attempt lookup, restore or other migration effect against a household whos
 Clients MUST decode capability conservatively. `404` from an explicitly requested migration operation means that
 preparation is unavailable for that household; it is not a successful empty attempt and causes no local state
 transition. Merely observing `prepare`, probing a route, receiving a successful authenticated open, or caching a
-directory never supplies §8's owner intent, final confirmation or recovery authorization. Only the explicit
+directory never supplies §8's owner intent, exact-attempt authorization or recovery authorization. Only the explicit
 PIN-gated actions and durable state machine in §8 may do so.
 
 The household key seals the directory, including all profile keys. Profiles are UX and data-isolation boundaries,
@@ -567,21 +567,23 @@ expiry.
 
 ## 8. Initial split: explicit, backed up and fenced
 
-The split starts only from an explicit owner action after the owner PIN is verified. That first action authorizes
-**preparation and rehearsal only**: opening the attempt, verifying the backup, constructing and verifying the Owner
-library, and staging the household candidate. It does not authorize the destructive household commit. Upgrade,
-launch, opening these vectors, creating a directory in memory, or merely seeing a capable peer MUST NOT start it.
-With no journal and no current PIN-verified owner action, the planner returns `no-op` and performs no storage I/O.
+The split starts only when Owner explicitly chooses **Enable Profiles** and supplies a fresh valid owner PIN. That
+single action authorizes preparation, verification and the final household commit for exactly one attempt. It does
+not authorize migrations generally. Before prompting, the client freshly authenticates and reads the source; before
+the first storage effect it chooses the random attempt id and durably records the den-core-produced
+`splitAuthorization`. Its intent digest covers `enable-profiles`, version 1, the attempt, household id, and the
+observed source generation/head. Upgrade, launch, opening these vectors, creating a directory in memory, merely
+seeing a capable peer, or possessing an old journal without that exact authorization MUST NOT start a split. With no
+journal and no current PIN-authorized action, the planner returns `no-op` and performs no storage I/O.
 
-Before the first storage effect, the client durably creates a local journal keyed by a random `attempt`; it never
-writes intermediate migration state to the shared log. A journal may resume preparation after process death without
-asking for the PIN again, but it MUST stop at `awaiting-confirmation`. The final **Confirm** is a distinct
-owner-PIN-verified action. It atomically and durably changes that same attempt journal to
-`{state: "ready-to-commit", commitAuthorized: true}` before any commit request is issued. `commitAuthorized` belongs
-to that immutable attempt and its recorded fence, verified backup, candidate key/head and staged digest. Changing or
-replacing any of those facts clears the authorization and returns to `awaiting-confirmation`; copying the boolean to
-another journal is invalid evidence. A crash before the durable transition leaves an unconfirmed journal. A crash
-after it may resume only the exact authorized commit/recovery sequence below.
+The journal may automatically resume that exact authorized attempt after process death. Once backup, Owner and
+staged-household verification finish, den-core derives a commit binding over the intent digest, attempt, household
+id, source fence, backup digest, candidate key/head, staged digest and wire minimum 5. The client durably records
+that binding as `{state: "ready-to-commit", commitAuthorized: true}` before issuing commit I/O; this is a mechanical
+continuation of the original action and requires no second PIN or confirmation. `commitAuthorized` without the exact
+den-core binding is invalid. Changing any bound value invalidates the authorization, and a new explicit Enable
+Profiles action plus fresh PIN is required. Copying either the boolean or binding to another journal is invalid
+evidence. Recovery remains a separate owner-PIN action and cannot inherit or broaden split authorization.
 
 The states and only permitted next effects are:
 
@@ -591,8 +593,8 @@ The states and only permitted next effects are:
 | `fenced` | source fence | Create a complete backup at that exact fence; verify its digest and readability |
 | `backed-up` | source fence plus verified backup | Create one random Owner key/library and copy the Owner partition |
 | `owner-copied` | candidate library id/key | Verify every source row is accounted for and derived state and delivery pending state agree |
-| `awaiting-confirmation` | all preparation evidence, `commitAuthorized: false` | Stop and present the exact prepared result; no commit I/O is permitted |
-| `ready-to-commit` | all prior evidence and durable `commitAuthorized: true` | Commit the already staged configuration-only household form as `{base, wireMin: 5}` |
+| `awaiting-confirmation` | all preparation evidence, prepared exact-attempt authorization, `commitAuthorized: false` | Derive and durably record the exact commit binding; do not prompt again |
+| `ready-to-commit` | all prior evidence, exact commit binding and durable `commitAuthorized: true` | Commit the already staged configuration-only household form as `{base, wireMin: 5}` |
 | `commit-unknown` | durable authorization and an attempted commit | Look up the attempt, then freshly authenticate/read the household; never guess from a request outcome |
 | `adopting` | a valid committed directory | Open and verify its Owner library, then make its profile the local active mode |
 | `cleaning-loser` | winner and a distinct local candidate | Retire/delete only the unreferenced candidate; repeat until absence is confirmed |
@@ -615,10 +617,14 @@ den-edge alone selects a concurrent winner by accepting one fence. `profiles_mig
 the canonical pure decision operation. Its input contains `state`, `observed` (`legacy`, `committed` or `corrupt`),
 and the following evidence when applicable:
 
-- `explicitIntent` is true before `idle` may return `acquire-fence`;
-- `commitAuthorized` is false or absent throughout preparation and in `awaiting-confirmation`. It is true only after
-  the final PIN-verified Confirm has been durably recorded in the exact attempt journal. `ready-to-commit` and
-  `commit-unknown` require it; earlier states reject it as premature;
+- `explicitIntent` is true before `idle` may return `acquire-fence`. It is accepted only with the exact
+  `splitAuthorization` returned for the current PIN-verified Enable Profiles action, plus matching `attempt`,
+  `householdId` and fresh `observedFence`;
+- `commitAuthorized` is false or absent throughout preparation. At `awaiting-confirmation`, the planner validates
+  `backupDigest`, `candidateKey`, `candidateHead`, `stagedDigest` and `wireMin: 5`, then returns
+  `record-commit-binding`. The client calls `profiles_migration_authorization` with that evidence, durably stores its
+  result and advances to `ready-to-commit` without user interaction. `ready-to-commit` and `commit-unknown` require
+  the exact binding; earlier states reject a binding as premature;
 - `cancelRequested` is a separate explicit owner action. Before any winner exists it aborts the attempt, records the
   durable `aborted` lookup, performs a new authenticated household read, then retires a candidate only through
   §8.1's conditional retirement proof, and finally discards the journal. A pre-abort household observation cannot
@@ -627,7 +633,7 @@ and the following evidence when applicable:
   `superseded` or `aborted`; `householdFresh` is true only after a new authenticated household read performed after
   that lookup. A `commit-unknown` journal requires both in that order before it can adopt or clean up;
 - `recoveryIntent` is true only for a new owner-PIN-verified Restore action. It is not carried from split preparation
-  or final commit confirmation and authorizes only opening a fresh `purpose: "restore"` attempt;
+  action or derived commit binding and authorizes only opening a fresh `purpose: "restore"` attempt;
 - `fence` is the journal's `{generation, head}` and `observedFence` is the legacy household's current pair. Both use
   a nonnegative safe-integer generation and a 32-byte lowercase-hex head. Post-`idle` legacy states require both;
 - `directory` is the stored, canonically validated committed directory. It is required for a `committed`
@@ -637,6 +643,18 @@ and the following evidence when applicable:
 - `candidateKey`, when a candidate exists, is its canonical padded base64 32-byte library key.
   `candidateAttempt` is the local journal's random attempt id when comparing that candidate with a committed
   directory, and `candidateRetired` reports confirmed absence.
+
+`profiles_migration_authorization({intent, evidence})` is the only operation that constructs the durable
+authorization value. `intent` has exactly `{version: 1, action: "enable-profiles", attempt, householdId, source}`;
+`source` is exactly `{generation, head}`. With `evidence: null`, it returns
+`{intent, intentDigest, commitBinding: null}`, where `intentDigest` is SHA-256 of the intent's RFC 8785 bytes. The
+caller may request this form only while handling the fresh-PIN Enable Profiles action. With evidence, the input has
+exactly `{attempt, householdId, fence, backupDigest, candidateKey, candidateHead, stagedDigest, wireMin}`. The first
+three identities must equal the intent, every digest is lowercase 32-byte hex, the key is canonical padded base64 for
+32 bytes, and `wireMin` is exactly 5. The operation returns the same intent and intent digest plus `commitBinding`,
+SHA-256 of RFC 8785 `{authorization: intentDigest, ...evidence}`. The planner independently recomputes both digests;
+clients cannot assert them with a boolean. These digests bind authority logically and cryptographically to journal
+evidence; the device's secure journal protects the authorization object at rest.
 
 The operation validates all supplied evidence before deciding. A local candidate is the committed Owner only when
 its `candidateAttempt`, `candidateKey` and verified `candidateHead` equal the directory's immutable migration
@@ -653,9 +671,11 @@ success from their own request outcome.
 
 After any conflict, timeout or process death, resolve the durable journal as follows:
 
-- An unconfirmed `awaiting-confirmation` journal may resume verification or be cancelled, but MUST return
-  `await-final-confirmation` once preparation is complete. It can never return `commit-fenced-household`, including
-  after restart. Final Confirm is recorded before the state changes to `ready-to-commit` and before commit I/O.
+- An `awaiting-confirmation` journal with the exact prepared authorization may resume verification or be cancelled.
+  Once preparation is complete it returns `record-commit-binding`; after that den-core result is durably recorded it
+  advances to `ready-to-commit` and continues without another prompt. A missing, malformed, copied, source-stale or
+  evidence-mismatched authorization never reaches commit. Restart may resume only the byte-identical authorized
+  attempt and cannot manufacture authorization from a capable server or an ordinary launch.
 - `commit-unknown` first returns `lookup-attempt`. Only after that durable result does it return `read-household`.
   This ordering takes precedence over a missing, stale or corrupt household observation: none is interpreted before
   lookup and the subsequent fresh read. A `committed` lookup is valid only when the fresh directory's migration
@@ -672,12 +692,13 @@ After any conflict, timeout or process death, resolve the durable journal as fol
 - Cleanup MUST compare the candidate key with every live key in the committed directory. Equal or referenced means
   `cleanup_targets_winner` and no delete. Only a distinct, unreferenced candidate may be retired. Absence counts as
   success, so a retry cannot create a storage-counting orphan.
-- If the household remains legacy and the original fence still matches, resume the journal's next effect. If its
-  fence changed, retire any candidate, discard only the attempt journal, and restart from `idle` on explicit intent.
+- If the household remains legacy and the original fence and authorization source still match, resume the journal's
+  next effect. If either changed, retire any candidate, discard the attempt and its authorization, and return to
+  `idle`; only a new explicit Enable Profiles action with a fresh owner PIN may start another attempt.
 - An atomic fenced rewrite failure leaves the old household authoritative; do not restore over it. An unreadable or
   partial household with no valid committed directory enters `restore-required`. Recovery first proves the backup's
   digest and source fence, then stops. A new owner-PIN-verified Restore action opens a fresh recovery attempt and
-  restores only if den-core answers `restore-backup`. Split intent, preparation and final commit confirmation do not
+  restores only if den-core answers `restore-backup`. Split intent, preparation and commit binding do not
   authorize restore. A backup
   MUST NOT restore over a valid wire-5 directory or lower its minimum.
 - A valid committed directory whose Owner library cannot yet be verified remains `adopting`; it never falls back to
