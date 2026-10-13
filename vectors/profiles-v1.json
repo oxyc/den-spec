@@ -491,6 +491,141 @@
     "generation": 7,
     "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
+  "migrationStorageContract": {
+    "publicSyncGenerationType": "opaque-string",
+    "transactionGenerationType": "safe-integer",
+    "sameGenerationNamespace": false,
+    "transactionGenerationAllocation": "monotone-per-household-on-visible-mutation",
+    "routes": {
+      "openOrLookup": "POST /lib/{household}/profile-migration",
+      "lookup": "GET /lib/{household}/profile-migration/{attempt}",
+      "abort": "DELETE /lib/{household}/profile-migration/{attempt}",
+      "backupCreate": "POST /lib/{household}/profile-migration/{attempt}/backup",
+      "backupRead": "GET /lib/{household}/profile-migration/{attempt}/backup",
+      "stageRows": "POST /lib/{household}/profile-migration/{attempt}/rows",
+      "commit": "POST /lib/{household}/profile-migration/{attempt}/commit",
+      "retireCandidate": "POST /lib/{household}/profile-migration/{attempt}/retire-candidate"
+    },
+    "requiredOrder": [
+      "open-fence",
+      "create-backup",
+      "verify-backup",
+      "create-owner-library",
+      "copy-owner",
+      "verify-owner",
+      "stage-household",
+      "commit-household",
+      "read-winner",
+      "retire-loser",
+      "activate"
+    ],
+    "open": {
+      "attempt": "0123456789abcdef0123456789abcdef",
+      "householdId": "5e1ab5db12f9b30e640e3ee80fb3e072",
+      "householdKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "fence": {
+        "generation": 7,
+        "base": 418,
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "rewrite": "rewrite-0123456789abcdef"
+      },
+      "reopenReturnsSameFence": true,
+      "survivesClientRestart": true,
+      "survivesServerRestart": true,
+      "idleExpiry": false,
+      "terminalLookupRetained": true,
+      "ordinaryWritesRemainAvailable": true,
+      "concurrentAttemptsCommitByFence": true,
+      "concurrentAttemptsOnSameSnapshotShareGeneration": true,
+      "restoreNeverReusesGeneration": true,
+      "terminalStates": ["committed", "superseded", "aborted"]
+    },
+    "backup": {
+      "id": "backup-0123456789abcdef",
+      "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "source": {
+        "generation": 7,
+        "base": 418,
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "rewrite": "rewrite-0123456789abcdef"
+      },
+      "readable": true,
+      "complete": true,
+      "dryRestoreVerified": true,
+      "destinationWritesBeforeVerification": 0
+    },
+    "commit": {
+      "sameHouseholdId": true,
+      "sameHouseholdToken": true,
+      "source": {
+        "generation": 7,
+        "base": 418,
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "rewrite": "rewrite-0123456789abcdef"
+      },
+      "backup": {
+        "id": "backup-0123456789abcdef",
+        "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "stagedDigest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "wireMin": 5,
+      "atomicRowsAndMinimum": true,
+      "terminalResultDurable": true
+    },
+    "retirementBase": {
+      "source": {
+        "generation": 7,
+        "base": 418,
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "rewrite": "rewrite-0123456789abcdef"
+      },
+      "authority": {
+        "generation": 8,
+        "base": 6,
+        "head": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "kind": "committed"
+      },
+      "currentAuthority": {
+        "generation": 8,
+        "base": 6,
+        "head": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "kind": "committed"
+      },
+      "household": {
+        "libraryId": "5e1ab5db12f9b30e640e3ee80fb3e072",
+        "libraryKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      },
+      "candidate": {
+        "libraryId": "a843993944cb93c888c3cc591151b198",
+        "libraryKey": "REREREREREREREREREREREREREREREREREREREREREQ=",
+        "present": true,
+        "authorized": true
+      },
+      "directoryValid": true,
+      "profilesRowMatches": true,
+      "protectedLibraryIds": [
+        "5e1ab5db12f9b30e640e3ee80fb3e072",
+        "549ac264f008135c25d6754c58fefee6",
+        "98ec5ea0423097fc2d73cea29c24bd2f",
+        "7b925d85cbeac7cf05bac1afb6f35629"
+      ]
+    },
+    "retirementCases": [
+      {"name": "a fresh committed directory can retire a distinct unreferenced candidate", "expect": "retired"},
+      {"name": "an already absent candidate is idempotent success", "mutations": [{"path": "/candidate/present", "value": false}], "expect": "absent"},
+      {"name": "the household can never be the candidate", "mutations": [{"path": "/candidate/libraryId", "value": "5e1ab5db12f9b30e640e3ee80fb3e072"}, {"path": "/candidate/libraryKey", "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}], "error": "protected_library"},
+      {"name": "a live Owner key can never be the candidate", "mutations": [{"path": "/candidate/libraryId", "value": "549ac264f008135c25d6754c58fefee6"}, {"path": "/candidate/libraryKey", "value": "ERERERERERERERERERERERERERERERERERERERERERE="}], "error": "protected_library"},
+      {"name": "omitting one live profile id invalidates the proof", "mutations": [{"path": "/protectedLibraryIds", "value": ["5e1ab5db12f9b30e640e3ee80fb3e072", "549ac264f008135c25d6754c58fefee6", "7b925d85cbeac7cf05bac1afb6f35629"]}], "error": "incomplete_protection"},
+      {"name": "adding an unvalidated protected id invalidates the proof", "mutations": [{"path": "/protectedLibraryIds", "value": ["5e1ab5db12f9b30e640e3ee80fb3e072", "549ac264f008135c25d6754c58fefee6", "98ec5ea0423097fc2d73cea29c24bd2f", "7b925d85cbeac7cf05bac1afb6f35629", "00000000000000000000000000000000"]}], "error": "incomplete_protection"},
+      {"name": "a malformed committed directory blocks retirement", "mutations": [{"path": "/directoryValid", "value": false}], "error": "invalid_profiles"},
+      {"name": "a changed sealed directory row loses the atomic condition", "mutations": [{"path": "/profilesRowMatches", "value": false}], "error": "authority_changed"},
+      {"name": "an authority change after validation loses the atomic condition", "mutations": [{"path": "/currentAuthority/head", "value": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"}], "error": "authority_changed"},
+      {"name": "missing candidate authorization blocks retirement", "mutations": [{"path": "/candidate/authorized", "value": false}], "error": "candidate_unauthorized"},
+      {"name": "a genuinely changed legacy fence can clean its abandoned candidate", "mutations": [{"path": "/authority/kind", "value": "changed-legacy"}, {"path": "/currentAuthority/kind", "value": "changed-legacy"}, {"path": "/directoryValid", "value": false}, {"path": "/protectedLibraryIds", "value": ["5e1ab5db12f9b30e640e3ee80fb3e072"]}], "expect": "retired"},
+      {"name": "the same legacy source cannot authorize cleanup", "mutations": [{"path": "/authority/kind", "value": "changed-legacy"}, {"path": "/currentAuthority/kind", "value": "changed-legacy"}, {"path": "/authority/generation", "value": 7}, {"path": "/currentAuthority/generation", "value": 7}, {"path": "/authority/base", "value": 418}, {"path": "/currentAuthority/base", "value": 418}, {"path": "/authority/head", "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, {"path": "/currentAuthority/head", "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, {"path": "/directoryValid", "value": false}, {"path": "/protectedLibraryIds", "value": ["5e1ab5db12f9b30e640e3ee80fb3e072"]}], "error": "same_legacy_fence"},
+      {"name": "a corrupt household never authorizes cleanup", "mutations": [{"path": "/authority/kind", "value": "corrupt"}, {"path": "/currentAuthority/kind", "value": "corrupt"}], "error": "corrupt_household"}
+    ]
+  },
   "migrationCases": [
     {"name": "explicit intent first acquires a fence", "state": "idle", "observed": "legacy", "explicitIntent": true, "expect": "acquire-fence"},
     {"name": "idle without explicit intent cannot start", "state": "idle", "observed": "legacy", "explicitIntent": false, "error": "explicit_intent_required"},

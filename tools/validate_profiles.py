@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import base64
 import copy
+import hashlib
+import hmac
 import json
 import re
 import sys
@@ -365,6 +367,93 @@ def validate_candidate_key(value: object) -> str:
     if len(raw) != 32 or base64.b64encode(raw).decode() != value:
         fail("invalid_library_key")
     return value
+
+
+def library_id(value: object) -> str:
+    key = base64.b64decode(validate_candidate_key(value), validate=True)
+    extract = hmac.new(b"den/library/salt/v1", key, hashlib.sha256).digest()
+    expanded = hmac.new(extract, b"den/library/id/v1\x01", hashlib.sha256).digest()
+    return expanded[:16].hex()
+
+
+def validate_storage_fence(value: object) -> dict:
+    if (not isinstance(value, dict) or set(value) != {"generation", "base", "head", "rewrite"}
+            or type(value["generation"]) is not int
+            or not 0 <= value["generation"] <= 9_007_199_254_740_991
+            or type(value["base"]) is not int or not 0 <= value["base"] <= 9_007_199_254_740_991
+            or not isinstance(value["head"], str) or not DIGEST.fullmatch(value["head"])
+            or not isinstance(value["rewrite"], str) or not value["rewrite"]
+            or value["rewrite"] != value["rewrite"].strip() or len(value["rewrite"]) > 256):
+        fail("invalid_storage_fence")
+    return value
+
+
+def validate_authority(value: object) -> dict:
+    if (not isinstance(value, dict) or set(value) != {"generation", "base", "head", "kind"}
+            or type(value["generation"]) is not int
+            or not 0 <= value["generation"] <= 9_007_199_254_740_991
+            or type(value["base"]) is not int or not 0 <= value["base"] <= 9_007_199_254_740_991
+            or not isinstance(value["head"], str) or not DIGEST.fullmatch(value["head"])
+            or value["kind"] not in ("committed", "changed-legacy", "corrupt")):
+        fail("invalid_retirement_authority")
+    return value
+
+
+def retirement_result(value: object, directory: dict) -> str:
+    if not isinstance(value, dict):
+        fail("invalid_retirement_evidence")
+    source = validate_storage_fence(value.get("source"))
+    authority = validate_authority(value.get("authority"))
+    current = validate_authority(value.get("currentAuthority"))
+    household = value.get("household")
+    candidate = value.get("candidate")
+    if (not isinstance(household, dict) or set(household) != {"libraryId", "libraryKey"}
+            or not isinstance(candidate, dict)
+            or set(candidate) != {"libraryId", "libraryKey", "present", "authorized"}):
+        fail("invalid_retirement_evidence")
+    if (not isinstance(household["libraryId"], str) or not ID.fullmatch(household["libraryId"])
+            or library_id(household["libraryKey"]) != household["libraryId"]
+            or not isinstance(candidate["libraryId"], str) or not ID.fullmatch(candidate["libraryId"])
+            or library_id(candidate["libraryKey"]) != candidate["libraryId"]
+            or type(candidate["present"]) is not bool or type(candidate["authorized"]) is not bool):
+        fail("invalid_retirement_evidence")
+    if not candidate["authorized"]:
+        fail("candidate_unauthorized")
+    if authority != current or not value.get("profilesRowMatches", False):
+        fail("authority_changed")
+    if authority["kind"] == "corrupt":
+        fail("corrupt_household")
+
+    protected = value.get("protectedLibraryIds")
+    if (not isinstance(protected, list) or len(protected) != len(set(protected))
+            or not all(isinstance(item, str) and ID.fullmatch(item) for item in protected)):
+        fail("incomplete_protection")
+    household_id = household["libraryId"]
+    protected_keys = {household["libraryKey"]}
+    if authority["kind"] == "committed":
+        if not value.get("directoryValid", False):
+            fail("invalid_profiles")
+        validate_directory(directory, require_migration=True)
+        live_keys = {
+            entry["library"]["value"]["key"]
+            for entry in directory["profiles"].values()
+            if not entry["deleted"]["value"]
+        }
+        protected_keys |= live_keys
+        expected = {household_id} | {library_id(key) for key in live_keys}
+    else:
+        if value.get("directoryValid", False):
+            fail("invalid_retirement_evidence")
+        expected = {household_id}
+        source_authority = {name: source[name] for name in ("generation", "base", "head")}
+        current_source = {name: authority[name] for name in ("generation", "base", "head")}
+        if source_authority == current_source:
+            fail("same_legacy_fence")
+    if set(protected) != expected:
+        fail("incomplete_protection")
+    if candidate["libraryId"] in expected or candidate["libraryKey"] in protected_keys:
+        fail("protected_library")
+    return "retired" if candidate["present"] else "absent"
 
 
 def migration_next(value: dict) -> str:
@@ -828,6 +917,76 @@ def main() -> int:
     if actual_settings != expected_settings or len(vectors["settingsOwnership"]) != 16:
         fail("settings_ownership_exact_keys")
 
+    storage = vectors["migrationStorageContract"]
+    expected_routes = {
+        "openOrLookup": "POST /lib/{household}/profile-migration",
+        "lookup": "GET /lib/{household}/profile-migration/{attempt}",
+        "abort": "DELETE /lib/{household}/profile-migration/{attempt}",
+        "backupCreate": "POST /lib/{household}/profile-migration/{attempt}/backup",
+        "backupRead": "GET /lib/{household}/profile-migration/{attempt}/backup",
+        "stageRows": "POST /lib/{household}/profile-migration/{attempt}/rows",
+        "commit": "POST /lib/{household}/profile-migration/{attempt}/commit",
+        "retireCandidate": "POST /lib/{household}/profile-migration/{attempt}/retire-candidate",
+    }
+    if (storage.get("publicSyncGenerationType") != "opaque-string"
+            or storage.get("transactionGenerationType") != "safe-integer"
+            or storage.get("sameGenerationNamespace") is not False
+            or storage.get("transactionGenerationAllocation")
+            != "monotone-per-household-on-visible-mutation"
+            or storage.get("routes") != expected_routes):
+        fail("migration_storage_surface_mismatch")
+    expected_order = [
+        "open-fence", "create-backup", "verify-backup", "create-owner-library", "copy-owner",
+        "verify-owner", "stage-household", "commit-household", "read-winner", "retire-loser", "activate",
+    ]
+    if storage.get("requiredOrder") != expected_order:
+        fail("migration_storage_order_mismatch")
+    opened = storage["open"]
+    if (not isinstance(opened.get("attempt"), str) or not ID.fullmatch(opened["attempt"])
+            or library_id(opened.get("householdKey")) != opened.get("householdId")
+            or any(opened.get(name) is not expected for name, expected in {
+                "reopenReturnsSameFence": True,
+                "survivesClientRestart": True,
+                "survivesServerRestart": True,
+                "idleExpiry": False,
+                "terminalLookupRetained": True,
+                "ordinaryWritesRemainAvailable": True,
+                "concurrentAttemptsCommitByFence": True,
+                "concurrentAttemptsOnSameSnapshotShareGeneration": True,
+                "restoreNeverReusesGeneration": True,
+            }.items())):
+        fail("migration_storage_open_mismatch")
+    if opened.get("terminalStates") != ["committed", "superseded", "aborted"]:
+        fail("migration_storage_open_mismatch")
+    fence = validate_storage_fence(opened.get("fence"))
+    backup = storage["backup"]
+    if (not isinstance(backup.get("id"), str) or not backup["id"]
+            or not isinstance(backup.get("digest"), str) or not DIGEST.fullmatch(backup["digest"])
+            or backup.get("source") != fence or backup.get("readable") is not True
+            or backup.get("complete") is not True or backup.get("dryRestoreVerified") is not True
+            or backup.get("destinationWritesBeforeVerification") != 0):
+        fail("migration_backup_proof_mismatch")
+    commit = storage["commit"]
+    if (commit.get("sameHouseholdId") is not True or commit.get("sameHouseholdToken") is not True
+            or commit.get("source") != fence
+            or commit.get("backup") != {"id": backup["id"], "digest": backup["digest"]}
+            or not isinstance(commit.get("stagedDigest"), str) or not DIGEST.fullmatch(commit["stagedDigest"])
+            or commit.get("wireMin") != 5 or commit.get("atomicRowsAndMinimum") is not True
+            or commit.get("terminalResultDurable") is not True):
+        fail("migration_commit_proof_mismatch")
+    for case in storage["retirementCases"]:
+        evidence = copy.deepcopy(storage["retirementBase"])
+        for mutation in case.get("mutations", []):
+            mutate_pointer(evidence, mutation)
+        try:
+            actual = retirement_result(evidence, base)
+        except ValueError as error:
+            if str(error) != case.get("error"):
+                fail(f"{case['name']}: wanted {case.get('error')}, got {error}")
+        else:
+            if actual != case.get("expect"):
+                fail(f"{case['name']}: wanted {case.get('expect')}, got {actual}")
+
     for case in vectors["migrationCases"]:
         assembled = copy.deepcopy(case)
         if case.get("observed") == "committed" and not case.get("omitDirectory", False):
@@ -917,6 +1076,7 @@ def main() -> int:
         f"{len(vectors['playOnceCases'])} play once, "
         f"{len(vectors['selectionCases'])} selection, "
         f"{len(vectors['settingsPartitionCases'])} settings partition, "
+        f"{len(vectors['migrationStorageContract']['retirementCases'])} storage retirement, "
         f"{len(vectors['migrationCases'])} migration, "
         f"{len(vectors['resetCases'])} reset cases passed"
     )

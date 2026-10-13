@@ -82,6 +82,32 @@ class ProfilesVectorsTests(unittest.TestCase):
         }
         self.assertEqual(validate_profiles.migration_next(case), "cleanup_targets_winner")
 
+    def test_storage_transaction_is_durable_and_not_the_sync_generation(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        storage = vectors["migrationStorageContract"]
+        self.assertEqual(storage["publicSyncGenerationType"], "opaque-string")
+        self.assertEqual(storage["transactionGenerationType"], "safe-integer")
+        self.assertFalse(storage["sameGenerationNamespace"])
+        self.assertEqual(storage["transactionGenerationAllocation"],
+                         "monotone-per-household-on-visible-mutation")
+        self.assertTrue(storage["open"]["reopenReturnsSameFence"])
+        self.assertTrue(storage["open"]["survivesServerRestart"])
+        self.assertFalse(storage["open"]["idleExpiry"])
+        self.assertTrue(storage["open"]["ordinaryWritesRemainAvailable"])
+        self.assertTrue(storage["open"]["concurrentAttemptsCommitByFence"])
+        self.assertTrue(storage["open"]["concurrentAttemptsOnSameSnapshotShareGeneration"])
+        self.assertTrue(storage["open"]["restoreNeverReusesGeneration"])
+
+    def test_atomic_retirement_requires_the_exact_live_directory_set(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        storage = vectors["migrationStorageContract"]
+        directory = vectors["validDirectories"][0]["document"]
+        evidence = copy.deepcopy(storage["retirementBase"])
+        self.assertEqual(validate_profiles.retirement_result(evidence, directory), "retired")
+        evidence["protectedLibraryIds"].pop()
+        with self.assertRaisesRegex(ValueError, "incomplete_protection"):
+            validate_profiles.retirement_result(evidence, directory)
+
     def test_reset_waits_for_every_live_profile(self):
         vectors = json.loads(validate_profiles.VECTORS.read_text())
         profiles = copy.deepcopy(vectors["resetProfiles"])

@@ -426,6 +426,146 @@ Until product activation is separately approved, `profiles_migration_next` may b
 or background path may supply the explicit owner intent, publish the directory, commit the rewrite or change a live
 minimum.
 
+### 8.1 den-edge storage transaction
+
+The initial split requires a storage transaction in addition to the pure den-core planner. It is not conforming to
+assemble these effects from an ordinary `/changes` read, a best-effort file copy, the existing short-lived generic
+rewrite stage and an ordinary `DELETE`: those operations leave gaps in which a source write, process death or a
+newly committed profile directory can make the evidence stale.
+
+This section names the required operations. The route names in the vectors are the interoperable HTTP surface;
+an in-process store may expose equivalent calls, but it MUST return the same evidence and errors. Every request is
+authenticated as the household library, carries `x-den-wire: 5`, and is unavailable unless the separately reviewed
+profile-migration feature is enabled. Defining the routes does not enable them.
+
+#### Source fence and durable lookup
+
+`POST /lib/{household}/profile-migration` with `{"attempt":"<32 lowercase hex>"}` opens the transaction.
+Repeating it for the same authenticated household and attempt is a lookup, not a second attempt. A successful answer
+is:
+
+```json
+{
+  "attempt": "0123456789abcdef0123456789abcdef",
+  "state": "open",
+  "fence": {
+    "generation": 7,
+    "base": 418,
+    "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "rewrite": "opaque-provider-handle"
+  }
+}
+```
+
+`generation` is a durable monotone safe-integer counter per household in the **profile-migration fence namespace**.
+Opening an attempt reads the current value; it does not allocate a random value or advance it. Every visible
+household mutation (an applied ordinary batch, migration rewrite or restore) advances it atomically, so attempts
+opened on the same snapshot share a generation and any later write invalidates all of their compare-and-swaps. It
+is never restored backwards or reused; restoration advances from the provider-retained high-water mark, and the
+vanishingly unlikely safe-integer exhaustion refuses mutation rather than wrapping. It is
+not the public `x-den-generation` sync header, is not parsed from that header and need not change when that header
+changes. `base` is the household sequence head frozen by this transaction. `head` is the lowercase SHA-256 digest
+of RFC 8785 JCS for `{libraryId, generation, base, wireMin, rows}`, where `rows` contains every `{k, seq, v}`
+through `base` ordered by raw row-key bytes. A client calls it authenticated only after opening every known row,
+checking each AEAD and logical-name binding, preserving every unknown row, and recomputing this digest. `rewrite`
+is an opaque handle.
+
+The opened fence does **not** block ordinary household writes: any such write makes its later commit lose the
+generation/base/head compare-and-swap. The source snapshot and staging area are durable across client process death,
+den-edge restart and an arbitrarily long Owner copy. They MUST NOT disappear on an idle timer.
+`GET /lib/{household}/profile-migration/{attempt}` returns the same open fence, or a durable terminal `committed`,
+`superseded` or `aborted` result. Thus a `commit-unknown` journal can look up the attempt before deciding anything.
+Multiple attempts may open against the same legacy source; the first matching commit wins and makes the others
+`superseded`. `DELETE /lib/{household}/profile-migration/{attempt}` explicitly aborts only an uncommitted attempt
+and records the terminal tombstone. It is never inferred from idleness or client disconnect.
+
+The planner's and committed directory's `source` is the durable projection `{generation, head}`. `base` and
+`rewrite` remain in the local journal/storage transaction: they are needed to execute the compare-and-swap but are
+not immutable directory identity. A storage adapter MUST reject a journal projection whose generation/head differs
+from its reopened transaction.
+
+#### Verified backup before destination writes
+
+`POST /lib/{household}/profile-migration/{attempt}/backup` is idempotent and creates one immutable backup from the
+frozen source, never from a later read. Its answer is `{id, digest, source}`. `source` is the complete four-field
+fence above. The backup contains the household's exact row snapshot with sequences, wire minimum, authorization
+credential hashes/member proof and provider metadata needed to restore the same library id and key. Pairing,
+recovery and other records outside the library object are not replaced by a restore and therefore remain attached
+to that same id.
+
+`digest` is lowercase SHA-256 of RFC 8785 JCS for the immutable manifest
+`{id, householdId, attempt, source, wireMin, authorization, rows}`, with rows in the same canonical order. The
+authorization member is the provider's non-secret credential-hash/member-proof representation, never the household
+key or raw token.
+
+`GET /lib/{household}/profile-migration/{attempt}/backup` returns the immutable artifact and manifest. Verification
+requires all of the following:
+
+- the provider digest matches the complete artifact and manifest;
+- its household id, attempt and four-field source fence equal the journal;
+- every row through `base` is present exactly once with its original sequence and ciphertext;
+- every known row opens and passes its logical-name binding, and every unknown row is retained byte-for-byte; and
+- a dry restore can reconstruct the same id, authorization, wire minimum, base and authenticated head.
+
+Only then is `backupVerified` true. The backup is durable independently of the rewrite handle and retained until
+the client reaches `active` (or an explicit post-recovery retention policy keeps it longer). Creating an Owner
+library or writing its first row before this verification is a protocol violation. An artifact id, row count,
+filesystem-copy success or provider checksum alone is not verification.
+
+#### Fenced in-place commit
+
+Rows are staged with `POST /lib/{household}/profile-migration/{attempt}/rows`. Staging is idempotent by row key and
+does not change the visible household. The server binds every staged row set to the transaction fence and verified
+backup. The client separately verifies that the staged projection is configuration-only, contains the canonical
+profile directory and accounts for every source row according to §§2, 6 and 8.
+
+`POST /lib/{household}/profile-migration/{attempt}/commit` supplies the complete four-field `fence`, backup
+`{id,digest}`, a digest of the complete staged row set, and `wireMin: 5`. Under the household lock den-edge MUST
+atomically verify the attempt/fence/backup/staged digest, replace the rows under the **same** library id and token,
+raise the minimum to 5, advance the visible library generation, and record the terminal result. A mismatch returns
+`409 migration_fence_moved` and changes neither rows nor minimum. No response or a 5xx is `commit-unknown`; the
+client uses attempt lookup and a fresh authenticated household read, never blindly submits another logical commit.
+A committed lookup returns the resulting base/generation and staged digest, so a retry cannot create a second
+winner.
+
+Restoring a verified backup is another fresh transaction. It is allowed only when den-core returns
+`restore-backup`, uses the same id/key, never lowers a wire-5 committed household, and is fenced against the current
+authority. Restore is not a side effect of a failed commit: an atomic commit failure leaves the legacy source
+authoritative.
+
+#### Atomic loser retirement
+
+The cleanup operation is `POST /lib/{household}/profile-migration/{attempt}/retire-candidate`. The household token
+uses `x-den-library-token`; the candidate token uses `x-den-candidate-library-token`. Its JSON contains
+`{source, authority, profilesRow, protectedLibraryIds, candidateLibraryId}` and contains no library key or decrypted
+directory. It is one storage effect even though its implementation may read, validate and then conditionally
+commit:
+
+1. Under a fresh household read, the client authenticates every row and either den-core-validates the committed
+   directory or establishes that the household is still legacy at a source fence that has genuinely changed.
+2. For a committed directory it derives a library id from every live profile key. Locally, before sending any
+   delete request, it proves the candidate id **and key** differ from the household and every live entry. The
+   plaintext directory and profile keys are never sent to den-edge.
+3. The request carries the exact fresh authority `{generation, base, head, kind}`, the sealed `profiles` row
+   identity/sequence when `kind` is `committed`, the exact set of protected derived library ids, and the candidate
+   id. The candidate token is carried in a separate authorization header, never a profile key in JSON.
+4. den-edge locks the household and candidate in deterministic id order, rechecks that the complete authority is
+   still current, that the sealed directory row is byte-identical, and that the candidate id is neither the
+   household nor a protected id. It then retires the candidate or reports that it is already absent. The check and
+   retirement commit atomically.
+
+The protected-id set MUST equal the household id plus the ids derived from every live entry in the den-core-valid
+directory; a subset is invalid. Deleted entries are excluded. A committed authority without a valid directory, a
+same-source legacy authority, corrupt household, candidate/protected collision, missing candidate authorization or
+changed authority returns a blocking/conflict result and performs no retirement. `retired` and `absent` are the
+only successful results and are idempotent. The server cannot decrypt the directory, so completeness of the live
+set is a client/den-core obligation; the server's exact sealed-row compare-and-swap makes that validated decision
+atomic with respect to later directory changes.
+
+The client keeps the local attempt journal until the terminal transaction result, winner verification and any
+candidate retirement have all been re-read and confirmed. A provider may garbage-collect an aborted transaction
+only after recording a durable terminal tombstone, so lookup never turns an unknown commit into a fresh open.
+
 ## 9. Multi-profile key reset and revocation
 
 A household §12 reset is one fenced compound move. It generates a successor household key and one distinct random
