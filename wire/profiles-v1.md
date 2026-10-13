@@ -418,6 +418,40 @@ their constructor stamps are explicit product inputs, while `migration.ownerHead
 library is written and read back. The executor uses `ownerPolicy` and the verified Owner material to construct that
 document through the existing den-core lifecycle/validation operations.
 
+### 6.2 Initial Owner-directory construction
+
+`profiles_migration_construct_directory(input)` is the only canonical constructor for the first stored directory.
+It is pure and accepts no clock, randomness, ciphertext, storage handle or network authority beyond the explicit
+verified values below:
+
+```json
+{
+  "attempt": "0123456789abcdef0123456789abcdef",
+  "source": {"generation": 7, "head": "<64 lowercase hex>"},
+  "backup": {"id": "backup-7", "digest": "<64 lowercase hex>"},
+  "owner": {
+    "id": "00112233445566778899aabbccddeeff",
+    "display": {"value": {"name": "Cindy", "avatar": "fox"}, "at": [1800000000000, 0, "a1b2c3d4e5f60718"]},
+    "libraryKey": "ERERERERERERERERERERERERERERERERERERERERERE=",
+    "libraryAt": [1800000000000, 1, "a1b2c3d4e5f60718"],
+    "policy": {"value": {"maximumAge": 13, "unknownRatings": "allow"}, "at": [1800000000000, 2, "a1b2c3d4e5f60718"]},
+    "deletedAt": [1800000000000, 3, "a1b2c3d4e5f60718"]
+  },
+  "ownerHead": "<64 lowercase hex>"
+}
+```
+
+Every object above has exactly the shown members. `owner.id` is the single identity source: den-core derives the
+directory's `owner`, its one map key, the entry `id`, and `migration.ownerProfile` from it, so those bindings cannot
+disagree. It copies `display` and `policy` completely, including accepted unknown members inside their stamped
+values; constructs `library` as key version 1 from `libraryKey` and `libraryAt`; and constructs `deleted` as false
+at `deletedAt`. The result fixes `format` 4, kind `profiles`, schema 1, role `owner`, and migration version 1.
+
+The constructor then validates its result as a **stored** directory, including mandatory migration evidence. A
+malformed id, display, policy, stamp, canonical 32-byte key, attempt, source generation/head, backup id/digest or
+Owner head is an error; it never returns a partially valid document. The caller still seals the logical document
+and passes it to §8's atomic commit. Constructing it does not activate profiles or raise a wire minimum.
+
 ## 7. Sticky device-local selection
 
 Selection is local, never a library row. Its JSON shape is `profile-selection-v1` in the schema and vectors:
