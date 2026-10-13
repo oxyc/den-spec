@@ -1,5 +1,6 @@
 import copy
 import json
+import math
 import unittest
 
 import validate_profiles
@@ -216,6 +217,53 @@ class ProfilesVectorsTests(unittest.TestCase):
         valid["row"]["watch"]["plays"]["8"] = 1008
         with self.assertRaisesRegex(ValueError, "invalid_materialize_input"):
             validate_profiles.materialize_identity(valid)
+
+    def test_directory_constructor_returns_the_only_seal_ready_plaintext(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        result = validate_profiles.migration_construct_directory(
+            copy.deepcopy(vectors["migrationDirectoryConstructorInput"]))
+        self.assertEqual(set(result), {"directory", "jcs", "plaintext"})
+        jcs = validate_profiles.decode_unpadded_base64url(result["jcs"])
+        plaintext = validate_profiles.decode_unpadded_base64url(result["plaintext"])
+        self.assertEqual(plaintext[:1], b"\x00")
+        self.assertEqual(validate_profiles.inflate_document_plaintext(plaintext), jcs)
+        self.assertEqual(jcs, validate_profiles.canonical_json(result["directory"]))
+        self.assertEqual(validate_profiles.canonical_json(json.loads(jcs)), jcs)
+        with self.assertRaisesRegex(ValueError, "invalid_document_plaintext"):
+            validate_profiles.inflate_document_plaintext(plaintext + b"trailing")
+
+        with self.assertRaisesRegex(ValueError, "unsupported_materialize_kind"):
+            validate_profiles.materialize_identity({"name": "profiles", "row": result["directory"]})
+
+    def test_directory_constructor_extensions_use_ecmascript_number_serialization(self):
+        numbers = {
+            "integerDouble": 1.0,
+            "negativeZero": -0.0,
+            "lowerExponent": 1e-7,
+            "lowerFixed": 1e-6,
+            "upperFixed": 1e20,
+            "upperExponent": 1e21,
+            "representative": [333333333.33333329, 1e30, 4.5, 0.002, 1e-27],
+        }
+        expected = (b'{"integerDouble":1,"lowerExponent":1e-7,"lowerFixed":0.000001,'
+                    b'"negativeZero":0,"representative":[333333333.3333333,1e+30,4.5,0.002,1e-27],'
+                    b'"upperExponent":1e+21,"upperFixed":100000000000000000000}')
+        self.assertEqual(validate_profiles.canonical_json(numbers), expected)
+        self.assertEqual(validate_profiles.canonical_json(json.loads(expected)), expected)
+
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        constructor = copy.deepcopy(vectors["migrationDirectoryConstructorInput"])
+        constructor["owner"]["display"]["value"]["futureNumbers"] = numbers
+        result = validate_profiles.migration_construct_directory(constructor)
+        jcs = validate_profiles.decode_unpadded_base64url(result["jcs"])
+        plaintext = validate_profiles.decode_unpadded_base64url(result["plaintext"])
+        self.assertEqual(validate_profiles.inflate_document_plaintext(plaintext), jcs)
+        self.assertEqual(validate_profiles.canonical_json(json.loads(jcs)), jcs)
+
+    def test_jcs_rejects_non_finite_numbers(self):
+        for value in (math.nan, math.inf, -math.inf):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "invalid_jcs_number"):
+                validate_profiles.canonical_json({"future": value})
 
     def test_atomic_retirement_requires_the_exact_live_directory_set(self):
         vectors = json.loads(validate_profiles.VECTORS.read_text())
