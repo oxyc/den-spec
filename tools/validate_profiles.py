@@ -8,6 +8,7 @@ import copy
 import hashlib
 import hmac
 import json
+import math
 import re
 import sys
 import unicodedata
@@ -32,8 +33,121 @@ def fail(message: str) -> None:
 
 
 def canonical_json(value: object) -> bytes:
-    """RFC 8785 bytes for the migration schemas, whose numbers are safe integers only."""
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode()
+    """RFC 8785 bytes, including ECMAScript serialization for every finite JSON number."""
+    output: list[str] = []
+
+    def string(text: object) -> str:
+        if not isinstance(text, str):
+            fail("invalid_jcs")
+        try:
+            text.encode("utf-8")
+        except UnicodeEncodeError:
+            fail("invalid_jcs")
+        return json.dumps(text, ensure_ascii=False, separators=(",", ":"))
+
+    def number_text(number: object) -> str:
+        if type(number) is int and abs(number) <= 1 << 53:
+            return str(number)
+        try:
+            value = float(number)
+        except (OverflowError, TypeError, ValueError):
+            fail("invalid_jcs_number")
+        if not math.isfinite(value):
+            fail("invalid_jcs_number")
+        if value == 0:
+            return "0"
+
+        # CPython's repr and ECMAScript both choose the shortest decimal that round-trips to the same IEEE-754
+        # double. Reframe those digits at ECMAScript's fixed/exponent thresholds (§3.2.2.3), and never inherit
+        # Python's different threshold or padded exponent spelling.
+        text = repr(abs(value)).lower()
+        mantissa, marker, exponent_text = text.partition("e")
+        exponent = int(exponent_text) if marker else 0
+        integer, point, fraction = mantissa.partition(".")
+        raw_digits = integer + (fraction if point else "")
+        decimal_point = len(integer)
+        leading = len(raw_digits) - len(raw_digits.lstrip("0"))
+        digits = raw_digits.lstrip("0").rstrip("0")
+        if not digits:
+            return "0"
+        n = decimal_point + exponent - leading
+        k = len(digits)
+        if k <= n <= 21:
+            body = digits + "0" * (n - k)
+        elif 0 < n <= 21:
+            body = digits[:n] + "." + digits[n:]
+        elif -6 < n <= 0:
+            body = "0." + "0" * (-n) + digits
+        else:
+            rest = "" if k == 1 else "." + digits[1:]
+            power = n - 1
+            body = f"{digits[0]}{rest}e{'+' if power >= 0 else '-'}{abs(power)}"
+        return ("-" if value < 0 else "") + body
+
+    def write(item: object) -> None:
+        if item is None:
+            output.append("null")
+        elif item is True:
+            output.append("true")
+        elif item is False:
+            output.append("false")
+        elif type(item) in (int, float):
+            output.append(number_text(item))
+        elif isinstance(item, str):
+            output.append(string(item))
+        elif isinstance(item, list):
+            output.append("[")
+            for index, child in enumerate(item):
+                if index:
+                    output.append(",")
+                write(child)
+            output.append("]")
+        elif isinstance(item, dict):
+            members = []
+            for key, child in item.items():
+                if not isinstance(key, str):
+                    fail("invalid_jcs")
+                try:
+                    order = key.encode("utf-16-be")
+                except UnicodeEncodeError:
+                    fail("invalid_jcs")
+                members.append((order, key, child))
+            members.sort(key=lambda member: member[0])
+            output.append("{")
+            for index, (_, key, child) in enumerate(members):
+                if index:
+                    output.append(",")
+                output.append(string(key))
+                output.append(":")
+                write(child)
+            output.append("}")
+        else:
+            fail("invalid_jcs")
+
+    write(value)
+    return "".join(output).encode()
+
+
+def document_plaintext(jcs: bytes) -> bytes:
+    """library-v4 document framing: 0x00 followed by one complete raw-DEFLATE stream."""
+    compressor = zlib.compressobj(level=9, wbits=-15)
+    plaintext = b"\x00" + compressor.compress(jcs) + compressor.flush()
+    if inflate_document_plaintext(plaintext) != jcs:
+        fail("invalid_document_plaintext")
+    return plaintext
+
+
+def inflate_document_plaintext(plaintext: bytes) -> bytes:
+    if not plaintext.startswith(b"\x00"):
+        fail("invalid_document_plaintext")
+    inflater = zlib.decompressobj(wbits=-15)
+    try:
+        jcs = inflater.decompress(plaintext[1:]) + inflater.flush()
+    except zlib.error:
+        fail("invalid_document_plaintext")
+    if not inflater.eof or inflater.unused_data or inflater.unconsumed_tail:
+        fail("invalid_document_plaintext")
+    return jcs
 
 
 def migration_digest(kind: str, value: object) -> tuple[str, str]:
@@ -468,7 +582,7 @@ def migration_partition_rows(value: object) -> dict:
 
 
 def migration_construct_directory(value: object) -> dict:
-    """Construct and stored-validate the first Owner-only profile directory."""
+    """Construct, stored-validate and exactly materialize the first Owner-only directory."""
     if not isinstance(value, dict) or set(value) != {"attempt", "source", "backup", "owner", "ownerHead"}:
         fail("invalid_directory_constructor")
     owner = value["owner"]
@@ -505,7 +619,10 @@ def migration_construct_directory(value: object) -> dict:
             }
         },
     }
-    return validate_directory(document, require_migration=True)
+    directory = validate_directory(document, require_migration=True)
+    jcs = canonical_json(directory)
+    return {"directory": directory, "jcs": unpadded_base64url(jcs),
+            "plaintext": unpadded_base64url(document_plaintext(jcs))}
 
 
 def validate_stamp(value: object) -> None:
@@ -1791,8 +1908,21 @@ def main() -> int:
         else:
             if "error" in case:
                 fail(f"{case['name']}: invalid directory construction accepted")
-            if actual != case["expect"]:
+            expected = case["expect"]
+            if (not isinstance(expected, dict) or set(expected) != {"directory", "jcs", "plaintext"}
+                    or actual["directory"] != expected["directory"]
+                    or actual["jcs"] != expected["jcs"]):
                 fail(f"{case['name']}: directory construction mismatch")
+            jcs = decode_unpadded_base64url(expected["jcs"])
+            if jcs != canonical_json(expected["directory"]):
+                fail(f"{case['name']}: directory JCS mismatch")
+            expected_plaintext = decode_unpadded_base64url(expected["plaintext"])
+            actual_plaintext = decode_unpadded_base64url(actual["plaintext"])
+            if (inflate_document_plaintext(expected_plaintext) != jcs
+                    or inflate_document_plaintext(actual_plaintext) != jcs):
+                fail(f"{case['name']}: directory plaintext mismatch")
+            if canonical_json(json.loads(jcs)) != jcs:
+                fail(f"{case['name']}: directory JCS does not round trip")
 
     for case in vectors["resetCases"]:
         directory = copy.deepcopy(base)

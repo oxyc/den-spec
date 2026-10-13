@@ -1138,7 +1138,7 @@
     "backup": {"id": "backup-7", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
     "owner": {
       "id": "00112233445566778899aabbccddeeff",
-      "display": {"value": {"name": "Cindy", "avatar": "fox", "futureDisplayFact": {"kept": true}}, "at": [1800000000000, 0, "a1b2c3d4e5f60718"]},
+      "display": {"value": {"name": "Cindy", "avatar": "fox", "futureDisplayFact": {"kept": true}, "futureNumbers": [1.0, -0.0, 1e-7, 1e-6, 1e20, 1e21, 333333333.33333329, 1e30, 4.5, 0.002, 1e-27]}, "at": [1800000000000, 0, "a1b2c3d4e5f60718"]},
       "libraryKey": "ERERERERERERERERERERERERERERERERERERERERERE=",
       "libraryAt": [1800000000000, 1, "a1b2c3d4e5f60718"],
       "policy": {"value": {"maximumAge": 13, "unknownRatings": "allow", "futurePolicyFact": ["kept"]}, "at": [1800000000000, 2, "a1b2c3d4e5f60718"]},
@@ -1150,31 +1150,37 @@
     {
       "name": "the first stored directory derives every Owner identity binding and preserves extensions",
       "expect": {
-        "format": 4,
-        "kind": "profiles",
-        "schema": 1,
-        "owner": "00112233445566778899aabbccddeeff",
-        "migration": {
-          "version": 1,
-          "attempt": "0123456789abcdef0123456789abcdef",
-          "source": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
-          "backup": {"id": "backup-7", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
-          "ownerProfile": "00112233445566778899aabbccddeeff",
-          "ownerHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-        },
-        "profiles": {
-          "00112233445566778899aabbccddeeff": {
-            "id": "00112233445566778899aabbccddeeff",
-            "role": "owner",
-            "display": {"value": {"name": "Cindy", "avatar": "fox", "futureDisplayFact": {"kept": true}}, "at": [1800000000000, 0, "a1b2c3d4e5f60718"]},
-            "library": {"value": {"keyVersion": 1, "key": "ERERERERERERERERERERERERERERERERERERERERERE="}, "at": [1800000000000, 1, "a1b2c3d4e5f60718"]},
-            "policy": {"value": {"maximumAge": 13, "unknownRatings": "allow", "futurePolicyFact": ["kept"]}, "at": [1800000000000, 2, "a1b2c3d4e5f60718"]},
-            "deleted": {"value": false, "at": [1800000000000, 3, "a1b2c3d4e5f60718"]}
+        "directory": {
+          "format": 4,
+          "kind": "profiles",
+          "schema": 1,
+          "owner": "00112233445566778899aabbccddeeff",
+          "migration": {
+            "version": 1,
+            "attempt": "0123456789abcdef0123456789abcdef",
+            "source": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+            "backup": {"id": "backup-7", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+            "ownerProfile": "00112233445566778899aabbccddeeff",
+            "ownerHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "profiles": {
+            "00112233445566778899aabbccddeeff": {
+              "id": "00112233445566778899aabbccddeeff",
+              "role": "owner",
+              "display": {"value": {"name": "Cindy", "avatar": "fox", "futureDisplayFact": {"kept": true}, "futureNumbers": [1.0, -0.0, 1e-7, 1e-6, 1e20, 1e21, 333333333.33333329, 1e30, 4.5, 0.002, 1e-27]}, "at": [1800000000000, 0, "a1b2c3d4e5f60718"]},
+              "library": {"value": {"keyVersion": 1, "key": "ERERERERERERERERERERERERERERERERERERERERERE="}, "at": [1800000000000, 1, "a1b2c3d4e5f60718"]},
+              "policy": {"value": {"maximumAge": 13, "unknownRatings": "allow", "futurePolicyFact": ["kept"]}, "at": [1800000000000, 2, "a1b2c3d4e5f60718"]},
+              "deleted": {"value": false, "at": [1800000000000, 3, "a1b2c3d4e5f60718"]}
+            }
           }
-        }
+        },
+        "jcs": "eyJmb3JtYXQiOjQsImtpbmQiOiJwcm9maWxlcyIsIm1pZ3JhdGlvbiI6eyJhdHRlbXB0IjoiMDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWYiLCJiYWNrdXAiOnsiZGlnZXN0IjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImlkIjoiYmFja3VwLTcifSwib3duZXJIZWFkIjoiY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjYyIsIm93bmVyUHJvZmlsZSI6IjAwMTEyMjMzNDQ1NTY2Nzc4ODk5YWFiYmNjZGRlZWZmIiwic291cmNlIjp7ImdlbmVyYXRpb24iOjcsImhlYWQiOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIn0sInZlcnNpb24iOjF9LCJvd25lciI6IjAwMTEyMjMzNDQ1NTY2Nzc4ODk5YWFiYmNjZGRlZWZmIiwicHJvZmlsZXMiOnsiMDAxMTIyMzM0NDU1NjY3Nzg4OTlhYWJiY2NkZGVlZmYiOnsiZGVsZXRlZCI6eyJhdCI6WzE4MDAwMDAwMDAwMDAsMywiYTFiMmMzZDRlNWY2MDcxOCJdLCJ2YWx1ZSI6ZmFsc2V9LCJkaXNwbGF5Ijp7ImF0IjpbMTgwMDAwMDAwMDAwMCwwLCJhMWIyYzNkNGU1ZjYwNzE4Il0sInZhbHVlIjp7ImF2YXRhciI6ImZveCIsImZ1dHVyZURpc3BsYXlGYWN0Ijp7ImtlcHQiOnRydWV9LCJmdXR1cmVOdW1iZXJzIjpbMSwwLDFlLTcsMC4wMDAwMDEsMTAwMDAwMDAwMDAwMDAwMDAwMDAwLDFlKzIxLDMzMzMzMzMzMy4zMzMzMzMzLDFlKzMwLDQuNSwwLjAwMiwxZS0yN10sIm5hbWUiOiJDaW5keSJ9fSwiaWQiOiIwMDExMjIzMzQ0NTU2Njc3ODg5OWFhYmJjY2RkZWVmZiIsImxpYnJhcnkiOnsiYXQiOlsxODAwMDAwMDAwMDAwLDEsImExYjJjM2Q0ZTVmNjA3MTgiXSwidmFsdWUiOnsia2V5IjoiRVJFUkVSRVJFUkVSRVJFUkVSRVJFUkVSRVJFUkVSRVJFUkVSRVJFUkVSRT0iLCJrZXlWZXJzaW9uIjoxfX0sInBvbGljeSI6eyJhdCI6WzE4MDAwMDAwMDAwMDAsMiwiYTFiMmMzZDRlNWY2MDcxOCJdLCJ2YWx1ZSI6eyJmdXR1cmVQb2xpY3lGYWN0IjpbImtlcHQiXSwibWF4aW11bUFnZSI6MTMsInVua25vd25SYXRpbmdzIjoiYWxsb3cifX0sInJvbGUiOiJvd25lciJ9fSwic2NoZW1hIjoxfQ",
+        "plaintext": "AKVTyY7bMAz9F16rCSwvsROgh6ILeioGc-hl0AMt0x7BK2RrFgzy7yWtTAcomiZA6IMhgXx8j3x6hXp0PS6wTxW0dqhgD5Mba9vRDAp62zhc7DjA_hVwWaifOBUiHSdpts2LHZamovrvM1eWaFo_SVllG5qlqrwyGNUKvwB9k8NBwfg0kPtOKPfmyoAj3G3QLzojreM4SdI0y7bbPC-K3Q6xLI2pKqJadM6jd4ZEZ0NcexxWruAhkMIrQ0Q-kptXWP2m-DJufxbJ7M6my6aoo4WqsGvY3-sieg-VKEBdxiapUsrqbZTrAn4xOew866-xm4npVXaeOnw5gRH9F4NLHnFBUVePzyyg9ot39CVAfkOzSE5L4sHFeWkXMn74vuQZSTtuoekmV9Fm7aiVjv4RnPMh1ip5i83xL_dJpNJNtgLEghXnzHDAXgzxmV_ICxwORydesIPOlg7dqXnoM_NoiSvh693F30duyUU_3x3DXKexs-YUhfgMhTDh2xUirOA-rICTeny2ve8_NZyp2R9-aAf25x2_gqGZxf1dNz6t83Lj-qKCe-ViNg_UozD8DQ"
       }
     },
     {"name": "constructor input has no ambient extension surface", "mutations": [{"path": "/future", "value": true}], "error": "invalid_directory_constructor"},
+    {"name": "caller cannot supply directory JCS", "mutations": [{"path": "/jcs", "value": "caller-selected"}], "error": "invalid_directory_constructor"},
+    {"name": "caller cannot supply directory plaintext", "mutations": [{"path": "/plaintext", "value": "caller-selected"}], "error": "invalid_directory_constructor"},
     {"name": "Owner constructor input has exact members", "mutations": [{"path": "/owner/future", "value": true}], "error": "invalid_directory_constructor"},
     {"name": "Owner id is canonical", "mutations": [{"path": "/owner/id", "value": "not-an-id"}], "error": "invalid_profile"},
     {"name": "Owner key is canonical padded base64 of 32 bytes", "mutations": [{"path": "/owner/libraryKey", "value": "c2hvcnQ="}], "error": "invalid_library_key"},

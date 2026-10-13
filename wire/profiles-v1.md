@@ -514,12 +514,33 @@ Every object above has exactly the shown members. `owner.id` is the single ident
 directory's `owner`, its one map key, the entry `id`, and `migration.ownerProfile` from it, so those bindings cannot
 disagree. It copies `display` and `policy` completely, including accepted unknown members inside their stamped
 values; constructs `library` as key version 1 from `libraryKey` and `libraryAt`; and constructs `deleted` as false
-at `deletedAt`. The result fixes `format` 4, kind `profiles`, schema 1, role `owner`, and migration version 1.
+at `deletedAt`. The logical directory fixes `format` 4, kind `profiles`, schema 1, role `owner`, and migration
+version 1. The result is an exact object with three members:
+
+```json
+{
+  "directory": {"format": 4, "kind": "profiles", "schema": 1, "...": "the validated stored directory"},
+  "jcs": "<unpadded base64url of the directory's RFC 8785 UTF-8 bytes>",
+  "plaintext": "<unpadded base64url of 0x00 followed by raw-DEFLATE of those JCS bytes>"
+}
+```
+
+`jcs` is the canonical source for the logical result. `profiles` is a library-v4 document, so `plaintext` uses that
+format's document framing: byte `0x00` followed by one complete raw-DEFLATE stream which inflates to exactly `jcs`,
+with no trailing bytes. DEFLATE bitstreams are not canonical, so conformance compares their exact inflated JCS,
+not compressor-specific bytes. The constructor accepts the complete finite JSON-number domain in preserved display
+and policy extensions and serializes every number exactly as RFC 8785 requires (ECMAScript number serialization,
+including `1.0` as `1` and negative zero as `0`); non-finite values are not JSON and are rejected. The caller must
+decode and seal `plaintext`; it must not independently serialize `directory`. This constructor-specific
+materialization does not make `profiles` a supported input to the generic
+`profiles_migration_materialize_plaintext` operation: that operation continues to reject every profile-control
+document.
 
 The constructor then validates its result as a **stored** directory, including mandatory migration evidence. A
 malformed id, display, policy, stamp, canonical 32-byte key, attempt, source generation/head, backup id/digest or
-Owner head is an error; it never returns a partially valid document. The caller still seals the logical document
-and passes it to §8's atomic commit. Constructing it does not activate profiles or raise a wire minimum.
+Owner head is an error; it never returns a partially valid document or caller-selected bytes. The caller seals the
+returned `plaintext` and passes it to §8's atomic commit. Constructing it does not activate profiles or raise a
+wire minimum.
 
 ## 7. Sticky device-local selection
 
