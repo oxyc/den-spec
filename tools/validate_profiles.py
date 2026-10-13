@@ -385,11 +385,9 @@ def migration_next(value: dict) -> str:
         if name in value and type(value[name]) is not bool:
             fail("invalid_evidence")
 
-    candidate = value.get("candidateKey")
-    if candidate is not None:
-        candidate = validate_candidate_key(candidate)
+    candidate = validate_candidate_key(value["candidateKey"]) if "candidateKey" in value else None
     candidate_attempt = value.get("candidateAttempt")
-    if candidate_attempt is not None and (
+    if "candidateAttempt" in value and (
         candidate is None or not isinstance(candidate_attempt, str) or not ID.fullmatch(candidate_attempt)
     ):
         fail("invalid_candidate_attempt")
@@ -403,13 +401,17 @@ def migration_next(value: dict) -> str:
             fail("invalid_evidence")
         if not isinstance(candidate_head, str) or not DIGEST.fullmatch(candidate_head):
             fail("invalid_copy_head")
-    elif candidate_head is not None:
+    elif "candidateHead" in value:
         fail("invalid_copy_head")
 
+    has_directory = "directory" in value
     directory = value.get("directory")
     if observed == "committed":
-        if directory is None:
+        if not has_directory:
             fail("committed_directory_missing")
+        if not isinstance(directory, dict):
+            # Match den-core's stored-directory boundary rather than treating an explicit null as absence.
+            fail("invalid_profiles")
         validate_directory(directory, require_migration=True)
         if candidate is not None and candidate_attempt is None:
             fail("invalid_candidate_attempt")
@@ -439,7 +441,7 @@ def migration_next(value: dict) -> str:
         if not value.get("winnerVerified", False):
             return "verify-winner"
         return "activate"
-    if directory is not None:
+    if has_directory:
         fail("invalid_evidence")
 
     if observed == "corrupt":
