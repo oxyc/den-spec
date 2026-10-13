@@ -387,9 +387,19 @@ UTF-8 bytes; `accounting` has the same order.
   row kind. Likewise the authenticated control identities `profiles` and `kid-title-approvals:*` are
   `profiles_already_present` for every decoded status. Identity classification precedes opaque preservation: a
   future framing or kind cannot smuggle known profile state or profile controls into the household.
-- A `materialize` projection gives one authenticated logical `name` and complete logical `row`. The executor JCS
-  encodes and seals it for its destination, then verifies the destination readback. It never trusts a client-side
-  classification to decide the destination.
+- A `materialize` projection gives one authenticated logical `name` and complete logical `row`. The executor passes
+  those two members, unchanged and with no extras, to
+  `profiles_migration_materialize_plaintext({name, row})`. The operation checks that the row's library-v4 identity
+  spells exactly `name`, applies the existing library-v4 writer validation, and returns
+  `{jcs, plaintext}`. Both values are unpadded base64url: `jcs` is the row's RFC 8785 UTF-8 bytes, while `plaintext`
+  is the exact byte string to seal. For a settings row the two are identical. For a `title`, `season` or `delivery`
+  document, `plaintext` is library-v4 `doc_encode`: `0x00` followed by raw DEFLATE of those JCS bytes. DEFLATE has
+  no unique byte representation, so a conforming implementation may produce a different stream from the example
+  vector only when it inflates exactly to the returned `jcs`; both clients call the same den-core implementation
+  and never compress or serialize the logical row themselves. Unknown kinds, newer formats, control documents,
+  extra/missing input members and name/identity disagreement are errors. The executor seals only the returned
+  `plaintext`, then verifies destination readback. It never trusts a client-side classification to decide the
+  destination.
 - `title:*`, `season:*`, `dlv:*`, `set:trackers`, `set:deliver:*`, `set:handoff:*`, and
   `set:assistant-applied` materialize only in Owner. They carry activity, credentials, receipts, pending/held
   decisions, lease epochs and delivery state together. `set:assistant-applied` is the durable receipt/replay guard
@@ -669,6 +679,23 @@ to that same id.
 `{id, householdId, attempt, source, wireMin, authorization, rows}`, with rows in the same canonical order. The
 authorization member is the provider's non-secret credential-hash/member-proof representation, never the household
 key or raw token.
+
+The authorization representation is computed by the pure
+`profiles_migration_authorization_fingerprint({token, member})` operation. Its input has exactly those two members.
+`token` is the household's canonical lowercase 64-hex library-v2 token text; `member` is its canonical lowercase
+64-hex registered-member text or `null` when the provider has no registered member. The operation returns exactly
+`{tokenHash, memberHash}` where:
+
+- `tokenHash` is lowercase hexadecimal SHA-256 of the UTF-8 bytes of `token`;
+- `memberHash` is `null` for a null member, otherwise lowercase hexadecimal SHA-256 of the UTF-8 bytes of `member`.
+
+The two credential strings are hashed independently in that member order: they are never concatenated, hex-decoded
+or prefixed with another byte string. The distinct library-v2 HKDF info labels `token` and `member` provide the
+credential domain separation, and the named manifest members provide structural separation. This deliberately
+matches den-edge's deployed SHA-256 token/member lookup representation. Fingerprint output is lowercase hex, not
+base64url; unpadded base64url is used by the materialization operation above. A client recomputes this representation
+from the authenticated household credentials and compares both members before accepting a backup. Raw credentials
+never enter the backup request, response, manifest or digest.
 
 `GET /lib/{household}/profile-migration/{attempt}/backup` returns the immutable artifact and manifest. Verification
 requires all of the following:
