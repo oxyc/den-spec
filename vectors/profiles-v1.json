@@ -562,7 +562,9 @@
     {"name": "profile key versions increment exactly once", "householdCommitted": false, "oldHouseholdRetired": false, "profileMutations": [{"path": "/00112233445566778899aabbccddeeff/newVersion", "value": 3}], "error": "invalid_key_version"},
     {"name": "successor keys cannot reuse any old profile key", "householdCommitted": false, "oldHouseholdRetired": false, "profileMutations": [{"path": "/00112233445566778899aabbccddeeff/newKey", "value": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI="}], "error": "reused_key"},
     {"name": "verified copy requires an authenticated destination head", "householdCommitted": false, "oldHouseholdRetired": false, "profileMutations": [{"path": "/00112233445566778899aabbccddeeff/verified", "value": true}], "error": "invalid_copy_head"},
-    {"name": "reset decisions are bound to a valid household fence", "householdCommitted": false, "oldHouseholdRetired": false, "fenceMutate": {"path": "/head", "value": "bad"}, "error": "invalid_reset_fence"}
+    {"name": "reset decisions are bound to a valid household fence", "householdCommitted": false, "oldHouseholdRetired": false, "fenceMutate": {"path": "/head", "value": "bad"}, "error": "invalid_reset_fence"},
+    {"name": "an old profile cannot retire before successor commit", "householdCommitted": false, "oldHouseholdRetired": false, "profileMutations": [{"path": "/00112233445566778899aabbccddeeff/oldRetired", "value": true}], "error": "premature_retirement"},
+    {"name": "a successor cannot be committed before every copy verifies", "householdCommitted": true, "oldHouseholdRetired": false, "error": "commit_without_verification"}
   ],
   "wireTopology": {
     "rowEncoding": "library-v4",

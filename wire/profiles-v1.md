@@ -429,6 +429,9 @@ The answer is an object with `effect`. `move-live-profiles` additionally carries
 copy or verify. `retire-old-libraries` carries the sorted profile ids whose old libraries remain live and a
 `household` boolean indicating whether the old household remains live. The other effects are
 `commit-successor-household` and `complete`. Errors use the operation's error envelope rather than an `ok` value.
+Evidence claiming that an old library retired before the successor household committed, or that the successor
+committed before every copy verified, is contradictory and returns an error; it is never normalized into a next
+effect.
 
 The successor directory is not published until every live profile move is verified. The household move then
 publishes that directory under the successor household, commits its fence, and only afterward retires the old

@@ -443,6 +443,10 @@ def validate_reset(case: dict, directory: dict, fence: dict) -> dict:
 
     if not isinstance(case.get("householdCommitted"), bool) or not isinstance(case.get("oldHouseholdRetired"), bool):
         fail("invalid_reset_profiles")
+    if not case["householdCommitted"] and (case["oldHouseholdRetired"] or unretired != sorted(live)):
+        fail("premature_retirement")
+    if case["householdCommitted"] and pending:
+        fail("commit_without_verification")
     if pending:
         return {"effect": "move-live-profiles", "profiles": pending}
     if not case["householdCommitted"]:
