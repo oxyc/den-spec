@@ -602,7 +602,7 @@ generation as usual, and durably records:
   "state": "restored",
   "generation": 10,
   "base": 418,
-  "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "head": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
   "wireMin": 5,
   "backup": {"id": "backup-0123456789abcdef", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
 }
