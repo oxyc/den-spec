@@ -1307,6 +1307,65 @@ def partition_preferences(values: object) -> dict:
     return {"household": household, "owner": owner, "ownerMaturity": owner_maturity}
 
 
+def profile_capability(value: object) -> dict:
+    """Resolve one household's profile mode without treating deployment support as runtime truth."""
+    if not isinstance(value, dict) or set(value) != {
+        "enrollment", "wireMin", "directory", "request", "wire", "authenticated",
+    }:
+        fail("invalid_profile_capability")
+    enrollment = value["enrollment"]
+    directory = value["directory"]
+    request = value["request"]
+    wire_min = value["wireMin"]
+    wire = value["wire"]
+    authenticated = value["authenticated"]
+    if (enrollment not in ("off", "prepare")
+            or directory not in ("absent", "valid", "invalid")
+            or request not in ("ordinary", "migration")
+            or type(wire_min) is not int or not 1 <= wire_min <= 9_007_199_254_740_991
+            or type(wire) is not int or not 1 <= wire <= 9_007_199_254_740_991
+            or type(authenticated) is not bool):
+        fail("invalid_profile_capability")
+
+    # This v1 resolver understands household wire 5. A newer household gates every request before any v1 route or
+    # directory interpretation, even when the caller happens to advertise that newer number.
+    if wire_min > 5:
+        return {"effect": "update-required", "requiredWire": wire_min}
+
+    if wire_min < 5:
+        if directory != "absent":
+            fail("inconsistent_profiles_state")
+        state = enrollment
+        # Off is deliberately uniform: route existence reveals neither method, wire nor authentication differences.
+        if request == "migration" and state == "off":
+            return {"state": state, "effect": "not-found"}
+        if request == "ordinary" and wire < wire_min:
+            return {"effect": "update-required", "requiredWire": wire_min}
+        if request == "migration" and wire != 5:
+            return {"state": state, "effect": "migration-wire-required", "requiredWire": 5}
+        if not authenticated:
+            return {"state": state, "effect": "authentication-required"}
+        if request == "migration":
+            return {"state": state, "effect": "migration-storage"}
+        return {"state": state, "effect": "serve-legacy"}
+
+    # Once minimum 5 commits, its migration transport remains reachable for lookup/restore even when the directory
+    # is missing or invalid. Only ordinary profile runtime depends on successfully decoding that directory.
+    if wire < 5:
+        return {"effect": "update-required", "requiredWire": 5}
+    if request == "migration":
+        if wire != 5:
+            return {"effect": "migration-wire-required", "requiredWire": 5}
+        if not authenticated:
+            return {"effect": "authentication-required"}
+        return {"effect": "migration-storage"}
+    if directory != "valid":
+        fail("runtime_directory_required")
+    if not authenticated:
+        return {"state": "runtime", "effect": "authentication-required"}
+    return {"state": "runtime", "effect": "serve-runtime"}
+
+
 def main() -> int:
     # Loading both files is part of validation: malformed JSON fails before any vector runs.
     schema = json.loads(SCHEMA.read_text())
@@ -1762,6 +1821,50 @@ def main() -> int:
             if actual != case["expect"]:
                 fail(f"{case['name']}: reset decision mismatch")
 
+    capability = vectors["profileCapabilityContract"]
+    if ({name: capability.get(name) for name in (
+            "states", "scope", "migrationRequestWire", "runtimeHouseholdWire", "runtimeProfileWire",
+            "offMigrationStatus", "oldRuntimeStatus", "runtimeDerivedFromStoredDirectory",
+            "migrationTransportDirectoryIndependent", "newerMinimumPrecedesMigration", "operatorFlipAfterCommit",
+    )} != {
+        "states": ["off", "prepare", "runtime"],
+        "scope": "per-household",
+        "migrationRequestWire": 5,
+        "runtimeHouseholdWire": 5,
+        "runtimeProfileWire": 4,
+        "offMigrationStatus": 404,
+        "oldRuntimeStatus": 426,
+        "runtimeDerivedFromStoredDirectory": True,
+        "migrationTransportDirectoryIndependent": True,
+        "newerMinimumPrecedesMigration": True,
+        "operatorFlipAfterCommit": False,
+    }):
+        fail("profile_capability_contract_mismatch")
+    for case in capability["cases"]:
+        try:
+            actual = profile_capability(case["input"])
+        except ValueError as error:
+            if str(error) != case.get("error"):
+                fail(f"{case['name']}: wanted {case.get('error')}, got {error}")
+        else:
+            if "error" in case:
+                fail(f"{case['name']}: invalid capability state accepted")
+            if actual != case["expect"]:
+                fail(f"{case['name']}: capability decision mismatch")
+    seen_households = set()
+    mixed_states = []
+    for case in capability["mixedHost"]:
+        household = case.get("household")
+        if not isinstance(household, str) or not ID.fullmatch(household) or household in seen_households:
+            fail("invalid_mixed_household")
+        seen_households.add(household)
+        actual = profile_capability(case["input"])
+        if actual != case["expect"]:
+            fail(f"{household}: mixed-host capability decision mismatch")
+        mixed_states.append(actual.get("state"))
+    if mixed_states != ["off", "prepare", "runtime"]:
+        fail("mixed_household_modes_missing")
+
     topology = vectors["wireTopology"]
     expected = {
         "rowEncoding": "library-v4",
@@ -1805,6 +1908,7 @@ def main() -> int:
         f"{len(vectors['migrationStorageContract']['restoreCases'])} storage restore, "
         f"{len(vectors['migrationStorageContract']['retirementCases'])} storage retirement, "
         f"{len(vectors['migrationCases'])} migration, "
+        f"{len(vectors['profileCapabilityContract']['cases'])} capability, "
         f"{len(vectors['resetCases'])} reset cases passed"
     )
     return 0

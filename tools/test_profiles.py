@@ -9,6 +9,39 @@ class ProfilesVectorsTests(unittest.TestCase):
     def test_profiles_v1_vectors(self):
         self.assertEqual(validate_profiles.main(), 0)
 
+    def test_profile_capability_is_per_household_and_runtime_is_durable(self):
+        legacy = {
+            "enrollment": "prepare", "wireMin": 4, "directory": "absent",
+            "request": "ordinary", "wire": 5, "authenticated": True,
+        }
+        self.assertEqual(validate_profiles.profile_capability(legacy),
+                         {"state": "prepare", "effect": "serve-legacy"})
+        committed = {**legacy, "enrollment": "off", "wireMin": 5, "directory": "valid"}
+        self.assertEqual(validate_profiles.profile_capability(committed),
+                         {"state": "runtime", "effect": "serve-runtime"})
+
+    def test_profile_capability_fails_closed_at_wire_five(self):
+        invalid = {
+            "enrollment": "prepare", "wireMin": 5, "directory": "invalid",
+            "request": "ordinary", "wire": 5, "authenticated": True,
+        }
+        with self.assertRaisesRegex(ValueError, "runtime_directory_required"):
+            validate_profiles.profile_capability(invalid)
+        invalid["wire"] = 4
+        self.assertEqual(validate_profiles.profile_capability(invalid),
+                         {"effect": "update-required", "requiredWire": 5})
+
+    def test_profile_migration_transport_survives_invalid_directory_but_not_newer_wire(self):
+        recovery = {
+            "enrollment": "off", "wireMin": 5, "directory": "invalid",
+            "request": "migration", "wire": 5, "authenticated": True,
+        }
+        self.assertEqual(validate_profiles.profile_capability(recovery),
+                         {"effect": "migration-storage"})
+        recovery["wireMin"] = 6
+        self.assertEqual(validate_profiles.profile_capability(recovery),
+                         {"effect": "update-required", "requiredWire": 6})
+
     def test_numeric_policy_boundary_and_unknown(self):
         policy = {"maximumAge": 13, "unknownRatings": "block"}
         self.assertTrue(validate_profiles.policy_allows(policy, 13))
