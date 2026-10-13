@@ -613,6 +613,7 @@
     "sameGenerationNamespace": false,
     "transactionGenerationAllocation": "monotone-per-household-on-visible-mutation",
     "routes": {
+      "source": "GET /lib/{household}/profile-migration/source",
       "openOrLookup": "POST /lib/{household}/profile-migration",
       "lookup": "GET /lib/{household}/profile-migration/{attempt}",
       "abort": "DELETE /lib/{household}/profile-migration/{attempt}",
@@ -652,6 +653,113 @@
       "commitUnknownOrder": ["lookup-attempt", "fresh-authenticated-read", "adopt-or-cleanup"],
       "cancelOrder": ["abort-attempt", "fresh-authenticated-read", "retire-unreferenced-candidate", "discard-journal"],
       "restoreAuthorization": "separate-owner-pin-and-fresh-restore-attempt"
+    },
+    "sourceObservation": {
+      "wire": 5,
+      "authenticated": true,
+      "response": {
+        "source": {
+          "generation": 7,
+          "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      },
+      "sideEffects": [],
+      "openRequest": {
+        "attempt": "0123456789abcdef0123456789abcdef",
+        "purpose": "split",
+        "expectedSource": {
+          "generation": 7,
+          "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      },
+      "cases": [
+        {
+          "name": "an exact observed source opens one attempt",
+          "input": {
+            "currentSource": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+            "request": {"attempt": "0123456789abcdef0123456789abcdef", "purpose": "split", "expectedSource": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
+            "existing": null
+          },
+          "expect": {"effect": "open", "source": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}
+        },
+        {
+          "name": "a write after observation conflicts without side effects",
+          "input": {
+            "currentSource": {"generation": 8, "head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+            "request": {"attempt": "0123456789abcdef0123456789abcdef", "purpose": "split", "expectedSource": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
+            "existing": null
+          },
+          "expect": {"effect": "conflict", "status": 409, "error": "migration_source_changed", "sideEffects": []}
+        },
+        {
+          "name": "a changed head at the same generation also conflicts",
+          "input": {
+            "currentSource": {"generation": 7, "head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+            "request": {"attempt": "0123456789abcdef0123456789abcdef", "purpose": "split", "expectedSource": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
+            "existing": null
+          },
+          "expect": {"effect": "conflict", "status": 409, "error": "migration_source_changed", "sideEffects": []}
+        },
+        {
+          "name": "a changed generation with the same head also conflicts",
+          "input": {
+            "currentSource": {"generation": 8, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+            "request": {"attempt": "0123456789abcdef0123456789abcdef", "purpose": "split", "expectedSource": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
+            "existing": null
+          },
+          "expect": {"effect": "conflict", "status": 409, "error": "migration_source_changed", "sideEffects": []}
+        },
+        {
+          "name": "an exact replay is lookup first after the source changes",
+          "input": {
+            "currentSource": null,
+            "request": {"attempt": "0123456789abcdef0123456789abcdef", "purpose": "split", "expectedSource": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
+            "existing": {
+              "attempt": "0123456789abcdef0123456789abcdef",
+              "purpose": "split",
+              "source": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+              "result": {"attempt": "0123456789abcdef0123456789abcdef", "state": "open", "purpose": "split", "wireMin": 4, "fence": {"generation": 7, "base": 418, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "rewrite": "rewrite-0123456789abcdef"}}
+            }
+          },
+          "expect": {"effect": "lookup", "result": {"attempt": "0123456789abcdef0123456789abcdef", "state": "open", "purpose": "split", "wireMin": 4, "fence": {"generation": 7, "base": 418, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "rewrite": "rewrite-0123456789abcdef"}}}
+        },
+        {
+          "name": "replaying an attempt with another source is rejected",
+          "input": {
+            "currentSource": {"generation": 8, "head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+            "request": {"attempt": "0123456789abcdef0123456789abcdef", "purpose": "split", "expectedSource": {"generation": 8, "head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}},
+            "existing": {"attempt": "0123456789abcdef0123456789abcdef", "purpose": "split", "source": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, "result": {"state": "open"}}
+          },
+          "error": "migration_attempt_mismatch"
+        },
+        {
+          "name": "a restore attempt also requires its exact fresh observation",
+          "input": {
+            "currentSource": {"generation": 9, "head": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"},
+            "request": {"attempt": "fedcba9876543210fedcba9876543210", "purpose": "restore", "expectedSource": {"generation": 9, "head": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"}},
+            "existing": null
+          },
+          "expect": {"effect": "open", "source": {"generation": 9, "head": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"}}
+        },
+        {
+          "name": "a restore race requires a fresh Restore action and source",
+          "input": {
+            "currentSource": {"generation": 10, "head": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"},
+            "request": {"attempt": "fedcba9876543210fedcba9876543210", "purpose": "restore", "expectedSource": {"generation": 9, "head": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"}},
+            "existing": null
+          },
+          "expect": {"effect": "conflict", "status": 409, "error": "migration_source_changed", "sideEffects": []}
+        },
+        {
+          "name": "expected source is mandatory",
+          "input": {
+            "currentSource": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+            "request": {"attempt": "0123456789abcdef0123456789abcdef", "purpose": "split"},
+            "existing": null
+          },
+          "error": "invalid_migration_open"
+        }
+      ]
     },
     "open": {
       "attempt": "0123456789abcdef0123456789abcdef",

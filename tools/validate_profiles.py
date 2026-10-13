@@ -1064,6 +1064,58 @@ def validate_storage_fence(value: object) -> dict:
     return value
 
 
+def validate_migration_source(value: object) -> dict:
+    if (not isinstance(value, dict) or set(value) != {"generation", "head"}
+            or type(value["generation"]) is not int
+            or not 0 <= value["generation"] <= SAFE_INTEGER
+            or not isinstance(value["head"], str) or not DIGEST.fullmatch(value["head"])):
+        fail("invalid_migration_source")
+    return value
+
+
+def migration_open_result(value: object) -> dict:
+    """Pure model for lookup-first, exact-source migration opening."""
+    if not isinstance(value, dict) or set(value) != {"currentSource", "request", "existing"}:
+        fail("invalid_migration_open")
+    request = value["request"]
+    if (not isinstance(request, dict)
+            or set(request) != {"attempt", "purpose", "expectedSource"}
+            or not isinstance(request["attempt"], str) or not ID.fullmatch(request["attempt"])
+            or request["purpose"] not in ("split", "restore")):
+        fail("invalid_migration_open")
+    try:
+        expected = validate_migration_source(request["expectedSource"])
+    except ValueError:
+        fail("invalid_migration_open")
+
+    existing = value["existing"]
+    if existing is not None:
+        if (not isinstance(existing, dict)
+                or set(existing) != {"attempt", "purpose", "source", "result"}
+                or not isinstance(existing["result"], dict)):
+            fail("invalid_migration_open")
+        try:
+            source = validate_migration_source(existing["source"])
+        except ValueError:
+            fail("invalid_migration_open")
+        if (existing["attempt"] != request["attempt"]
+                or existing["purpose"] != request["purpose"]
+                or source != expected):
+            fail("migration_attempt_mismatch")
+        return {"effect": "lookup", "result": existing["result"]}
+
+    try:
+        current = validate_migration_source(value["currentSource"])
+    except ValueError:
+        fail("invalid_migration_open")
+    if current != expected:
+        return {
+            "effect": "conflict", "status": 409,
+            "error": "migration_source_changed", "sideEffects": [],
+        }
+    return {"effect": "open", "source": current}
+
+
 def validate_authority(value: object) -> dict:
     if (not isinstance(value, dict) or set(value) != {"generation", "base", "head", "kind"}
             or type(value["generation"]) is not int
@@ -1886,6 +1938,7 @@ def main() -> int:
 
     storage = vectors["migrationStorageContract"]
     expected_routes = {
+        "source": "GET /lib/{household}/profile-migration/source",
         "openOrLookup": "POST /lib/{household}/profile-migration",
         "lookup": "GET /lib/{household}/profile-migration/{attempt}",
         "abort": "DELETE /lib/{household}/profile-migration/{attempt}",
@@ -1932,6 +1985,29 @@ def main() -> int:
         "restoreAuthorization": "separate-owner-pin-and-fresh-restore-attempt",
     }:
         fail("migration_activation_contract_mismatch")
+    observation = storage.get("sourceObservation")
+    if (not isinstance(observation, dict)
+            or observation.get("wire") != 5
+            or observation.get("authenticated") is not True
+            or observation.get("sideEffects") != []
+            or set(observation.get("response", {})) != {"source"}
+            or observation.get("openRequest", {}).get("expectedSource")
+            != observation.get("response", {}).get("source")):
+        fail("migration_source_observation_mismatch")
+    validate_migration_source(observation["response"]["source"])
+    if set(observation["openRequest"]) != {"attempt", "purpose", "expectedSource"}:
+        fail("migration_source_observation_mismatch")
+    for case in observation.get("cases", []):
+        try:
+            actual = migration_open_result(case["input"])
+        except ValueError as error:
+            if str(error) != case.get("error"):
+                fail(f"{case['name']}: wanted {case.get('error')}, got {error}")
+        else:
+            if "error" in case:
+                fail(f"{case['name']}: invalid migration open accepted")
+            if actual != case.get("expect"):
+                fail(f"{case['name']}: migration open decision mismatch")
     opened = storage["open"]
     if (not isinstance(opened.get("attempt"), str) or not ID.fullmatch(opened["attempt"])
             or opened.get("purpose") != "split" or opened.get("state") != "open"
@@ -2215,6 +2291,7 @@ def main() -> int:
         f"{len(vectors['migrationAuthorizationFingerprintCases'])} authorization fingerprints, "
         f"{len(vectors['migrationDirectoryConstructorCases'])} migration directory constructor, "
         f"{len(vectors['migrationDigestCases'])} migration digests, "
+        f"{len(vectors['migrationStorageContract']['sourceObservation']['cases'])} storage source/open, "
         f"{len(vectors['migrationStorageContract']['restoreCases'])} storage restore, "
         f"{len(vectors['migrationStorageContract']['retirementCases'])} storage retirement, "
         f"{len(vectors['migrationCases'])} migration, "
