@@ -167,6 +167,13 @@ def materialize_identity(value: object) -> tuple[bytes, bool]:
                 or not 1 <= title["id"] <= 4_294_967_295):
             fail("invalid_materialize_input")
         expected_name = f"title:{title['type']}:{title['id']}"
+        watch = row.get("watch")
+        # library-v4's writer self-check refuses a logical document that its decoder normalizes. In particular,
+        # a register keeps only eight plays, so accepting nine here would make returned JCS differ from the
+        # document read back from the returned plaintext.
+        if (isinstance(watch, dict) and isinstance(watch.get("plays"), dict)
+                and len(watch["plays"]) > 8):
+            fail("invalid_materialize_input")
         is_document = True
     elif kind == "season":
         title = row.get("title")
