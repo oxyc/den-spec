@@ -494,9 +494,21 @@ expiry.
 
 ## 8. Initial split: explicit, backed up and fenced
 
-The split starts only from an explicit owner action after the owner PIN is verified. Upgrade, launch, opening these
-vectors, creating a directory in memory, or merely seeing a capable peer MUST NOT start it. The client durably keeps
-a local journal keyed by a random `attempt`; it never writes intermediate migration state to the shared log.
+The split starts only from an explicit owner action after the owner PIN is verified. That first action authorizes
+**preparation and rehearsal only**: opening the attempt, verifying the backup, constructing and verifying the Owner
+library, and staging the household candidate. It does not authorize the destructive household commit. Upgrade,
+launch, opening these vectors, creating a directory in memory, or merely seeing a capable peer MUST NOT start it.
+With no journal and no current PIN-verified owner action, the planner returns `no-op` and performs no storage I/O.
+
+Before the first storage effect, the client durably creates a local journal keyed by a random `attempt`; it never
+writes intermediate migration state to the shared log. A journal may resume preparation after process death without
+asking for the PIN again, but it MUST stop at `awaiting-confirmation`. The final **Confirm** is a distinct
+owner-PIN-verified action. It atomically and durably changes that same attempt journal to
+`{state: "ready-to-commit", commitAuthorized: true}` before any commit request is issued. `commitAuthorized` belongs
+to that immutable attempt and its recorded fence, verified backup, candidate key/head and staged digest. Changing or
+replacing any of those facts clears the authorization and returns to `awaiting-confirmation`; copying the boolean to
+another journal is invalid evidence. A crash before the durable transition leaves an unconfirmed journal. A crash
+after it may resume only the exact authorized commit/recovery sequence below.
 
 The states and only permitted next effects are:
 
@@ -506,12 +518,13 @@ The states and only permitted next effects are:
 | `fenced` | source fence | Create a complete backup at that exact fence; verify its digest and readability |
 | `backed-up` | source fence plus verified backup | Create one random Owner key/library and copy the Owner partition |
 | `owner-copied` | candidate library id/key | Verify every source row is accounted for and derived state and delivery pending state agree |
-| `ready-to-commit` | all prior evidence | Stage the configuration-only household form and commit `{base, wireMin: 5}` |
-| `commit-unknown` | attempted commit | Read the household; never guess or submit the same rewrite blindly |
+| `awaiting-confirmation` | all preparation evidence, `commitAuthorized: false` | Stop and present the exact prepared result; no commit I/O is permitted |
+| `ready-to-commit` | all prior evidence and durable `commitAuthorized: true` | Commit the already staged configuration-only household form as `{base, wireMin: 5}` |
+| `commit-unknown` | durable authorization and an attempted commit | Look up the attempt, then freshly authenticate/read the household; never guess from a request outcome |
 | `adopting` | a valid committed directory | Open and verify its Owner library, then make its profile the local active mode |
 | `cleaning-loser` | winner and a distinct local candidate | Retire/delete only the unreferenced candidate; repeat until absence is confirmed |
 | `active` | winner usable and any losing candidate absent | Delete the local journal; use household wire 5 and profile wire 4 |
-| `restore-required` | verified backup and no valid committed directory | Stop; require an explicit recovery action under a fresh fence |
+| `restore-required` | verified backup and no valid committed directory | Stop; require a separate owner-PIN recovery action and fresh recovery attempt |
 
 The backup MUST be complete through the recorded head, restorable under the unchanged household key/id, readable
 after creation, and retained at least until `active`. No Owner destination write may occur first. The Owner copy
@@ -530,6 +543,18 @@ the canonical pure decision operation. Its input contains `state`, `observed` (`
 and the following evidence when applicable:
 
 - `explicitIntent` is true before `idle` may return `acquire-fence`;
+- `commitAuthorized` is false or absent throughout preparation and in `awaiting-confirmation`. It is true only after
+  the final PIN-verified Confirm has been durably recorded in the exact attempt journal. `ready-to-commit` and
+  `commit-unknown` require it; earlier states reject it as premature;
+- `cancelRequested` is a separate explicit owner action. Before any winner exists it aborts the attempt, records the
+  durable `aborted` lookup, performs a new authenticated household read, then retires a candidate only through
+  §8.1's conditional retirement proof, and finally discards the journal. A pre-abort household observation cannot
+  authorize retirement. Cancellation never deletes a committed or otherwise referenced library;
+- `attemptLookup` is absent until durable attempt lookup completes, then is exactly `open`, `committed`,
+  `superseded` or `aborted`; `householdFresh` is true only after a new authenticated household read performed after
+  that lookup. A `commit-unknown` journal requires both in that order before it can adopt or clean up;
+- `recoveryIntent` is true only for a new owner-PIN-verified Restore action. It is not carried from split preparation
+  or final commit confirmation and authorizes only opening a fresh `purpose: "restore"` attempt;
 - `fence` is the journal's `{generation, head}` and `observedFence` is the legacy household's current pair. Both use
   a nonnegative safe-integer generation and a 32-byte lowercase-hex head. Post-`idle` legacy states require both;
 - `directory` is the stored, canonically validated committed directory. It is required for a `committed`
@@ -548,11 +573,26 @@ A referenced key while in `cleaning-loser` returns `cleanup_targets_winner`; the
 `winner_evidence_mismatch`. Evidence claiming that a committed key is already retired is the contradiction
 `committed_key_retired`. Only a valid, distinct, unreferenced candidate may produce
 `retire-losing-candidate`. A malformed/missing committed directory, malformed fence or key, verified copy without a
-head, missing explicit intent, or phase/evidence contradiction is an error rather than a next effect. The operation
+head, or phase/evidence contradiction is an error rather than a next effect. Missing initial intent is the explicit
+`no-op` case and cannot acquire a fence. The operation
 returns one of the effects named in the table or an error. Swift and web MUST execute that answer and MUST NOT infer
 success from their own request outcome.
 
-After any conflict, timeout or process death, read the household first:
+After any conflict, timeout or process death, resolve the durable journal as follows:
+
+- An unconfirmed `awaiting-confirmation` journal may resume verification or be cancelled, but MUST return
+  `await-final-confirmation` once preparation is complete. It can never return `commit-fenced-household`, including
+  after restart. Final Confirm is recorded before the state changes to `ready-to-commit` and before commit I/O.
+- `commit-unknown` first returns `lookup-attempt`. Only after that durable result does it return `read-household`.
+  This ordering takes precedence over a missing, stale or corrupt household observation: none is interpreted before
+  lookup and the subsequent fresh read. A `committed` lookup is valid only when the fresh directory's migration
+  attempt, Owner key and Owner head are the exact local attempt and verified candidate evidence. A `superseded`
+  lookup is valid only when the fresh directory names a different attempt and that winner's Owner library has been
+  verified; only then may the distinct local candidate be conditionally retired. `committed` with another winner,
+  `superseded` with itself, or any other terminal/directory mismatch is an error and can neither verify a winner nor
+  authorize cleanup. An `open` lookup plus the exact unchanged legacy fence may retry only the already-bound,
+  byte-identical authorized commit; it cannot construct a new commit. `aborted` cleans up and discards the journal
+  only after the same fresh-read checks.
 
 - A valid committed directory is the winner even when its `attempt` differs. Adopt it. If this client created a
   different Owner library, enter `cleaning-loser`; cleanup is idempotent and continues after restart.
@@ -563,7 +603,9 @@ After any conflict, timeout or process death, read the household first:
   fence changed, retire any candidate, discard only the attempt journal, and restart from `idle` on explicit intent.
 - An atomic fenced rewrite failure leaves the old household authoritative; do not restore over it. An unreadable or
   partial household with no valid committed directory enters `restore-required`. Recovery first proves the backup's
-  digest and source fence, opens a fresh rewrite, and restores only if den-core answers `restore-backup`. A backup
+  digest and source fence, then stops. A new owner-PIN-verified Restore action opens a fresh recovery attempt and
+  restores only if den-core answers `restore-backup`. Split intent, preparation and final commit confirmation do not
+  authorize restore. A backup
   MUST NOT restore over a valid wire-5 directory or lower its minimum.
 - A valid committed directory whose Owner library cannot yet be verified remains `adopting`; it never falls back to
   household activity and never lowers the wire minimum. Repair/finish the referenced Owner library from the verified
@@ -817,7 +859,9 @@ directory. It is one storage effect even though its implementation may read, val
 commit:
 
 1. Under a fresh household read, the client authenticates every row and either den-core-validates the committed
-   directory or establishes that the household is still legacy at a source fence that has genuinely changed.
+   directory, establishes that the household is still legacy at a source fence that has genuinely changed, or—for
+   explicit cancellation only—proves that this attempt is durably `aborted` and the household is still the exact
+   uncommitted legacy source.
 2. For a committed directory it derives a library id from every live profile key. Locally, before sending any
    delete request, it proves the candidate id **and key** differ from the household and every live entry. The
    plaintext directory and profile keys are never sent to den-edge.
@@ -831,8 +875,11 @@ commit:
 
 The protected-id set MUST equal the household id plus the ids derived from every live entry in the den-core-valid
 directory; a subset is invalid. Deleted entries are excluded. A committed authority without a valid directory, a
-same-source legacy authority, corrupt household, candidate/protected collision, missing candidate authorization or
-changed authority returns a blocking/conflict result and performs no retirement. `retired` and `absent` are the
+same-source legacy authority without a durable `aborted` result for that exact attempt, corrupt household,
+candidate/protected collision, missing candidate authorization or changed authority returns a blocking/conflict
+result and performs no retirement. Cancellation sends authority kind `cancelled-legacy`; it is valid only when the
+attempt lookup is durably `aborted`, the fresh authority still equals the original source, and the protected set is
+exactly the household id. It cannot race a commit because abort is terminal. `retired` and `absent` are the
 only successful results and are idempotent. The server cannot decrypt the directory, so completeness of the live
 set is a client/den-core obligation; the server's exact sealed-row compare-and-swap makes that validated decision
 atomic with respect to later directory changes.
