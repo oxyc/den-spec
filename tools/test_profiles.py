@@ -314,6 +314,71 @@ class ProfilesVectorsTests(unittest.TestCase):
         self.assertEqual(validate_profiles.inflate_document_plaintext(plaintext), jcs)
         self.assertEqual(validate_profiles.canonical_json(json.loads(jcs)), jcs)
 
+    def test_profiles_materializer_accepts_only_stored_valid_roundtripping_directories(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        document = copy.deepcopy(vectors["validDirectories"][0]["document"])
+        result = validate_profiles.profiles_materialize(document)
+        self.assertEqual(result["directory"], document)
+        jcs = validate_profiles.decode_unpadded_base64url(result["jcs"])
+        plaintext = validate_profiles.decode_unpadded_base64url(result["plaintext"])
+        self.assertEqual(jcs, validate_profiles.canonical_json(document))
+        self.assertEqual(validate_profiles.inflate_document_plaintext(plaintext), jcs)
+        without_migration = copy.deepcopy(document)
+        without_migration.pop("migration")
+        with self.assertRaisesRegex(ValueError, "profiles_migration_required"):
+            validate_profiles.profiles_materialize(without_migration)
+
+    def test_kid_create_journal_forces_fail_closed_policy_and_exact_cas(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        journal = copy.deepcopy(vectors["profileCreateJournal"])
+        profile_id, _, entry = validate_profiles.create_journal_entry(journal)
+        self.assertEqual(profile_id, journal["profile"])
+        self.assertEqual(entry["policy"]["value"], {"maximumAge": 8, "unknownRatings": "block"})
+        base = copy.deepcopy(vectors["validDirectories"][0]["document"])
+        candidate = validate_profiles.apply_directory_operation(base, {
+            "operation": "create", "profile": profile_id, "entry": entry,
+        })
+        planned = validate_profiles.profiles_create_next({
+            "state": "ready", "journal": journal, "candidate": candidate,
+            "authority": copy.deepcopy(vectors["profileCreateAuthority"]),
+        })
+        self.assertEqual({key: planned[key] for key in ("base", "generation")},
+                         vectors["profileCreateAuthority"])
+        self.assertEqual(planned["effect"], "cas-directory")
+
+    def test_unknown_kid_create_result_is_lookup_by_directory_merge(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        journal = copy.deepcopy(vectors["profileCreateJournal"])
+        profile_id, _, entry = validate_profiles.create_journal_entry(journal)
+        base = copy.deepcopy(vectors["validDirectories"][0]["document"])
+        candidate = validate_profiles.apply_directory_operation(base, {
+            "operation": "create", "profile": profile_id, "entry": entry,
+        })
+        common = {
+            "state": "cas-unknown", "journal": journal, "candidate": candidate,
+            "authority": copy.deepcopy(vectors["profileCreateAuthority"]), "householdFresh": True,
+        }
+        adopted = validate_profiles.profiles_create_next({**common, "current": candidate})
+        self.assertEqual(adopted["effect"], "adopt")
+        retried = validate_profiles.profiles_create_next({**common, "current": base})
+        self.assertEqual(retried["effect"], "cas-directory")
+
+    def test_active_kid_create_journal_needs_fresh_directory_before_discard(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        journal = copy.deepcopy(vectors["profileCreateJournal"])
+        profile_id, _, entry = validate_profiles.create_journal_entry(journal)
+        base = copy.deepcopy(vectors["validDirectories"][0]["document"])
+        candidate = validate_profiles.apply_directory_operation(base, {
+            "operation": "create", "profile": profile_id, "entry": entry,
+        })
+        evidence = {
+            "state": "active", "journal": journal, "candidate": candidate,
+            "authority": copy.deepcopy(vectors["profileCreateAuthority"]), "householdFresh": False,
+        }
+        self.assertEqual(validate_profiles.profiles_create_next(evidence)["effect"], "read-directory")
+        evidence.update({"householdFresh": True, "current": candidate})
+        self.assertEqual(validate_profiles.profiles_create_next(evidence)["effect"], "discard-journal")
+
     def test_jcs_rejects_non_finite_numbers(self):
         for value in (math.nan, math.inf, -math.inf):
             with self.subTest(value=value), self.assertRaisesRegex(ValueError, "invalid_jcs_number"):

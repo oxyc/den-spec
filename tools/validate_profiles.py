@@ -26,6 +26,8 @@ TITLE_KEY = re.compile(r"^(?:movie|tv):([1-9][0-9]*)$")
 DIGEST = re.compile(r"^[0-9a-f]{64}$")
 ROW_KEY = re.compile(r"^[0-9a-f]{64}$")
 SAFE_INTEGER = 9_007_199_254_740_991
+MAX_DOCUMENT_BYTES = 8 * 1024 * 1024
+MAX_DOCUMENT_DEPTH = 32
 
 
 def fail(message: str) -> None:
@@ -135,6 +137,24 @@ def document_plaintext(jcs: bytes) -> bytes:
     if inflate_document_plaintext(plaintext) != jcs:
         fail("invalid_document_plaintext")
     return plaintext
+
+
+def json_depth_within(value: object, maximum: int) -> bool:
+    """Bounded iterative check; corrupt extension trees must not exhaust the language stack."""
+    pending = [(value, 0)]
+    while pending:
+        item, parent_depth = pending.pop()
+        if isinstance(item, dict):
+            depth = parent_depth + 1
+            if depth > maximum:
+                return False
+            pending.extend((child, depth) for child in item.values())
+        elif isinstance(item, list):
+            depth = parent_depth + 1
+            if depth > maximum:
+                return False
+            pending.extend((child, depth) for child in item)
+    return True
 
 
 def inflate_document_plaintext(plaintext: bytes) -> bytes:
@@ -704,6 +724,38 @@ def migration_construct_directory(value: object) -> dict:
             "plaintext": unpadded_base64url(document_plaintext(jcs))}
 
 
+def profiles_materialize(document: object) -> dict:
+    """Validate and materialize one stored profiles directory without caller-selected bytes."""
+    if not isinstance(document, dict):
+        fail("invalid_profiles_materialize")
+    if "migration" not in document:
+        fail("profiles_migration_required")
+    try:
+        directory = validate_directory(document, require_migration=True)
+        if not json_depth_within(directory, MAX_DOCUMENT_DEPTH):
+            fail("invalid_profiles_materialize")
+        jcs = canonical_json(directory)
+    except ValueError as error:
+        if str(error) == "migration_missing":
+            fail("profiles_migration_required")
+        fail("invalid_profiles_materialize")
+    if len(jcs) > MAX_DOCUMENT_BYTES:
+        fail("profiles_materialize_too_large")
+    plaintext = document_plaintext(jcs)
+    try:
+        inflated = inflate_document_plaintext(plaintext)
+        decoded = json.loads(inflated)
+        validate_directory(decoded, require_migration=True)
+        if not json_depth_within(decoded, MAX_DOCUMENT_DEPTH):
+            fail("profiles_materialize_roundtrip")
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
+        fail("profiles_materialize_roundtrip")
+    if inflated != jcs or canonical_json(decoded) != jcs or decoded != directory:
+        fail("profiles_materialize_roundtrip")
+    return {"directory": directory, "jcs": unpadded_base64url(jcs),
+            "plaintext": unpadded_base64url(plaintext)}
+
+
 def validate_stamp(value: object) -> None:
     if not isinstance(value, list) or len(value) != 3:
         fail("invalid_stamp")
@@ -934,7 +986,19 @@ def apply_directory_operation(document: dict, case: dict) -> dict:
     if operation == "create":
         if profile_id in result["profiles"]:
             fail("profile_exists")
-        result["profiles"][profile_id] = copy.deepcopy(case["entry"])
+        entry = copy.deepcopy(case["entry"])
+        if (not isinstance(entry, dict) or entry.get("id") != profile_id
+                or entry.get("role") != "kid"):
+            fail("invalid_create_profile")
+        policy = entry.get("policy")
+        policy_value = policy.get("value") if isinstance(policy, dict) else None
+        maximum_age = policy_value.get("maximumAge") if isinstance(policy_value, dict) else None
+        if type(maximum_age) is not int or not 0 <= maximum_age <= 18:
+            fail("invalid_create_policy")
+        # Kid creation is conservative by construction. A future PIN-gated policy operation may loosen this;
+        # creation input cannot.
+        policy_value["unknownRatings"] = "block"
+        result["profiles"][profile_id] = entry
     else:
         entry = result["profiles"].get(profile_id)
         if entry is None or entry["deleted"]["value"]:
@@ -950,6 +1014,161 @@ def apply_directory_operation(document: dict, case: dict) -> dict:
         else:
             fail("invalid_operation")
     return validate_directory(result, require_migration=True)
+
+
+def create_journal_entry(value: object) -> tuple[str, str, dict]:
+    if not isinstance(value, dict) or set(value) != {
+            "version", "profile", "key", "display", "libraryAt", "maximumAge", "policyAt", "deletedAt"}:
+        fail("invalid_create_journal")
+    profile_id = value["profile"]
+    key = value["key"]
+    if value["version"] != 1 or not isinstance(profile_id, str) or not ID.fullmatch(profile_id):
+        fail("invalid_create_journal")
+    try:
+        raw_key = base64.b64decode(key, validate=True)
+    except (ValueError, TypeError):
+        fail("invalid_create_journal")
+    if len(raw_key) != 32 or base64.b64encode(raw_key).decode() != key:
+        fail("invalid_create_journal")
+    maximum_age = value["maximumAge"]
+    if type(maximum_age) is not int or not 0 <= maximum_age <= 18:
+        fail("invalid_create_journal")
+    display = value["display"]
+    if not isinstance(display, dict) or set(display) != {"value", "at"}:
+        fail("invalid_create_journal")
+    validate_stamp(display["at"])
+    display_value = display["value"]
+    if not isinstance(display_value, dict) or not isinstance(display_value.get("name"), str):
+        fail("invalid_create_journal")
+    name = display_value["name"]
+    if not name or len(name) > 64 or unicodedata.normalize("NFC", name) != name:
+        fail("invalid_create_journal")
+    if "avatar" in display_value and (
+            not isinstance(display_value["avatar"], str) or not AVATAR.fullmatch(display_value["avatar"])):
+        fail("invalid_create_journal")
+    for field in ("libraryAt", "policyAt", "deletedAt"):
+        validate_stamp(value[field])
+    entry = {
+        "id": profile_id,
+        "role": "kid",
+        "display": copy.deepcopy(display),
+        "library": {"value": {"keyVersion": 1, "key": key}, "at": copy.deepcopy(value["libraryAt"])},
+        "policy": {"value": {"maximumAge": maximum_age, "unknownRatings": "block"},
+                   "at": copy.deepcopy(value["policyAt"])},
+        "deleted": {"value": False, "at": copy.deepcopy(value["deletedAt"])},
+    }
+    return profile_id, key, entry
+
+
+def create_authority(value: object) -> dict:
+    if (not isinstance(value, dict) or set(value) != {"base", "generation"}
+            or type(value["base"]) is not int or not isinstance(value["generation"], str)
+            or not 0 <= value["base"] <= SAFE_INTEGER
+            or not value["generation"] or value["generation"] != value["generation"].strip()
+            or len(value["generation"]) > 256):
+        fail("invalid_create_authority")
+    return value
+
+
+def profiles_create_next(value: object) -> dict:
+    """Plan crash-safe Kid creation from durable journal and authenticated directory observations."""
+    if not isinstance(value, dict):
+        fail("invalid_create_evidence")
+    state = value.get("state")
+    if state not in {
+            "idle", "journaled", "library-created", "ready", "committed", "conflict",
+            "cas-unknown", "cancelling", "active"}:
+        fail("invalid_create_state")
+    for field in ("explicitIntent", "householdFresh", "candidateRetired"):
+        if field in value and type(value[field]) is not bool:
+            fail("invalid_create_evidence")
+    if state == "idle" and not value.get("explicitIntent", False):
+        return {"effect": "no-op"}
+
+    profile_id, key, entry = create_journal_entry(value.get("journal"))
+    if state == "idle":
+        return {"effect": "persist-journal"}
+    if state == "journaled":
+        return {"effect": "create-profile-library", "profile": profile_id, "key": key}
+    if state == "library-created":
+        return {"effect": "apply-create", "profile": profile_id, "entry": entry}
+    candidate = value.get("candidate")
+    try:
+        validate_directory(candidate, require_migration=True)
+    except ValueError:
+        fail("invalid_create_candidate")
+    candidate_entry = candidate["profiles"].get(profile_id)
+    if (not isinstance(candidate_entry, dict)
+            or canonical_json(candidate_entry) != canonical_json(entry)):
+        fail("create_candidate_mismatch")
+
+    def cas(directory: dict, authority: object) -> dict:
+        observed = create_authority(authority)
+        return {"effect": "cas-directory", "base": observed["base"],
+                "generation": observed["generation"], "directory": directory}
+
+    if state == "ready":
+        return cas(candidate, value.get("authority"))
+
+    if not value.get("householdFresh", False):
+        return {"effect": "read-directory"}
+    current = value.get("current")
+    try:
+        validate_directory(current, require_migration=True)
+    except ValueError:
+        fail("invalid_create_current")
+    authority = create_authority(value.get("authority"))
+    try:
+        merged = merge_directory(candidate, current)
+    except ValueError:
+        fail("create_directory_conflict")
+    candidate_won = canonical_json(merged) == canonical_json(current)
+    current_keys = {
+        item["library"]["value"]["key"]
+        for item in current["profiles"].values()
+        if item["deleted"]["value"] is False
+    }
+    if value.get("candidateRetired", False) and key in current_keys:
+        fail("create_key_referenced")
+    authoritative = current["profiles"].get(profile_id)
+
+    def retire_displaced_candidate() -> dict | None:
+        displaced = (authoritative is not None
+                     and (authoritative["deleted"]["value"] is True
+                          or authoritative["library"]["value"]["key"] != key))
+        if (displaced and key not in current_keys
+                and not value.get("candidateRetired", False)):
+            return {"effect": "retire-profile-library", "profile": profile_id, "key": key}
+        return None
+
+    if state == "cancelling":
+        if profile_id in current["profiles"]:
+            if not candidate_won:
+                fail("create_directory_conflict")
+            retirement = retire_displaced_candidate()
+            if retirement is not None:
+                return retirement
+            if authoritative["deleted"]["value"] is True:
+                return {"effect": "discard-journal"}
+            return {"effect": "adopt", "directory": current}
+        if key in current_keys:
+            fail("create_key_referenced")
+        if not value.get("candidateRetired", False):
+            return {"effect": "retire-profile-library", "profile": profile_id, "key": key}
+        return {"effect": "discard-journal"}
+
+    if candidate_won:
+        retirement = retire_displaced_candidate()
+        if retirement is not None:
+            return retirement
+        if authoritative is not None and authoritative["deleted"]["value"] is True:
+            return {"effect": "discard-journal"}
+        if state == "active":
+            return {"effect": "discard-journal"}
+        return {"effect": "adopt", "directory": current}
+    if state in {"committed", "active"}:
+        fail("create_not_committed")
+    return cas(merged, authority)
 
 
 def canonical_json_bytes(value: object) -> bytes:
@@ -1754,6 +1973,111 @@ def main() -> int:
         if actual != expected:
             fail(f"{case['name']}: directory operation mismatch")
 
+    for case in vectors["profilesMaterializeCases"]:
+        document = copy.deepcopy(base)
+        if "remove" in case:
+            remove_pointer(document, case["remove"])
+        if "mutation" in case:
+            mutate_pointer(document, case["mutation"])
+        if "oversizeExtensionBytes" in case:
+            document["materializeLimitProbe"] = "x" * case["oversizeExtensionBytes"]
+        if "nestedExtensionDepth" in case:
+            nested: dict = {}
+            document["futureNested"] = nested
+            for _ in range(case["nestedExtensionDepth"]):
+                child: dict = {}
+                nested["next"] = child
+                nested = child
+        try:
+            actual = profiles_materialize(document)
+            if case.get("roundTripMutation") == "append-zero":
+                plaintext = decode_unpadded_base64url(actual["plaintext"]) + b"\x00"
+                try:
+                    inflate_document_plaintext(plaintext)
+                except ValueError:
+                    fail("profiles_materialize_roundtrip")
+        except ValueError as error:
+            if str(error) != case.get("error"):
+                fail(f"{case['name']}: wanted {case.get('error')}, got {error}")
+        else:
+            if "error" in case:
+                fail(f"{case['name']}: invalid profiles materialization accepted")
+            jcs = decode_unpadded_base64url(actual["jcs"])
+            plaintext = decode_unpadded_base64url(actual["plaintext"])
+            if (actual["directory"] != document or len(jcs) != case["expectJcsBytes"]
+                    or hashlib.sha256(jcs).hexdigest() != case["expectJcsSha256"]
+                    or inflate_document_plaintext(plaintext) != jcs
+                    or canonical_json(json.loads(jcs)) != jcs):
+                fail(f"{case['name']}: profiles materialization mismatch")
+
+    journal_fixture = vectors["profileCreateJournal"]
+    create_profile, _, create_entry = create_journal_entry(journal_fixture)
+    candidate = apply_directory_operation(base, {
+        "operation": "create", "profile": create_profile, "entry": create_entry,
+    })
+    for case in vectors["profileCreateCases"]:
+        assembled = {key: copy.deepcopy(value) for key, value in case.items()
+                     if key not in {"name", "expect", "error", "omitJournal", "omitCurrent",
+                                    "current", "journalMutation", "authorityMutation", "candidateMutation"}}
+        if not case.get("omitJournal", False):
+            assembled["journal"] = copy.deepcopy(journal_fixture)
+            if "journalMutation" in case:
+                mutate_pointer(assembled["journal"], case["journalMutation"])
+        if case["state"] in {"ready", "committed", "conflict", "cas-unknown", "cancelling", "active"}:
+            assembled["candidate"] = copy.deepcopy(candidate)
+            if "candidateMutation" in case:
+                mutate_pointer(assembled["candidate"], case["candidateMutation"])
+            assembled["authority"] = copy.deepcopy(vectors["profileCreateAuthority"])
+            if "authorityMutation" in case:
+                mutate_pointer(assembled["authority"], case["authorityMutation"])
+        if not case.get("omitCurrent", False) and "current" in case:
+            if case["current"] == "candidate":
+                assembled["current"] = copy.deepcopy(candidate)
+            elif case["current"] == "base":
+                assembled["current"] = copy.deepcopy(base)
+            elif case["current"] == "renamed-candidate":
+                assembled["current"] = copy.deepcopy(candidate)
+                assembled["current"]["profiles"][create_profile]["display"] = {
+                    "value": {"name": "Sam Two", "avatar": "fox"},
+                    "at": [1800000006000, 0, "0f1e2d3c4b5a6978"],
+                }
+            elif case["current"] == "rekeyed-candidate":
+                assembled["current"] = copy.deepcopy(candidate)
+                assembled["current"]["profiles"][create_profile]["library"] = {
+                    "value": {
+                        "keyVersion": 2,
+                        "key": "ZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmY=",
+                    },
+                    "at": [1800000006000, 0, "0f1e2d3c4b5a6978"],
+                }
+            elif case["current"] == "tombstoned-candidate":
+                assembled["current"] = copy.deepcopy(candidate)
+                assembled["current"]["profiles"][create_profile]["deleted"] = {
+                    "value": True,
+                    "at": [1800000006000, 0, "0f1e2d3c4b5a6978"],
+                }
+            else:
+                fail("invalid_create_vector")
+        try:
+            actual = profiles_create_next(assembled)
+        except ValueError as error:
+            if str(error) != case.get("error"):
+                fail(f"{case['name']}: wanted {case.get('error')}, got {error}")
+        else:
+            if "error" in case:
+                fail(f"{case['name']}: invalid create evidence accepted")
+            if actual.get("effect") != case["expect"]:
+                fail(f"{case['name']}: wanted {case['expect']}, got {actual}")
+            if actual["effect"] == "cas-directory":
+                if ({key: actual.get(key) for key in ("base", "generation")}
+                        != vectors["profileCreateAuthority"]):
+                    fail(f"{case['name']}: CAS authority mismatch")
+                validate_directory(actual.get("directory"), require_migration=True)
+            if actual["effect"] == "apply-create":
+                policy = actual["entry"]["policy"]["value"]
+                if policy != {"maximumAge": 8, "unknownRatings": "block"}:
+                    fail(f"{case['name']}: unsafe Kid create policy")
+
     for case in vectors["directoryMergeCases"]:
         left = copy.deepcopy(base)
         right = copy.deepcopy(base)
@@ -2273,6 +2597,8 @@ def main() -> int:
         f"{len(vectors['invalidDirectories'])} invalid, "
         f"{len(vectors['mergeCases'])} merge, "
         f"{len(vectors['directoryOperationCases'])} directory operations, "
+        f"{len(vectors['profilesMaterializeCases'])} profiles materialization, "
+        f"{len(vectors['profileCreateCases'])} profile create lifecycle, "
         f"{len(vectors['directoryMergeCases'])} directory merge, "
         f"{len(vectors['policyCases'])} policy, "
         f"{len(vectors['policyOrderingCases'])} policy ordering, "

@@ -211,6 +211,83 @@ An implementation MUST call these den-core operations for validation and converg
 TypeScript reimplementations are not conforming. Vectors pin the operation boundary. The schema catches shape and
 local values, while den-core catches cross-entry and historical invariants.
 
+### 3.1 Canonical stored-directory materialization
+
+`profiles_materialize(document)` is the only operation that turns an already constructed directory into bytes for
+an ordinary post-migration household write. Its one input is the complete logical document; it accepts no logical
+name, plaintext, compressor choice or storage authority from the caller. The operation:
+
+1. validates `document` as a **stored** directory, so `migration` is mandatory;
+2. enforces library-v4's maximum JSON nesting depth 32, serializes the unchanged logical value as RFC 8785 JCS,
+   and refuses JCS above the 8 MiB inflation cap;
+3. constructs library-v4 document plaintext as byte `0x00` followed by one complete raw-DEFLATE stream; and
+4. inflates and parses its own result, validates it again as stored, and requires both the logical value and JCS
+   bytes to round-trip exactly with no trailing compressed bytes.
+
+The exact result shape is `{directory,jcs,plaintext}`. `directory` is the validated input value; `jcs` and
+`plaintext` are unpadded base64url. A client seals only the returned `plaintext` and never serializes or compresses
+`directory` itself. The native and WASM den-core bindings expose the same operation and error strings. Invalid
+logical input is `invalid_profiles_materialize`, a missing migration proof is `profiles_migration_required`, an
+oversize canonical document is `profiles_materialize_too_large`, and failure of the self-check is
+`profiles_materialize_roundtrip`. As elsewhere in library-v4, the framing and inflated JCS are canonical while the
+DEFLATE bitstream is den-core output rather than a cross-version identity.
+
+### 3.2 Crash-safe persistent Kid creation
+
+`profiles_create_next(evidence)` is den-core's pure lifecycle planner for persistent Kid creation. It performs no
+storage or network I/O. Only an explicit, Owner-PIN-authorized Create Kid action may supply `explicitIntent: true`;
+ordinary launch or upgrade supplies no intent and is a no-op. Before **any** library creation, household write or
+other I/O, the client generates a random 16-byte profile id, random 32-byte library key and all four stamps, and
+atomically persists them in secure local storage as this version-1 journal payload:
+
+```json
+{
+  "version": 1,
+  "profile": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "key": "VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=",
+  "display": {"value":{"name":"Sam","avatar":"fox"},"at":[1800000005000,0,"a1b2c3d4e5f60718"]},
+  "libraryAt": [1800000005000,1,"a1b2c3d4e5f60718"],
+  "maximumAge": 8,
+  "policyAt": [1800000005000,2,"a1b2c3d4e5f60718"],
+  "deletedAt": [1800000005000,3,"a1b2c3d4e5f60718"]
+}
+```
+
+`maximumAge` is the Owner's choice and MUST be an integer from 0 through 18. Creation constructs role `kid`, key
+version 1, `deleted: false`, and policy `{maximumAge,unknownRatings:"block"}`. `unknownRatings` is not a creation
+choice: `profiles_apply`'s create operation forces `block` even if a legacy/full-entry caller supplies `allow`.
+Loosening that policy requires a later, separately PIN-gated policy operation. The id, key and stamps in a live
+journal are immutable and reused after every restart; a client never generates replacements merely because an I/O
+result is unknown.
+
+The journal's durable state then drives these effects, pinned by `profileCreateCases`:
+
+- `persist-journal` is the only first effect. After it is durable, `create-profile-library` idempotently creates the
+  ordinary wire-4 profile library from the journal key. `apply-create` asks `profiles_apply` for the complete Kid
+  entry and candidate directory; clients do not assemble policy or stamps independently.
+- Every candidate directory is passed to `profiles_materialize`. The household's authenticated profiles-row read
+  supplies both its safe-integer row `base` and opaque `x-den-generation` string; `cas-directory` submits the
+  materialized sealed row using the existing batch compare-and-swap over that exact pair. This is the ordinary
+  library generation, not §8.1's integer profile-migration generation. No new den-edge endpoint is defined.
+- A CAS conflict first performs a fresh authenticated read, calls `profiles_merge(candidate,current)` in den-core,
+  materializes the merged result, and retries against the fresh `{base,generation}`. It never performs a blind
+  last-write-wins retry.
+- A missing response is `cas-unknown`. It also performs a fresh authenticated read. It may adopt only when
+  `profiles_merge(candidate,current)` equals `current` byte-for-byte in RFC 8785 JCS, proving the authoritative
+  directory already subsumes the candidate. Otherwise it follows the same merge-and-CAS path as a conflict.
+- The directory is authoritative. A concurrent rename is adopted. If a reset made another key authoritative for
+  the same profile id, the journal key's library is retired before adoption; if the directory contains a tombstone,
+  that library is retired and the creation is discarded rather than selecting the deleted profile. Cancellation and
+  cleanup keep the journal id/key until a fresh authenticated directory proves that key is absent from every live
+  entry; only after confirmed retirement may the journal be discarded. A successful CAS response likewise requires
+  a fresh directory read before adoption, and active selection requires fresh authority before final journal discard.
+
+The secure journal also records each returned planner state, candidate and last authenticated CAS evidence before
+performing its next effect. A corrupt or incomplete journal, invalid directory, missing fresh read, unsafe key
+retirement, or evidence that a supposedly committed directory does not subsume the candidate fails closed. The
+operation is deterministic and has identical native/WASM results; the clients own only durable execution of its
+effects.
+
 ## 4. Owner, Kid and Visitor
 
 **Owner** is a persistent profile. Its activity and personal settings live only in its profile library. Owner is
