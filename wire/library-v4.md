@@ -615,6 +615,12 @@ carries a `schema` above 3 (a `rec` above 2); that aborts as step 3 says.
   version stands, the held copy's extra registers are dropped, and the title shows why. Each kept write stands
   alone: one that touches a newer document (§4), or a series whose title document is newer, is held and reported;
   one that no longer applies is reported and dropped; neither stops the others.
+- **Not when the generation change is a profiles split.** A generation change that brings in profile topology (the
+  household's wire minimum crossing to 5, or a `profiles` directory the held state lacked) is **adoption**, not a
+  restore (profiles-v1 §8.2): the client discards its held rows, cached snapshots and pending restore or write-back
+  work for that household and writes none of it back. Once a household is profile-aware, write-back, kept writes
+  and merges never write a profile-scoped row, the Owner half of `set:prefs` or `simkl` in `set:keys` to it
+  (profiles-v1 §2); every row is first passed through `profile_household_write`.
 - **Restores.** A restored v4 log needs only write-back. A restored v3 log, or a log in which v2 or v3 rows appear
   (a store restored with its minimum lost, written by an old build), runs the switch (§10), merging the log's
   documents, and then write-back. A v4 client that reads a minimum below 4 runs the switch too, which then only
