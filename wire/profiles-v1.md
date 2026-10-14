@@ -117,6 +117,14 @@ Every live **persistent profile**, Owner included, has exactly one distinct rand
 library-v4 activity log. That log holds title and season documents, personal preferences, and, only when the
 profile owns a tracker, tracker credentials, delivery settings and delivery documents. The first product may expose
 only Owner and Kid creation, but the representation accepts any number of `kid` and future `adult` profiles.
+
+**Once a household is profile-aware, no client writes a profile-scoped row to it, on any path** — ordinary write,
+kept write, write-back, merge, link or restore. The profile-scoped rows are `title:*`, `season:*`, `dlv:*`,
+`set:deliver:*`, `set:handoff:*`, `set:trackers`, `set:assistant-applied`, the legacy `rec:*`, `wat:*`, `snt:*`,
+`ep:*` and `set:tracker-event:*`, the §6 profile half of `set:prefs` (the sixteen-key table's Profile keys and
+`den.maturityCeiling`), and the `simkl` value of `set:keys`. A household-scoped value in `set:prefs` or `set:keys`
+may be written; only the profile-scoped values are withheld. `profile_household_write` (§8.2) is the one rule every
+client asks, so Swift and web cannot disagree on it.
 Clients MUST use the same profile-store path for Owner and every other persistent profile; there is no permanent
 Owner projection in the household and no Kid-specific row format.
 
@@ -1192,6 +1200,46 @@ and any stale candidate retirement have all been re-read and confirmed. A provid
 transaction only after recording a durable terminal tombstone, so lookup never turns an unknown commit into a
 fresh open.
 
+### 8.2 Adoption is not a restore
+
+A generation change that brings in profile topology is **adoption**, never a restore. It is any generation change
+after which the household's wire minimum is 5 where the client's held state had a lower minimum, or after which the
+household carries a valid `profiles` directory that the held state lacked. The §8 commit is the canonical case: it is
+a rewrite (library-v4 §11's generation change), and a device that did not perform it sees only the new generation.
+
+On adoption a client MUST, for that household:
+
+- **discard** every held row, document and kept write that the §2 rule bars from a profile-aware household, together
+  with any cached snapshot of the pre-split household and any pending restore or write-back work built from it. Held
+  work is dropped, not deferred, and is not reported as a conflict;
+- **not write back** any of it. library-v4 §11's write-back applies only to a generation change that does not add
+  profile topology, and even then every row passes the §2 rule first;
+- re-read the household from 0 and derive state from the committed rows alone. The pre-split Owner's activity now
+  lives in the Owner library; a device cache of it is neither merged into the household nor into Owner.
+
+The same rule holds after adoption: a client that later holds a pre-split cache (a browser profile restored from a
+backup, a device offline across the commit) filters it through `profile_household_write` before any write.
+
+`profile_household_write(row)` answers whether a row may be written to a profile-aware household. `row` is exactly
+`{name}` for any row except `set:prefs` and `set:keys`, which also carry `values` (the settings object of the row). The
+answer is `{effect}`:
+
+- `allow` — write it as it is;
+- `refuse` — never write it; for a `set:prefs` or `set:keys` row, none of its values may be written;
+- `restrict` — write the row with exactly the returned `values`. For `set:prefs` these are the
+  `profiles_partition_preferences` `household` half; for `set:keys` they are every value except `simkl`. Stamps and
+  unknown members of the retained values are unchanged. A row from which nothing is withheld is `allow`; one from
+  which every value is withheld is `refuse`.
+
+A `set:prefs` or `set:keys` row without a `values` object is `invalid_household_write`, as is an unknown shape.
+
+`profile_household_audit({rows})` applies the same rule to rows already stored in a household, for a one-off repair.
+`rows` is a list of `row` values as above (a name may appear once; a repeat is `invalid_household_write`). The answer is
+`{remove: [name…], rewrite: [{name, values}…]}`, in input order: `remove` lists the rows that are `refuse`, `rewrite`
+lists the `restrict` rows with their household-only values, and an `allow` row appears in neither. A repair deletes
+or rewrites by the library-v4 rules (a tombstone for a removed row) and does not touch the Owner library, which was
+written by the split.
+
 ## 9. Multi-profile key reset and revocation
 
 A household §12 reset is one fenced compound move. It generates a successor household key and one distinct random
@@ -1697,5 +1745,6 @@ without planner evidence, using only the server-recorded phase and declaration a
 
 [`vectors/profiles-v1.json`](../vectors/profiles-v1.json) pins directory schema and operations, numeric policy,
 approvals, the exact settings table, sticky selection, activation/recovery decisions, stale-candidate cleanup, wire topology
-multi-profile reset and its exclusive-lock contract (`resetLockContract`, §9.1). `python3 tools/validate_profiles.py` checks the canonical input boundary and expected pure
+multi-profile reset and its exclusive-lock contract (`resetLockContract`, §9.1) and the profile-aware household write rule (`householdWriteCases`,
+`householdAuditCases`, §8.2). `python3 tools/validate_profiles.py` checks the canonical input boundary and expected pure
 answers. The vectors specify den-core behavior; they do not authorize a production caller to activate profiles.

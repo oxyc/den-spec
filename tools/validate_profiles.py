@@ -2070,6 +2070,49 @@ def partition_preferences(values: object) -> dict:
     return {"household": household, "owner": owner, "ownerMaturity": owner_maturity}
 
 
+def household_write(row: object) -> dict:
+    """Whether one row may be written to a profile-aware household (profiles-v1 §8.2)."""
+    if not isinstance(row, dict) or not isinstance(row.get("name"), str) or not row["name"]:
+        raise ValueError("invalid_household_write")
+    name = row["name"]
+    if name in ("set:prefs", "set:keys"):
+        values = row.get("values")
+        if not isinstance(values, dict):
+            raise ValueError("invalid_household_write")
+        if name == "set:prefs":
+            kept = partition_preferences(values)["household"]
+        else:
+            kept = {key: value for key, value in values.items() if key != "simkl"}
+        if len(kept) == len(values):
+            return {"effect": "allow"}
+        if not kept:
+            return {"effect": "refuse"}
+        return {"effect": "restrict", "values": kept}
+    scoped = name.startswith(("title:", "season:", "dlv:", "set:deliver:", "set:handoff:")) or name in (
+        "set:trackers", "set:assistant-applied")
+    legacy = name.startswith(("rec:", "wat:", "snt:", "ep:", "set:tracker-event:"))
+    return {"effect": "refuse" if scoped or legacy else "allow"}
+
+
+def household_audit(rows: object) -> dict:
+    """The same rule over rows already stored: which to remove, which to rewrite."""
+    if not isinstance(rows, list):
+        raise ValueError("invalid_household_write")
+    seen = set()
+    remove = []
+    rewrite = []
+    for row in rows:
+        answer = household_write(row)
+        if row["name"] in seen:
+            raise ValueError("invalid_household_write")
+        seen.add(row["name"])
+        if answer["effect"] == "refuse":
+            remove.append(row["name"])
+        elif answer["effect"] == "restrict":
+            rewrite.append({"name": row["name"], "values": answer["values"]})
+    return {"remove": remove, "rewrite": rewrite}
+
+
 def profile_capability(value: object) -> dict:
     """Resolve one household's profile mode without treating deployment support as runtime truth."""
     if not isinstance(value, dict) or set(value) != {
@@ -2387,6 +2430,19 @@ def main() -> int:
                 fail(f"{case['name']}: invalid preferences accepted")
             if actual != case["expect"]:
                 fail(f"{case['name']}: preference partition mismatch")
+    for key, function, field in (("householdWriteCases", household_write, "row"),
+                                 ("householdAuditCases", household_audit, "rows")):
+        for case in vectors[key]:
+            try:
+                actual = function(case[field])
+            except ValueError as error:
+                if str(error) != case.get("error"):
+                    fail(f"{case['name']}: wanted {case.get('error')}, got {error}")
+            else:
+                if "error" in case:
+                    fail(f"{case['name']}: invalid household write accepted")
+                if actual != case["expect"]:
+                    fail(f"{case['name']}: household write answer mismatch")
     for case in vectors["kidDiscoveryCases"]:
         if "error" in case:
             try:
@@ -2954,6 +3010,8 @@ def main() -> int:
         f"{len(vectors['playOnceCases'])} play once, "
         f"{len(vectors['selectionCases'])} selection, "
         f"{len(vectors['settingsPartitionCases'])} settings partition, "
+        f"{len(vectors['householdWriteCases'])} household write, "
+        f"{len(vectors['householdAuditCases'])} household audit, "
         f"{len(vectors['migrationPartitionCases'])} migration row partition, "
         f"{len(vectors['migrationMaterializeCases'])} migration materialization, "
         f"{len(vectors['migrationAuthorizationFingerprintCases'])} authorization fingerprints, "

@@ -551,6 +551,101 @@
       "error": "invalid_preferences"
     }
   ],
+  "householdWriteCases": [
+    {"name": "title document is profile-scoped", "row": {"name": "title:movie:550"}, "expect": {"effect": "refuse"}},
+    {"name": "season document is profile-scoped", "row": {"name": "season:tv:1396:1"}, "expect": {"effect": "refuse"}},
+    {"name": "delivery document is profile-scoped", "row": {"name": "dlv:simkl:4812736"}, "expect": {"effect": "refuse"}},
+    {"name": "delivery setting is profile-scoped", "row": {"name": "set:deliver:simkl:4812736"}, "expect": {"effect": "refuse"}},
+    {"name": "handoff setting is profile-scoped", "row": {"name": "set:handoff:simkl:4812736"}, "expect": {"effect": "refuse"}},
+    {"name": "trackers row is profile-scoped", "row": {"name": "set:trackers"}, "expect": {"effect": "refuse"}},
+    {"name": "assistant receipt guard is profile-scoped by exact name", "row": {"name": "set:assistant-applied"}, "expect": {"effect": "refuse"}},
+    {"name": "assistant configuration rows stay household", "row": {"name": "set:assistant-grants"}, "expect": {"effect": "allow"}},
+    {"name": "pre-v4 activity rows are never written", "row": {"name": "rec:movie:550"}, "expect": {"effect": "refuse"}},
+    {"name": "pre-v4 tracker event rows are never written", "row": {"name": "set:tracker-event:abc"}, "expect": {"effect": "refuse"}},
+    {"name": "profiles directory and approvals stay household", "row": {"name": "profiles"}, "expect": {"effect": "allow"}},
+    {"name": "download rows stay household", "row": {"name": "set:download-lease"}, "expect": {"effect": "allow"}},
+    {
+      "name": "prefs keep only the household half",
+      "row": {"name": "set:prefs", "values": {
+        "den.watchRegion": {"value": {"string": "FI"}, "at": [1, 0, "a1b2c3d4e5f60718"]},
+        "den.hideWatched": {"value": {"bool": true}, "at": [2, 0, "a1b2c3d4e5f60718"]},
+        "den.maturityCeiling": {"value": {"string": "pg13"}, "at": [3, 0, "a1b2c3d4e5f60718"]},
+        "future.preference": {"value": {"future": true}, "at": [4, 0, "a1b2c3d4e5f60718"]}
+      }},
+      "expect": {"effect": "restrict", "values": {
+        "den.watchRegion": {"value": {"string": "FI"}, "at": [1, 0, "a1b2c3d4e5f60718"]},
+        "future.preference": {"value": {"future": true}, "at": [4, 0, "a1b2c3d4e5f60718"]}
+      }}
+    },
+    {
+      "name": "prefs with only household values are written as they are",
+      "row": {"name": "set:prefs", "values": {"den.myServicePicks": {"value": {"strings": ["8@FI"]}, "at": [1, 0, "a1b2c3d4e5f60718"]}}},
+      "expect": {"effect": "allow"}
+    },
+    {
+      "name": "prefs with only Owner values are refused whole",
+      "row": {"name": "set:prefs", "values": {"den.hideAnime": {"value": {"bool": true}, "at": [1, 0, "a1b2c3d4e5f60718"]}}},
+      "expect": {"effect": "refuse"}
+    },
+    {"name": "empty prefs are written as they are", "row": {"name": "set:prefs", "values": {}}, "expect": {"effect": "allow"}},
+    {
+      "name": "keys drop simkl and keep every other credential",
+      "row": {"name": "set:keys", "values": {
+        "simkl": {"value": {"string": "token"}, "at": [1, 0, "a1b2c3d4e5f60718"]},
+        "tmdb": {"value": {"string": "k"}, "at": [2, 0, "a1b2c3d4e5f60718"]},
+        "parentalPIN": {"value": {"string": "1234"}, "at": [3, 0, "a1b2c3d4e5f60718"]}
+      }},
+      "expect": {"effect": "restrict", "values": {
+        "tmdb": {"value": {"string": "k"}, "at": [2, 0, "a1b2c3d4e5f60718"]},
+        "parentalPIN": {"value": {"string": "1234"}, "at": [3, 0, "a1b2c3d4e5f60718"]}
+      }}
+    },
+    {
+      "name": "keys holding only simkl are refused whole",
+      "row": {"name": "set:keys", "values": {"simkl": {"value": null, "at": [1, 0, "a1b2c3d4e5f60718"]}}},
+      "expect": {"effect": "refuse"}
+    },
+    {
+      "name": "keys without simkl are written as they are",
+      "row": {"name": "set:keys", "values": {"tmdb": {"value": {"string": "k"}, "at": [2, 0, "a1b2c3d4e5f60718"]}}},
+      "expect": {"effect": "allow"}
+    },
+    {"name": "prefs without values are rejected", "row": {"name": "set:prefs"}, "error": "invalid_household_write"},
+    {"name": "keys with non-object values are rejected", "row": {"name": "set:keys", "values": []}, "error": "invalid_household_write"},
+    {"name": "a row without a name is rejected", "row": {}, "error": "invalid_household_write"}
+  ],
+  "householdAuditCases": [
+    {
+      "name": "a household polluted by write-back is cleaned",
+      "rows": [
+        {"name": "title:movie:550"},
+        {"name": "set:trackers"},
+        {"name": "set:deliver:simkl:4812736"},
+        {"name": "profiles"},
+        {"name": "set:prefs", "values": {
+          "den.watchRegion": {"value": {"string": "FI"}, "at": [1, 0, "a1b2c3d4e5f60718"]},
+          "den.hideWatched": {"value": {"bool": true}, "at": [2, 0, "a1b2c3d4e5f60718"]}
+        }},
+        {"name": "set:keys", "values": {
+          "simkl": {"value": {"string": "token"}, "at": [1, 0, "a1b2c3d4e5f60718"]},
+          "tmdb": {"value": {"string": "k"}, "at": [2, 0, "a1b2c3d4e5f60718"]}
+        }},
+        {"name": "set:download-lease"}
+      ],
+      "expect": {
+        "remove": ["title:movie:550", "set:trackers", "set:deliver:simkl:4812736"],
+        "rewrite": [
+          {"name": "set:prefs", "values": {"den.watchRegion": {"value": {"string": "FI"}, "at": [1, 0, "a1b2c3d4e5f60718"]}}},
+          {"name": "set:keys", "values": {"tmdb": {"value": {"string": "k"}, "at": [2, 0, "a1b2c3d4e5f60718"]}}}
+        ]
+      }
+    },
+    {"name": "a clean household needs no repair", "rows": [{"name": "profiles"}, {"name": "set:download-lease"}], "expect": {"remove": [], "rewrite": []}},
+    {"name": "an empty list needs no repair", "rows": [], "expect": {"remove": [], "rewrite": []}},
+    {"name": "a prefs row of only Owner values is removed", "rows": [{"name": "set:prefs", "values": {"den.hideAnime": {"value": {"bool": true}, "at": [1, 0, "a1b2c3d4e5f60718"]}}}], "expect": {"remove": ["set:prefs"], "rewrite": []}},
+    {"name": "a repeated name is rejected", "rows": [{"name": "title:movie:550"}, {"name": "title:movie:550"}], "error": "invalid_household_write"},
+    {"name": "rows must be a list", "rows": {}, "error": "invalid_household_write"}
+  ],
   "migrationFence": {
     "generation": 7,
     "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

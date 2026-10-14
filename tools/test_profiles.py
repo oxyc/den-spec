@@ -70,6 +70,33 @@ class ProfilesVectorsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "invalid_preferences"):
             validate_profiles.partition_preferences([])
 
+    def test_household_write_withholds_only_profile_scoped_values(self):
+        stamp = [1, 0, "a1b2c3d4e5f60718"]
+        simkl = {"value": {"string": "t"}, "at": stamp}
+        tmdb = {"value": {"string": "k"}, "at": stamp}
+        self.assertEqual(validate_profiles.household_write({"name": "title:movie:1"}), {"effect": "refuse"})
+        self.assertEqual(validate_profiles.household_write({"name": "set:assistant"}), {"effect": "allow"})
+        self.assertEqual(
+            validate_profiles.household_write({"name": "set:keys", "values": {"simkl": simkl, "tmdb": tmdb}}),
+            {"effect": "restrict", "values": {"tmdb": tmdb}})
+        self.assertEqual(validate_profiles.household_write({"name": "set:keys", "values": {"simkl": simkl}}),
+                         {"effect": "refuse"})
+        with self.assertRaisesRegex(ValueError, "invalid_household_write"):
+            validate_profiles.household_write({"name": "set:prefs"})
+
+    def test_household_audit_removes_and_rewrites_in_order(self):
+        stamp = [1, 0, "a1b2c3d4e5f60718"]
+        region = {"value": {"string": "FI"}, "at": stamp}
+        hidden = {"value": {"bool": True}, "at": stamp}
+        self.assertEqual(validate_profiles.household_audit([
+            {"name": "dlv:simkl:1"},
+            {"name": "set:prefs", "values": {"den.watchRegion": region, "den.hideWatched": hidden}},
+            {"name": "profiles"},
+        ]), {"remove": ["dlv:simkl:1"],
+             "rewrite": [{"name": "set:prefs", "values": {"den.watchRegion": region}}]})
+        with self.assertRaisesRegex(ValueError, "invalid_household_write"):
+            validate_profiles.household_audit([{"name": "profiles"}, {"name": "profiles"}])
+
     def test_kid_discovery_uses_audience_intent_and_teen_band(self):
         child = {"maximumAge": 8, "unknownRatings": "block"}
         teen = {"maximumAge": 13, "unknownRatings": "block"}
