@@ -357,9 +357,9 @@ fetched to refill a page after filtering.
 The audience-relevance gate is presentation policy, not a second maturity rating. It does not apply to Owner or
 Visitor discovery, does not change `minimumAge`, and does not deny an otherwise age-eligible direct/deep-linked
 detail, Play, Sources, download, autoplay or remote-play request. Those boundaries continue to use the age policy
-and title approvals above, including the made-for-audience admission of an unknown title: a client passes it to the
-shared rule as `madeForAudience` from the title's audience evidence for the Kid's band, so a title the Kid's
-catalogue shows also opens and plays. This distinction lets an owner deliberately open a specific obscure or adult-oriented
+and title approvals above, including the made-for-audience admission of an unknown title and the warning veto. Atlas
+decides them from its store and answers a direct read's `/index/title` with `eligible` for the request's policy, so
+every client applies the same answer; a client adds only the Kid's own approvals, which atlas never sees. This distinction lets an owner deliberately open a specific obscure or adult-oriented
 but age-eligible work without filling the Kid's normal catalogue with such titles. Atlas cache and ETag identity for
 Kid discovery additionally includes the Kid role and the child-only versus child-or-teen audience band.
 
