@@ -306,7 +306,10 @@ An existing owner's missing/unknown certification remains fail-open: its migrate
 **Kid** is a persistent profile with independent activity, preferences and recommendations. Creation requires an
 owner PIN to exist and defaults `unknownRatings` to `block`; the owner chooses the initial `maximumAge`. Only an
 owner-authorized operation writes a Kid's policy or title approvals. A Kid session receives neither writer and has
-no tracker in v1.
+no tracker in v1. A Kid's Settings, which open only with the owner PIN (§6), are such an operation: the PIN that
+opened them authorizes `profiles_apply` `policy` for that Kid, written to the directory with the exact-row
+compare-and-swap that creates a Kid. A conflict or a lost response is read again, and a policy the directory already
+holds is not rewritten.
 Kid cannot manage profiles or household connections. Resource-consuming download actions are disabled or gated by
 the owner PIN.
 
