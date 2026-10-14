@@ -689,8 +689,7 @@
       "retireCandidate": "POST /lib/{household}/profile-migration/{attempt}/retire-candidate"
     },
     "requiredOrder": [
-      "open-fence",
-      "create-backup",
+      "open-fence-and-create-backup",
       "verify-backup",
       "create-owner-library",
       "copy-owner",
@@ -808,11 +807,45 @@
           "expect": {"effect": "conflict", "status": 409, "error": "migration_in_progress", "sideEffects": []}
         },
         {
-          "name": "a restore cannot open while another household attempt is active",
+          "name": "a restore fails closed on corrupt legacy lock state without its invariant backup",
           "input": {
             "currentSource": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
             "request": {"attempt": "fedcba9876543210fedcba9876543210", "purpose": "restore", "expectedSource": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
             "existing": {"attempt": "0123456789abcdef0123456789abcdef", "purpose": "split", "source": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, "result": {"state": "open"}}
+          },
+          "expect": {"effect": "conflict", "status": 409, "error": "migration_in_progress", "sideEffects": []}
+        },
+        {
+          "name": "a verified backup permits one atomic recovery handoff from the active split",
+          "input": {
+            "currentSource": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+            "request": {"attempt": "fedcba9876543210fedcba9876543210", "purpose": "restore", "expectedSource": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
+            "existing": {
+              "attempt": "0123456789abcdef0123456789abcdef",
+              "purpose": "split",
+              "source": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+              "result": {"state": "open"},
+              "verifiedBackup": {"attempt": "0123456789abcdef0123456789abcdef", "id": "backup-0123456789abcdef", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "readBackVerified": true}
+            }
+          },
+          "expect": {
+            "effect": "recovery-handoff",
+            "source": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+            "backup": {"attempt": "0123456789abcdef0123456789abcdef", "id": "backup-0123456789abcdef", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
+          }
+        },
+        {
+          "name": "a verified backup cannot hand off after an invariant source change",
+          "input": {
+            "currentSource": {"generation": 8, "head": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
+            "request": {"attempt": "fedcba9876543210fedcba9876543210", "purpose": "restore", "expectedSource": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
+            "existing": {
+              "attempt": "0123456789abcdef0123456789abcdef",
+              "purpose": "split",
+              "source": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+              "result": {"state": "open"},
+              "verifiedBackup": {"attempt": "0123456789abcdef0123456789abcdef", "id": "backup-0123456789abcdef", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "readBackVerified": true}
+            }
           },
           "expect": {"effect": "conflict", "status": 409, "error": "migration_in_progress", "sideEffects": []}
         },
@@ -850,6 +883,7 @@
       "purpose": "split",
       "state": "open",
       "wireMin": 4,
+      "backup": {"attempt": "0123456789abcdef0123456789abcdef", "id": "backup-0123456789abcdef", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
       "householdId": "5e1ab5db12f9b30e640e3ee80fb3e072",
       "householdKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
       "fence": {
@@ -865,6 +899,9 @@
       "terminalLookupRetained": true,
       "exclusiveHouseholdAttempt": true,
       "lockAcquiredAtomicallyWithSourceCheck": true,
+      "backupCreatedReadBackVerifiedAndBoundWithLock": true,
+      "lockNeverVisibleWithoutVerifiedBackup": true,
+      "openCrashSemantics": {"before": "no-lock-unreferenced-backup-may-be-collected", "after": "open-split-with-bound-verified-backup"},
       "ordinaryWritesRemainAvailable": false,
       "ordinaryMutationResponse": {"status": 409, "error": "migration_in_progress"},
       "differentAttemptResponseIncludesMetadata": false,
@@ -872,6 +909,9 @@
       "commitReleasesLockAtomically": true,
       "restoreReleasesLockAtomically": true,
       "abortRequiresPlannerSafe": true,
+      "verifiedBackupRecoveryHandoff": true,
+      "recoveryHandoffAtomic": true,
+      "handoffCrashSemantics": {"before": "original-split-remains-open", "after": "new-restore-remains-open-with-bound-backup"},
       "restoreNeverReusesGeneration": true,
       "terminalStates": ["committed", "restored", "aborted"],
       "legacyTerminalStates": ["superseded"]
@@ -1067,7 +1107,7 @@
     {"name": "no journal and no explicit intent performs no work", "state": "idle", "observed": "legacy", "explicitIntent": false, "expect": "no-op"},
     {"name": "old explicit-intent input without exact authorization fails closed", "state": "idle", "observed": "legacy", "explicitIntent": true, "omitSplitAuthorization": true, "error": "migration_authorization_required"},
     {"name": "authorization cannot be copied to another attempt", "state": "idle", "observed": "legacy", "explicitIntent": true, "plannerAttempt": "fedcba9876543210fedcba9876543210", "error": "migration_authorization_mismatch"},
-    {"name": "backup precedes any Owner destination write", "state": "fenced", "observed": "legacy", "expect": "create-backup"},
+    {"name": "the atomically bound backup is verified before any Owner destination write", "state": "fenced", "observed": "legacy", "expect": "verify-backup"},
     {"name": "verified backup permits Owner creation", "state": "backed-up", "observed": "legacy", "backupVerified": true, "expect": "create-owner-library"},
     {"name": "copied Owner must be verified", "state": "owner-copied", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "expect": "verify-owner-library"},
     {"name": "prepared journal records its exact commit binding without another prompt", "state": "awaiting-confirmation", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "commitAuthorized": false, "expect": "record-commit-binding"},

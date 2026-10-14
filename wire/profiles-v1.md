@@ -666,8 +666,8 @@ The states and only permitted next effects are:
 
 | Local state | Required durable evidence | Next effect |
 |---|---|---|
-| `idle` | explicit owner intent | Open a den-edge rewrite and record its generation and base head as `fenced` |
-| `fenced` | source fence | Create a complete backup at that exact fence; verify its digest and readability |
+| `idle` | explicit owner intent | Atomically open a den-edge rewrite with its provider-verified backup and record both as `fenced` |
+| `fenced` | source fence plus bound provider-verified backup | Fetch that backup and verify its digest, contents and restorability |
 | `backed-up` | source fence plus verified backup | Create one random Owner key/library and copy the Owner partition |
 | `owner-copied` | candidate library id/key | Verify every source row is accounted for and derived state and delivery pending state agree |
 | `awaiting-confirmation` | all preparation evidence, prepared exact-attempt authorization, `commitAuthorized: false` | Derive and durably record the exact commit binding; do not prompt again |
@@ -713,7 +713,9 @@ contains `state`, `observed` (`legacy`, `committed` or `corrupt`), and the follo
   `householdFresh` is true only after a new authenticated household read performed after
   that lookup. A `commit-unknown` journal requires both in that order before it can adopt or clean up;
 - `recoveryIntent` is true only for a new owner-PIN-verified Restore action. It is not carried from split preparation
-  action or derived commit binding and authorizes only opening a fresh `purpose: "restore"` attempt;
+  action or derived commit binding and authorizes only opening a fresh `purpose: "restore"` attempt. When the
+  original split journal is unavailable, that fresh recovery attempt may take over the lock only through §8.1's
+  atomic verified-backup handoff; it never adopts or resumes the missing split authorization;
 - `fence` is the journal's `{generation, head}` and `observedFence` is the legacy household's current pair. Both use
   a nonnegative safe-integer generation and a 32-byte lowercase-hex head. Post-`idle` legacy states require both;
 - `directory` is the stored, canonically validated committed directory. It is required for a `committed`
@@ -788,9 +790,9 @@ After any conflict, timeout or process death, resolve the durable journal as fol
   owner PIN may start another attempt.
 - An atomic fenced rewrite failure leaves the old household authoritative; do not restore over it. An unreadable or
   partial household with no valid committed directory enters `restore-required`. Recovery first proves the backup's
-  digest and source fence, then stops. A new owner-PIN-verified Restore action opens a fresh recovery attempt and
-  restores only if den-core answers `restore-backup`. Split intent, preparation and commit binding do not
-  authorize restore. A backup
+  digest and source fence, then stops. A new owner-PIN-verified Restore action opens a fresh recovery attempt, using
+  §8.1's atomic handoff when an open split still owns the household lock, and restores only if den-core answers
+  `restore-backup`. Split intent, preparation and commit binding do not authorize restore. A backup
   MUST NOT restore over a valid wire-5 directory or lower its minimum.
 - A valid committed directory whose Owner library cannot yet be verified remains `adopting`; it never falls back to
   household activity and never lowers the wire minimum. Repair/finish the referenced Owner library from the verified
@@ -863,20 +865,34 @@ authorization for its newly generated attempt id.
 `POST /lib/{household}/profile-migration` with
 `{"attempt":"<32 lowercase hex>","purpose":"split","expectedSource":{"generation":7,"head":"<64 lowercase hex>"}}`
 or `purpose: "restore"` opens the transaction. `expectedSource` is required and exact. For a new attempt, the
-provider MUST hold the household's mutation lock, first establish that no active migration attempt exists, read the
-current authoritative generation and authenticated head, compare both with `expectedSource`, and atomically record
-the durable attempt, exclusive household migration lock and frozen-source state. A mismatch is
+provider MUST hold the same per-library serialization used for source validation, first establish that no active
+migration attempt exists, read the current authoritative generation and authenticated head, and compare both with
+`expectedSource`. While still holding that serialization it creates the complete source backup, durably flushes it,
+reopens and verifies its manifest digest, then atomically records the durable attempt, exclusive household migration
+lock, frozen-source state and exact backup reference. The lock is never externally visible without that verified
+backup. A mismatch is
 `409 {"error":"migration_source_changed"}` and has no side effect: in particular it creates no attempt record,
 source snapshot, rewrite handle, backup, staging area or counter change. The client invalidates the associated
 authorization. A split requires another explicit Enable Profiles action plus a fresh Owner PIN against a fresh
 source observation; a restore requires another explicit Restore action plus its own fresh Owner PIN and source
 observation. Recovery may not broaden or refresh either old authorization.
 
-There is at most one active `split` or `restore` attempt for a household. When another attempt is active, opening a
-different attempt returns exactly `409 {"error":"migration_in_progress"}` with no active attempt id, purpose,
-fence, source, backup, staging or timing metadata and with no side effect. This check happens before current-source
-comparison, so a caller cannot use mismatched expected-source values to probe the active attempt. The lock and its
-attempt record are durable across client and den-edge restart and do not expire because a client disconnects.
+There is at most one active `split` or `restore` attempt for a household. A different split attempt, a second
+restore attempt, or a restore faced with corrupt legacy state lacking the invariant bound backup returns exactly
+`409 {"error":"migration_in_progress"}` with no active attempt id, purpose, fence, source, backup, staging or
+timing metadata and with no side effect. This check happens before current-source comparison, so an ineligible
+caller cannot use mismatched expected-source values to probe the active attempt. The sole exception is the atomic
+recovery handoff below. The lock and its attempt record are durable across client and den-edge restart and do not
+expire because a client disconnects.
+
+A fresh owner-PIN-authorized `purpose: "restore"` request may atomically replace an open `split` lock only when
+den-edge proves that the split has a durable provider-read-back-verified backup and that the request's
+`expectedSource`, the split's frozen source and the current authoritative source are identical. The transaction
+tombstones the split as `aborted` by recovery handoff, opens the caller's new restore attempt on that same source, transfers
+and binds the exact immutable backup reference `{attempt,id,digest}`, and returns the normal open restore result plus
+that backup reference. It is one storage commit: a crash before it leaves the split open; a crash after it leaves the
+new restore attempt open and replayable with the bound backup. It never exposes a backup or active-attempt metadata
+on a failed handoff, never transfers an unverified backup, and never allows one split to replace another split.
 
 Purpose and expected source are immutable. Repeating the same authenticated household, attempt, purpose and
 `expectedSource` is a lookup and returns the already stored result even if the household has since changed. This
@@ -891,6 +907,11 @@ current-source comparison and has no side effect. A successful new-open answer i
   "state": "open",
   "purpose": "split",
   "wireMin": 4,
+  "backup": {
+    "attempt": "0123456789abcdef0123456789abcdef",
+    "id": "backup-0123456789abcdef",
+    "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
   "fence": {
     "generation": 7,
     "base": 418,
@@ -915,13 +936,19 @@ through `base` ordered by raw row-key bytes. A client calls it authenticated onl
 checking each AEAD and logical-name binding, preserving every unknown row, and recomputing this digest. `rewrite`
 is an opaque handle.
 
-The opened fence **does block ordinary household mutations** until its terminal release. A mutation that is not an
+The opened fence **does block ordinary household mutations** until its terminal release or atomic recovery handoff. A mutation that is not an
 effect of the active migration attempt is refused before ordinary generation/rewrite handling with exactly
 `409 {"error":"migration_in_progress"}` and no effect. Reads may continue. The active attempt's backup, staging,
 commit, restore and planner-safe abort routes remain available only to that exact attempt. The source snapshot,
 lock and staging area are durable across client process death, den-edge restart and an arbitrarily long Owner copy.
-They MUST NOT disappear on an idle timer.
-`GET /lib/{household}/profile-migration/{attempt}` returns the same open `{attempt,state,purpose,wireMin,fence}`
+They MUST NOT disappear on an idle timer. Updated clients map `migration_in_progress` from an ordinary mutation to
+a blocking **Profile setup is in progress** state and pause automatic write retries; they do not present it as data
+loss or silently continue accepting local writes. Ordinary authenticated reads remain available, so playback and
+inspection can continue from the frozen legacy household. A pre-profile client may show its generic sync-conflict
+UI, but the server still refuses its mutation atomically. A migration-capable client with no matching local journal
+offers the explicit owner-PIN Restore action, which attempts only the verified-backup handoff above.
+`GET /lib/{household}/profile-migration/{attempt}` returns the same open
+`{attempt,state,purpose,wireMin,fence,backup}`
 byte-for-byte, or a durable terminal `committed`, `restored` or `aborted` result. A provider may retain
 `superseded` only as historical lookup evidence created before this exclusive-lock contract; a new exclusive
 attempt cannot become superseded by another attempt. In particular, an
@@ -942,8 +969,10 @@ from its reopened transaction.
 
 #### Verified backup before destination writes
 
-`POST /lib/{household}/profile-migration/{attempt}/backup` is idempotent and creates one immutable backup from the
-frozen source, never from a later read. Its answer is `{id, digest, source}`. `source` is the complete four-field
+The successful open has already created and bound one immutable backup from the frozen source, never from a later
+read. `POST /lib/{household}/profile-migration/{attempt}/backup` remains idempotent for client compatibility: it
+reopens and verifies that same artifact and returns `{id, digest, source}`; it never creates a second backup.
+`source` is the complete four-field
 fence above. The backup contains the household's exact row snapshot with sequences, wire minimum, authorization
 credential hashes/member proof and provider metadata needed to restore the same library id and key. Pairing,
 recovery and other records outside the library object are not replaced by a restore and therefore remain attached
@@ -985,6 +1014,24 @@ the client reaches `active` (or an explicit post-recovery retention policy keeps
 library or writing its first row before this verification is a protocol violation. An artifact id, row count,
 filesystem-copy success or provider checksum alone is not verification.
 
+Before publishing the open attempt den-edge MUST reopen the durable artifact, recompute its complete manifest
+digest and record `providerReadBackVerified: true` in the same attempt transaction. That provider proof is
+necessary but not sufficient for the client's `backupVerified`: the client still performs every semantic and AEAD
+check above. Only a backup carrying this durable provider proof is eligible for recovery handoff. The handoff binds
+the exact original attempt, artifact id and digest, so the new recovery client can fetch and fully verify those same
+bytes before den-core may answer `restore-backup`.
+
+After an atomic recovery handoff, the new restore attempt's backup-read route returns that exact bound original
+artifact and manifest without copying or rewriting them; their manifest `attempt` remains the original split attempt
+named by the transferred reference. This is the only cross-attempt backup access. It is authorized by the durable
+handoff sidecar, not by a caller-supplied old attempt id, and the provider retains the artifact until the new restore
+attempt is terminal. Backup creation, staging, commit, restore and abort remain confined to the active attempt.
+
+Open and backup publication have one crash boundary. A crash before the attempt/lock transaction commits exposes no
+lock; an unreferenced fully written backup may be garbage-collected. A crash after it commits always leaves an open
+attempt with its exact provider-verified backup, so the original journal can resume or a fresh authorized restore
+can perform the atomic handoff. There is no durable locked-without-recovery-evidence state.
+
 #### Fenced in-place commit
 
 Rows are staged with `POST /lib/{household}/profile-migration/{attempt}/rows`. Staging is idempotent by row key and
@@ -1012,8 +1059,10 @@ migration attempt or its generation. After an explicit owner recovery action, th
 fresh recovery authorization. It MUST then open with
 `POST /lib/{household}/profile-migration
 {"attempt":recoveryAttempt,"purpose":"restore","expectedSource":observedSource}`. Only the returned
-`state: "open", purpose: "restore"`, four-field `fence` and `wireMin` authorize the next step. The client records
-that response, freshly reads and authenticates the household as far as possible against those exact bytes, proves
+`state: "open", purpose: "restore"`, four-field `fence` and `wireMin` authorize the next step. If an open split held
+the lock, this response also contains the atomically bound original backup reference from the recovery handoff; its
+attempt, id and digest replace no value by inference. The client records that response, freshly reads and
+authenticates the household as far as possible against those exact bytes, proves
 that no den-core-valid committed directory is present, and asks den-core for `restore-backup`. Neither the public
 `x-den-generation` header nor an ordinary `/changes` read can manufacture or substitute for this authority.
 

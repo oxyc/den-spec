@@ -1310,7 +1310,10 @@ def migration_open_result(value: object) -> dict:
     existing = value["existing"]
     if existing is not None:
         if (not isinstance(existing, dict)
-                or set(existing) != {"attempt", "purpose", "source", "result"}
+                or not {"attempt", "purpose", "source", "result"}.issubset(existing)
+                or not set(existing).issubset({"attempt", "purpose", "source", "result", "verifiedBackup"})
+                or not isinstance(existing["attempt"], str) or not ID.fullmatch(existing["attempt"])
+                or existing["purpose"] not in ("split", "restore")
                 or not isinstance(existing["result"], dict)):
             fail("invalid_migration_open")
         try:
@@ -1318,6 +1321,23 @@ def migration_open_result(value: object) -> dict:
         except ValueError:
             fail("invalid_migration_open")
         if existing["attempt"] != request["attempt"]:
+            backup = existing.get("verifiedBackup")
+            if (request["purpose"] == "restore"
+                    and existing["purpose"] == "split"
+                    and existing["result"].get("state") == "open"
+                    and source == expected
+                    and value["currentSource"] == expected
+                    and isinstance(backup, dict)
+                    and set(backup) == {"attempt", "id", "digest", "readBackVerified"}
+                    and backup["attempt"] == existing["attempt"]
+                    and isinstance(backup["id"], str) and backup["id"]
+                    and backup["id"] == backup["id"].strip() and len(backup["id"]) <= 256
+                    and isinstance(backup["digest"], str) and DIGEST.fullmatch(backup["digest"])
+                    and backup["readBackVerified"] is True):
+                return {
+                    "effect": "recovery-handoff", "source": source,
+                    "backup": {name: backup[name] for name in ("attempt", "id", "digest")},
+                }
             return {
                 "effect": "conflict", "status": 409,
                 "error": "migration_in_progress", "sideEffects": [],
@@ -1706,7 +1726,7 @@ def migration_next(value: dict) -> str:
         })
         return "record-commit-binding"
     answer = {
-        "fenced": "create-backup",
+        "fenced": "verify-backup",
         "backed-up": "create-owner-library",
         "owner-copied": "verify-owner-library",
         "ready-to-commit": "commit-fenced-household",
@@ -2288,7 +2308,7 @@ def main() -> int:
             or storage.get("routes") != expected_routes):
         fail("migration_storage_surface_mismatch")
     expected_order = [
-        "open-fence", "create-backup", "verify-backup", "create-owner-library", "copy-owner",
+        "open-fence-and-create-backup", "verify-backup", "create-owner-library", "copy-owner",
         "verify-owner", "stage-household", "record-commit-binding", "commit-household",
         "verify-committed-household", "activate",
     ]
@@ -2357,17 +2377,34 @@ def main() -> int:
                 "terminalLookupRetained": True,
                 "exclusiveHouseholdAttempt": True,
                 "lockAcquiredAtomicallyWithSourceCheck": True,
+                "backupCreatedReadBackVerifiedAndBoundWithLock": True,
+                "lockNeverVisibleWithoutVerifiedBackup": True,
                 "ordinaryWritesRemainAvailable": False,
                 "differentAttemptResponseIncludesMetadata": False,
                 "lockSurvivesRestart": True,
                 "commitReleasesLockAtomically": True,
                 "restoreReleasesLockAtomically": True,
                 "abortRequiresPlannerSafe": True,
+                "verifiedBackupRecoveryHandoff": True,
+                "recoveryHandoffAtomic": True,
                 "restoreNeverReusesGeneration": True,
             }.items())):
         fail("migration_storage_open_mismatch")
     if (opened.get("ordinaryMutationResponse")
             != {"status": 409, "error": "migration_in_progress"}
+            or opened.get("backup") != {
+                "attempt": "0123456789abcdef0123456789abcdef",
+                "id": "backup-0123456789abcdef",
+                "digest": "b" * 64,
+            }
+            or opened.get("openCrashSemantics") != {
+                "before": "no-lock-unreferenced-backup-may-be-collected",
+                "after": "open-split-with-bound-verified-backup",
+            }
+            or opened.get("handoffCrashSemantics") != {
+                "before": "original-split-remains-open",
+                "after": "new-restore-remains-open-with-bound-backup",
+            }
             or opened.get("terminalStates") != ["committed", "restored", "aborted"]
             or opened.get("legacyTerminalStates") != ["superseded"]):
         fail("migration_storage_open_mismatch")

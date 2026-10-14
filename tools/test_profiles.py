@@ -143,6 +143,12 @@ class ProfilesVectorsTests(unittest.TestCase):
         self.assertFalse(storage["open"]["idleExpiry"])
         self.assertTrue(storage["open"]["exclusiveHouseholdAttempt"])
         self.assertTrue(storage["open"]["lockAcquiredAtomicallyWithSourceCheck"])
+        self.assertTrue(storage["open"]["backupCreatedReadBackVerifiedAndBoundWithLock"])
+        self.assertTrue(storage["open"]["lockNeverVisibleWithoutVerifiedBackup"])
+        self.assertEqual(storage["open"]["openCrashSemantics"], {
+            "before": "no-lock-unreferenced-backup-may-be-collected",
+            "after": "open-split-with-bound-verified-backup",
+        })
         self.assertFalse(storage["open"]["ordinaryWritesRemainAvailable"])
         self.assertEqual(storage["open"]["ordinaryMutationResponse"],
                          {"status": 409, "error": "migration_in_progress"})
@@ -151,6 +157,12 @@ class ProfilesVectorsTests(unittest.TestCase):
         self.assertTrue(storage["open"]["commitReleasesLockAtomically"])
         self.assertTrue(storage["open"]["restoreReleasesLockAtomically"])
         self.assertTrue(storage["open"]["abortRequiresPlannerSafe"])
+        self.assertTrue(storage["open"]["verifiedBackupRecoveryHandoff"])
+        self.assertTrue(storage["open"]["recoveryHandoffAtomic"])
+        self.assertEqual(storage["open"]["handoffCrashSemantics"], {
+            "before": "original-split-remains-open",
+            "after": "new-restore-remains-open-with-bound-backup",
+        })
         self.assertTrue(storage["open"]["restoreNeverReusesGeneration"])
 
     def test_migration_open_requires_the_exact_pre_pin_source(self):
@@ -175,11 +187,21 @@ class ProfilesVectorsTests(unittest.TestCase):
     def test_different_attempt_is_refused_without_active_attempt_metadata(self):
         vectors = json.loads(validate_profiles.VECTORS.read_text())
         cases = vectors["migrationStorageContract"]["sourceObservation"]["cases"]
-        for prefix in ("a different split attempt", "a restore cannot open"):
+        for prefix in ("a different split attempt", "a restore fails closed"):
             case = next(item for item in cases if item["name"].startswith(prefix))
             actual = validate_profiles.migration_open_result(case["input"])
             self.assertEqual(actual, case["expect"])
             self.assertEqual(set(actual), {"effect", "status", "error", "sideEffects"})
+
+    def test_verified_backup_allows_atomic_recovery_handoff(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        cases = vectors["migrationStorageContract"]["sourceObservation"]["cases"]
+        case = next(item for item in cases if item["name"].startswith("a verified backup permits"))
+        self.assertEqual(validate_profiles.migration_open_result(case["input"]), case["expect"])
+        changed = next(item for item in cases if item["name"].startswith("a verified backup cannot"))
+        actual = validate_profiles.migration_open_result(changed["input"])
+        self.assertEqual(actual, changed["expect"])
+        self.assertEqual(set(actual), {"effect", "status", "error", "sideEffects"})
 
     def test_one_pin_action_resumes_exact_attempt_and_binds_commit_without_second_prompt(self):
         vectors = json.loads(validate_profiles.VECTORS.read_text())

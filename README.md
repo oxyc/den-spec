@@ -28,7 +28,8 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
   behavior, numeric maturity policy, owner-managed per-Kid title approvals, exact settings ownership, sticky local
   selection, backed-up/fenced initial migration and multi-profile reset. Its initial-migration contract includes
   the dormant den-edge storage surface for one durable exclusive attempt, verified pre-write backup, atomic
-  in-place household rewrite, explicit fenced/idempotent backup restore and safe legacy stale-candidate retirement.
+  in-place household rewrite, an atomic verified-backup recovery handoff, explicit fenced/idempotent backup restore
+  and safe legacy stale-candidate retirement.
   It defines per-household `off`/`prepare`/`runtime` capability and wire-5 gating plus the migration state machines,
   without activating the split, deploying anything or changing an existing library's minimum.
 - [`schemas/profiles-v1.schema.json`](schemas/profiles-v1.schema.json) and
