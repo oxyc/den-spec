@@ -1293,7 +1293,7 @@ def validate_migration_source(value: object) -> dict:
 
 
 def migration_open_result(value: object) -> dict:
-    """Pure model for lookup-first, exact-source migration opening."""
+    """Pure model for lookup-first, exact-source, exclusive migration opening."""
     if not isinstance(value, dict) or set(value) != {"currentSource", "request", "existing"}:
         fail("invalid_migration_open")
     request = value["request"]
@@ -1317,9 +1317,12 @@ def migration_open_result(value: object) -> dict:
             source = validate_migration_source(existing["source"])
         except ValueError:
             fail("invalid_migration_open")
-        if (existing["attempt"] != request["attempt"]
-                or existing["purpose"] != request["purpose"]
-                or source != expected):
+        if existing["attempt"] != request["attempt"]:
+            return {
+                "effect": "conflict", "status": 409,
+                "error": "migration_in_progress", "sideEffects": [],
+            }
+        if existing["purpose"] != request["purpose"] or source != expected:
             fail("migration_attempt_mismatch")
         return {"effect": "lookup", "result": existing["result"]}
 
@@ -1401,7 +1404,7 @@ def restore_result(value: object) -> str:
         fail("migration_attempt_mismatch")
     if (value.get("terminalLookupRetained") is not True
             or value.get("identicalRetryReturnsSameResult") is not True
-            or value.get("conflictTerminalState") != "superseded"
+            or value.get("conflictTerminalState") != "open"
             or value.get("unknownResolution") != ["lookup-attempt", "fresh-authenticated-read"]):
         fail("restore_terminal_not_durable")
     if value.get("sameHouseholdId") is not True or value.get("sameHouseholdToken") is not True:
@@ -1515,6 +1518,7 @@ def migration_next(value: dict) -> str:
     for name in (
         "explicitIntent", "backupVerified", "ownerVerified", "winnerVerified", "candidateRetired",
         "commitAuthorized", "cancelRequested", "attemptAborted", "householdFresh", "recoveryIntent",
+        "legacyStaleCandidate",
     ):
         if name in value and type(value[name]) is not bool:
             fail("invalid_evidence")
@@ -1619,6 +1623,9 @@ def migration_next(value: dict) -> str:
             and owner_verified
             and candidate_head == migration["ownerHead"]
         )
+        stale_candidate = candidate is not None and not owns_winner
+        if stale_candidate and not value.get("legacyStaleCandidate", False):
+            fail("legacy_cleanup_evidence_required")
         if candidate in live_keys and retired:
             fail("committed_key_retired")
         if state == "commit-unknown":
@@ -2282,8 +2289,8 @@ def main() -> int:
         fail("migration_storage_surface_mismatch")
     expected_order = [
         "open-fence", "create-backup", "verify-backup", "create-owner-library", "copy-owner",
-        "verify-owner", "stage-household", "record-commit-binding", "commit-household", "read-winner",
-        "retire-loser", "activate",
+        "verify-owner", "stage-household", "record-commit-binding", "commit-household",
+        "verify-committed-household", "activate",
     ]
     if storage.get("requiredOrder") != expected_order:
         fail("migration_storage_order_mismatch")
@@ -2302,11 +2309,16 @@ def main() -> int:
         "changedBoundEvidenceClearsAuthorization": True,
         "ordinaryLaunchMayCreateAuthorization": False,
         "restartMayResume": "exact-authorized-attempt-only",
-        "commitUnknownOrder": ["lookup-attempt", "fresh-authenticated-read", "adopt-or-cleanup"],
+        "commitUnknownOrder": ["lookup-attempt", "fresh-authenticated-read", "verify-exact-attempt"],
         "cancelOrder": [
             "abort-attempt", "fresh-authenticated-read", "retire-unreferenced-candidate", "discard-journal",
         ],
         "restoreAuthorization": "separate-owner-pin-and-fresh-restore-attempt",
+        "exclusiveAttempt": True,
+        "differentAttemptResponse": {
+            "status": 409, "error": "migration_in_progress", "metadata": False,
+        },
+        "abortPolicy": "planner-safe-before-staging-or-irreversible-work-only",
     }:
         fail("migration_activation_contract_mismatch")
     observation = storage.get("sourceObservation")
@@ -2343,13 +2355,21 @@ def main() -> int:
                 "survivesServerRestart": True,
                 "idleExpiry": False,
                 "terminalLookupRetained": True,
-                "ordinaryWritesRemainAvailable": True,
-                "concurrentAttemptsCommitByFence": True,
-                "concurrentAttemptsOnSameSnapshotShareGeneration": True,
+                "exclusiveHouseholdAttempt": True,
+                "lockAcquiredAtomicallyWithSourceCheck": True,
+                "ordinaryWritesRemainAvailable": False,
+                "differentAttemptResponseIncludesMetadata": False,
+                "lockSurvivesRestart": True,
+                "commitReleasesLockAtomically": True,
+                "restoreReleasesLockAtomically": True,
+                "abortRequiresPlannerSafe": True,
                 "restoreNeverReusesGeneration": True,
             }.items())):
         fail("migration_storage_open_mismatch")
-    if opened.get("terminalStates") != ["committed", "restored", "superseded", "aborted"]:
+    if (opened.get("ordinaryMutationResponse")
+            != {"status": 409, "error": "migration_in_progress"}
+            or opened.get("terminalStates") != ["committed", "restored", "aborted"]
+            or opened.get("legacyTerminalStates") != ["superseded"]):
         fail("migration_storage_open_mismatch")
     fence = validate_storage_fence(opened.get("fence"))
     backup = storage["backup"]

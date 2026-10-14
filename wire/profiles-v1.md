@@ -673,9 +673,8 @@ The states and only permitted next effects are:
 | `awaiting-confirmation` | all preparation evidence, prepared exact-attempt authorization, `commitAuthorized: false` | Derive and durably record the exact commit binding; do not prompt again |
 | `ready-to-commit` | all prior evidence, exact commit binding and durable `commitAuthorized: true` | Commit the already staged configuration-only household form as `{base, wireMin: 5}` |
 | `commit-unknown` | durable authorization and an attempted commit | Look up the attempt, then freshly authenticate/read the household; never guess from a request outcome |
-| `adopting` | a valid committed directory | Open and verify its Owner library, then make its profile the local active mode |
-| `cleaning-loser` | winner and a distinct local candidate | Retire/delete only the unreferenced candidate; repeat until absence is confirmed |
-| `active` | winner usable and any losing candidate absent | Delete the local journal; use household wire 5 and profile wire 4 |
+| `adopting` | this attempt's valid committed directory | Open and verify its Owner library, then make its profile the local active mode |
+| `active` | the exact committed attempt is usable | Delete the local journal; use household wire 5 and profile wire 4 |
 | `restore-required` | verified backup and no valid committed directory | Stop; require a separate owner-PIN recovery action and fresh recovery attempt |
 
 The backup MUST be complete through the recorded head, restorable under the unchanged household key/id, readable
@@ -690,9 +689,10 @@ credential, command, receipt or delivery row. Its directory Owner key is the ver
 den-edge generation/base-fenced rewrite commits the staged rows and `x-den-wire-min: 5` together. It keeps the
 existing household key, id, membership and links. A split is not a §12 reset and never asks a device to pair again.
 
-den-edge alone selects a concurrent winner by accepting one fence. `profiles_migration_next(input)` in den-core is
-the canonical pure decision operation. Its input contains `state`, `observed` (`legacy`, `committed` or `corrupt`),
-and the following evidence when applicable:
+den-edge permits exactly one durable active migration attempt per household. Opening that attempt atomically checks
+the exact source and acquires the exclusive migration lock described in §8.1. There is no concurrent-winner path in
+the v1 launch flow. `profiles_migration_next(input)` in den-core is the canonical pure decision operation. Its input
+contains `state`, `observed` (`legacy`, `committed` or `corrupt`), and the following evidence when applicable:
 
 - `explicitIntent` is true before `idle` may return `acquire-fence`. It is accepted only with the exact
   `splitAuthorization` returned for the current PIN-verified Enable Profiles action, plus matching `attempt`,
@@ -702,12 +702,15 @@ and the following evidence when applicable:
   `record-commit-binding`. The client calls `profiles_migration_authorization` with that evidence, durably stores its
   result and advances to `ready-to-commit` without user interaction. `ready-to-commit` and `commit-unknown` require
   the exact binding; earlier states reject a binding as premature;
-- `cancelRequested` is a separate explicit owner action. Before any winner exists it aborts the attempt, records the
+- `cancelRequested` is a separate explicit owner action. It may abort and release the lock only when the planner
+  proves the attempt is still before household staging and before any irreversible effect. The abort records the
   durable `aborted` lookup, performs a new authenticated household read, then retires a candidate only through
-  §8.1's conditional retirement proof, and finally discards the journal. A pre-abort household observation cannot
-  authorize retirement. Cancellation never deletes a committed or otherwise referenced library;
-- `attemptLookup` is absent until durable attempt lookup completes, then is exactly `open`, `committed`,
-  `superseded` or `aborted`; `householdFresh` is true only after a new authenticated household read performed after
+  §8.1's conditional retirement proof, and finally discards the journal. Once staging or another irreversible phase
+  begins, cancellation is recovery-blocked and the exact attempt must resume. A pre-abort household observation
+  cannot authorize retirement. Cancellation never deletes a committed or otherwise referenced library;
+- `attemptLookup` is absent until durable attempt lookup completes, then is exactly `open`, `committed` or
+  `aborted`; `superseded` is accepted only as cleanup evidence from a provider state created before exclusive locks.
+  `householdFresh` is true only after a new authenticated household read performed after
   that lookup. A `commit-unknown` journal requires both in that order before it can adopt or clean up;
 - `recoveryIntent` is true only for a new owner-PIN-verified Restore action. It is not carried from split preparation
   action or derived commit binding and authorizes only opening a fresh `purpose: "restore"` attempt;
@@ -720,9 +723,12 @@ and the following evidence when applicable:
 - `candidateKey`, when a candidate exists, is its canonical padded base64 32-byte library key.
   `candidateAttempt` is the local journal's random attempt id when comparing that candidate with a committed
   directory, and `candidateRetired` reports confirmed absence. For `commit-unknown`, `candidateAttempt` MUST equal
-  the attempt in the validated split authorization before either a `committed` or `superseded` lookup can verify,
-  activate or clean up anything; a caller-supplied attempt copied from the fresh directory cannot replace the
-  authorized journal identity.
+  the attempt in the validated split authorization before a `committed` lookup can verify or activate anything; a
+  caller-supplied attempt copied from the fresh directory cannot replace the authorized journal identity. Legacy
+  `superseded` evidence may authorize only safe cleanup of a distinct, unreferenced stale candidate;
+- `legacyStaleCandidate` is true only when the storage adapter has verified a durable journal and terminal provider
+  result created by a pre-exclusive-lock implementation. It is false for every newly opened attempt. A bare caller
+  boolean, a different committed directory, or a candidate library's existence is not such evidence.
 
 `profiles_migration_authorization({intent, evidence})` is the only operation that constructs the durable
 authorization value. `intent` has exactly `{version: 1, action: "enable-profiles", attempt, householdId, source}`;
@@ -736,16 +742,19 @@ SHA-256 of RFC 8785 `{authorization: intentDigest, ...evidence}`. The planner in
 clients cannot assert them with a boolean. These digests bind authority logically and cryptographically to journal
 evidence; the device's secure journal protects the authorization object at rest.
 
-The operation validates all supplied evidence before deciding. A local candidate is the committed Owner only when
+The operation validates all supplied evidence before deciding. The local candidate is the committed Owner only when
 its `candidateAttempt`, `candidateKey` and verified `candidateHead` equal the directory's immutable migration
-attempt, Owner key and Owner head. That winner is verified and activated; it never enters loser cleanup. Cleanup
-compares any actual losing `candidateKey` with the library key of **every live profile** in the committed directory.
-A referenced key while in `cleaning-loser` returns `cleanup_targets_winner`; the same mismatch outside cleanup is
-`winner_evidence_mismatch`. Evidence claiming that a committed key is already retired is the contradiction
-`committed_key_retired`. Only a valid, distinct, unreferenced candidate may produce
-`retire-losing-candidate`. A malformed/missing committed directory, malformed fence or key, verified copy without a
-head, or phase/evidence contradiction is an error rather than a next effect. Missing initial intent is the explicit
-`no-op` case and cannot acquire a fence. The operation
+attempt, Owner key and Owner head. That exact attempt is verified and activated. There is no second candidate in the
+exclusive launch flow. For backward-compatible recovery only, cleanup may inspect a candidate recorded by an older
+concurrent-attempt implementation. It compares that stale `candidateKey` with the library key of **every live
+profile** in the committed directory. A referenced key while in legacy `cleaning-loser` returns
+`cleanup_targets_winner`; the same mismatch outside cleanup is `winner_evidence_mismatch`. Evidence claiming that a
+committed key is already retired is the contradiction `committed_key_retired`. Only valid legacy evidence for a
+distinct, unreferenced stale candidate may produce `retire-losing-candidate`; new exclusive attempts never enter
+that phase and missing `legacyStaleCandidate` evidence is `legacy_cleanup_evidence_required`. A malformed/missing
+committed directory, malformed fence or key, verified copy without a head, or
+phase/evidence contradiction is an error rather than a next effect. Missing initial intent is the explicit `no-op`
+case and cannot acquire a fence. The operation
 returns one of the effects named in the table or an error. Swift and web MUST execute that answer and MUST NOT infer
 success from their own request outcome.
 
@@ -759,23 +768,24 @@ After any conflict, timeout or process death, resolve the durable journal as fol
 - `commit-unknown` first returns `lookup-attempt`. Only after that durable result does it return `read-household`.
   This ordering takes precedence over a missing, stale or corrupt household observation: none is interpreted before
   lookup and the subsequent fresh read. After both, the local candidate attempt must still equal the exact
-  authorized journal attempt. A `committed` lookup is valid only when the fresh directory's migration
-  attempt, Owner key and Owner head are the exact local attempt and verified candidate evidence. A `superseded`
-  lookup is valid only when the fresh directory names a different attempt and that winner's Owner library has been
-  verified; only then may the distinct local candidate be conditionally retired. `committed` with another winner,
-  `superseded` with itself, or any other terminal/directory mismatch is an error and can neither verify a winner nor
-  authorize cleanup. An `open` lookup plus the exact unchanged legacy fence may retry only the already-bound,
+  authorized journal attempt. A `committed` lookup is valid only when the fresh directory's migration attempt,
+  Owner key and Owner head are the exact local attempt and verified candidate evidence. A committed directory for
+  another attempt is inconsistent under the exclusive contract and fails closed; it is not adopted as a competing
+  winner. An `open` lookup plus the exact unchanged legacy fence may retry only the already-bound,
   byte-identical authorized commit; it cannot construct a new commit. `aborted` cleans up and discards the journal
   only after the same fresh-read checks.
 
-- A valid committed directory is the winner even when its `attempt` differs. Adopt it. If this client created a
-  different Owner library, enter `cleaning-loser`; cleanup is idempotent and continues after restart.
-- Cleanup MUST compare the candidate key with every live key in the committed directory. Equal or referenced means
-  `cleanup_targets_winner` and no delete. Only a distinct, unreferenced candidate may be retired. Absence counts as
-  success, so a retry cannot create a storage-counting orphan.
+- A valid newly committed directory MUST name the exact active attempt. Another attempt id is corruption unless
+  durable legacy terminal evidence proves it predates exclusive locks. That compatibility path may clean a stale
+  candidate but MUST NOT be reachable from a newly opened exclusive attempt.
+- Legacy cleanup MUST compare the stale candidate key with every live key in the committed directory. Equal or
+  referenced means `cleanup_targets_winner` and no delete. Only a distinct, unreferenced candidate may be retired.
+  Absence counts as success, so a retry cannot create a storage-counting orphan.
 - If the household remains legacy and the original fence and authorization source still match, resume the journal's
-  next effect. If either changed, retire any candidate, discard the attempt and its authorization, and return to
-  `idle`; only a new explicit Enable Profiles action with a fresh owner PIN may start another attempt.
+  next effect. A source change cannot be caused by an ordinary mutation while the exclusive lock is open. If legacy
+  state nevertheless proves an older source changed, safely retire any unreferenced stale candidate, discard the
+  old attempt and its authorization, and return to `idle`; only a new explicit Enable Profiles action with a fresh
+  owner PIN may start another attempt.
 - An atomic fenced rewrite failure leaves the old household authoritative; do not restore over it. An unreadable or
   partial household with no valid committed directory enters `restore-required`. Recovery first proves the backup's
   digest and source fence, then stops. A new owner-PIN-verified Restore action opens a fresh recovery attempt and
@@ -853,17 +863,25 @@ authorization for its newly generated attempt id.
 `POST /lib/{household}/profile-migration` with
 `{"attempt":"<32 lowercase hex>","purpose":"split","expectedSource":{"generation":7,"head":"<64 lowercase hex>"}}`
 or `purpose: "restore"` opens the transaction. `expectedSource` is required and exact. For a new attempt, the
-provider MUST hold the household's mutation lock, read the current authoritative generation and authenticated head,
-compare both with `expectedSource`, and only then create any durable attempt or frozen-source state. A mismatch is
+provider MUST hold the household's mutation lock, first establish that no active migration attempt exists, read the
+current authoritative generation and authenticated head, compare both with `expectedSource`, and atomically record
+the durable attempt, exclusive household migration lock and frozen-source state. A mismatch is
 `409 {"error":"migration_source_changed"}` and has no side effect: in particular it creates no attempt record,
 source snapshot, rewrite handle, backup, staging area or counter change. The client invalidates the associated
 authorization. A split requires another explicit Enable Profiles action plus a fresh Owner PIN against a fresh
 source observation; a restore requires another explicit Restore action plus its own fresh Owner PIN and source
 observation. Recovery may not broaden or refresh either old authorization.
 
+There is at most one active `split` or `restore` attempt for a household. When another attempt is active, opening a
+different attempt returns exactly `409 {"error":"migration_in_progress"}` with no active attempt id, purpose,
+fence, source, backup, staging or timing metadata and with no side effect. This check happens before current-source
+comparison, so a caller cannot use mismatched expected-source values to probe the active attempt. The lock and its
+attempt record are durable across client and den-edge restart and do not expire because a client disconnects.
+
 Purpose and expected source are immutable. Repeating the same authenticated household, attempt, purpose and
 `expectedSource` is a lookup and returns the already stored result even if the household has since changed. This
-lookup-first rule resolves an unknown open response without accidentally creating a second attempt. Reusing an
+same-attempt lookup-first rule resolves an unknown open response without accidentally creating a second attempt.
+It is the only open request allowed through an active lock. Reusing that same
 attempt with another purpose or expected source is `409 migration_attempt_mismatch`. It does not fall through to a
 current-source comparison and has no side effect. A successful new-open answer is:
 
@@ -885,8 +903,9 @@ current-source comparison and has no side effect. A successful new-open answer i
 `wireMin` is the minimum observed in the same locked read as `fence`. `generation` is a durable monotone
 safe-integer counter per household in the **profile-migration fence namespace**.
 Opening an attempt reads the current value; it does not allocate a random value or advance it. Every visible
-household mutation (an applied ordinary batch, migration rewrite or restore) advances it atomically, so attempts
-opened on the same snapshot share a generation and any later write invalidates all of their compare-and-swaps. It
+household mutation (an applied ordinary batch, migration rewrite or restore) advances it atomically. Outside an
+active migration lock, later writes therefore invalidate an earlier source observation. While the lock is active,
+ordinary household mutations cannot advance it. It
 is never restored backwards or reused; restoration advances from the provider-retained high-water mark, and the
 vanishingly unlikely safe-integer exhaustion refuses mutation rather than wrapping. It is
 not the public `x-den-generation` sync header, is not parsed from that header and need not change when that header
@@ -896,17 +915,25 @@ through `base` ordered by raw row-key bytes. A client calls it authenticated onl
 checking each AEAD and logical-name binding, preserving every unknown row, and recomputing this digest. `rewrite`
 is an opaque handle.
 
-The opened fence does **not** block ordinary household writes: any such write makes its later commit lose the
-generation/base/head compare-and-swap. The source snapshot and staging area are durable across client process death,
-den-edge restart and an arbitrarily long Owner copy. They MUST NOT disappear on an idle timer.
+The opened fence **does block ordinary household mutations** until its terminal release. A mutation that is not an
+effect of the active migration attempt is refused before ordinary generation/rewrite handling with exactly
+`409 {"error":"migration_in_progress"}` and no effect. Reads may continue. The active attempt's backup, staging,
+commit, restore and planner-safe abort routes remain available only to that exact attempt. The source snapshot,
+lock and staging area are durable across client process death, den-edge restart and an arbitrarily long Owner copy.
+They MUST NOT disappear on an idle timer.
 `GET /lib/{household}/profile-migration/{attempt}` returns the same open `{attempt,state,purpose,wireMin,fence}`
-byte-for-byte, or a durable terminal `committed`, `restored`, `superseded` or `aborted` result. In particular, an
+byte-for-byte, or a durable terminal `committed`, `restored` or `aborted` result. A provider may retain
+`superseded` only as historical lookup evidence created before this exclusive-lock contract; a new exclusive
+attempt cannot become superseded by another attempt. In particular, an
 open recovery attempt remains `state: "open", purpose: "restore"` across client/server restart and returns the
 original fence; it never silently refreshes to the current household. Thus a `commit-unknown` or `restore-unknown`
 journal can look up the attempt before deciding anything.
-Multiple attempts may open against the same legacy source; the first matching commit wins and makes the others
-`superseded`. `DELETE /lib/{household}/profile-migration/{attempt}` explicitly aborts only an uncommitted attempt
-and records the terminal tombstone. It is never inferred from idleness or client disconnect.
+`DELETE /lib/{household}/profile-migration/{attempt}` records a terminal abort and releases the lock only when the
+authenticated request names the active attempt and the den-core recovery planner proves it is before household
+staging and before any irreversible effect. After staging begins, abort returns a blocking conflict without
+changing the attempt or lock; the exact attempt must resume or enter verified recovery. Abort is never inferred
+from idleness or client disconnect. The terminal `aborted` result and lock release are atomic, so a new attempt
+cannot observe the old attempt as open or acquire the household before its abort is durable.
 
 The planner's and committed directory's `source` is the durable projection `{generation, head}`. `base` and
 `rewrite` remain in the local journal/storage transaction: they are needed to execute the compare-and-swap but are
@@ -968,11 +995,12 @@ profile directory and accounts for every source row according to §§2, 6 and 8.
 `POST /lib/{household}/profile-migration/{attempt}/commit` supplies the complete four-field `fence`, backup
 `{id,digest}`, a digest of the complete staged row set, and `wireMin: 5`. Under the household lock den-edge MUST
 atomically verify the attempt/fence/backup/staged digest, replace the rows under the **same** library id and token,
-raise the minimum to 5, advance the visible library generation, and record the terminal result. A mismatch returns
+raise the minimum to 5, advance the visible library generation, record the terminal result and release the
+exclusive migration lock as one atomic effect. There is no observable committed-but-locked or unlocked-before-
+commit state. A mismatch returns
 `409 migration_fence_moved` and changes neither rows nor minimum. No response or a 5xx is `commit-unknown`; the
 client uses attempt lookup and a fresh authenticated household read, never blindly submits another logical commit.
-A committed lookup returns the resulting base/generation and staged digest, so a retry cannot create a second
-winner.
+A committed lookup returns the resulting base/generation and staged digest, so a retry cannot commit twice.
 
 Restore is not a side effect of a failed commit: an atomic commit failure leaves the legacy source authoritative.
 
@@ -1025,9 +1053,10 @@ created it.
 On the first restore request den-edge durably binds the complete request to the already-open `recoveryAttempt`; a
 retry with different bytes returns `409 migration_attempt_mismatch`. Under the household lock it re-reads the exact
 generation, base, authenticated row-set head, wire minimum and sealed `profiles` row. Any difference returns
-`409 migration_fence_moved`, records durable terminal `superseded`, and changes nothing. This compare-and-swap pins
-the client's den-core decision to the bytes it inspected; den-edge cannot decrypt or independently validate the
-directory.
+`409 migration_fence_moved`, changes nothing and leaves the attempt open and locked for fail-closed recovery. Such a
+difference cannot result from an ordinary mutation under this contract; it is an invariant/storage failure, not a
+competing winner. This compare-and-swap pins the client's den-core decision to the bytes it inspected; den-edge
+cannot decrypt or independently validate the directory.
 
 If the CAS still matches, den-edge atomically restores the backup's rows, sequences, authorization representation
 and provider metadata under the **same** household id and token. Pairing/recovery records attached outside the
@@ -1035,7 +1064,9 @@ library object remain attached. The resulting minimum is `max(current wireMin, b
 never lower wire 5 (or any later minimum). The provider advances the migration generation exactly once from its
 retained high-water mark, refusing exhaustion rather than wrapping; it never restores the backup's old generation.
 It recomputes base and authenticated head from the restored visible state, advances the ordinary visible sync
-generation as usual, and durably records:
+generation as usual, durably records the terminal result and releases the exclusive migration lock as one atomic
+effect. The restore is permitted only after the client and den-core verified the backup and authorized this exact
+recovery attempt; there is no unlocked interval between verification and replacement. It records:
 
 ```json
 {
@@ -1050,18 +1081,20 @@ generation as usual, and durably records:
 ```
 
 A lost response is `restore-unknown`: the client first calls the ordinary attempt lookup. `restored` is success;
-`superseded` requires another fresh authenticated read and den-core decision; `open` may resubmit only the identical
-request; `aborted` requires a new recovery attempt. The same request after `restored` returns the identical terminal
-result without advancing generation again. An explicit abort may tombstone an open recovery attempt, but never a
-terminal one.
+`open` may resubmit only the identical request; `aborted` requires a new recovery attempt. Historical
+`superseded` evidence from before exclusive locks requires a fresh authenticated read and den-core decision, but a
+new exclusive recovery attempt cannot produce it. The same request after `restored` returns the identical terminal
+result without advancing generation again. An explicit abort may tombstone a planner-safe open recovery attempt,
+but never a terminal one.
 
-#### Atomic loser retirement
+#### Atomic stale-candidate retirement
 
 The cleanup operation is `POST /lib/{household}/profile-migration/{attempt}/retire-candidate`. The household token
 uses `x-den-library-token`; the candidate token uses `x-den-candidate-library-token`. Its JSON contains
 `{source, authority, profilesRow, protectedLibraryIds, candidateLibraryId}` and contains no library key or decrypted
-directory. It is one storage effect even though its implementation may read, validate and then conditionally
-commit:
+directory. New exclusive attempts never create competing candidates; this operation remains for planner-safe abort
+cleanup and for stale candidate evidence left by implementations that predate exclusive locks. It is one storage
+effect even though its implementation may read, validate and then conditionally commit:
 
 1. Under a fresh household read, the client authenticates every row and either den-core-validates the committed
    directory, establishes that the household is still legacy at a source fence that has genuinely changed, or—for
@@ -1089,9 +1122,10 @@ only successful results and are idempotent. The server cannot decrypt the direct
 set is a client/den-core obligation; the server's exact sealed-row compare-and-swap makes that validated decision
 atomic with respect to later directory changes.
 
-The client keeps the local attempt journal until the terminal transaction result, winner verification and any
-candidate retirement have all been re-read and confirmed. A provider may garbage-collect an aborted transaction
-only after recording a durable terminal tombstone, so lookup never turns an unknown commit into a fresh open.
+The client keeps the local attempt journal until the terminal transaction result, committed-attempt verification
+and any stale candidate retirement have all been re-read and confirmed. A provider may garbage-collect an aborted
+transaction only after recording a durable terminal tombstone, so lookup never turns an unknown commit into a
+fresh open.
 
 ## 9. Multi-profile key reset and revocation
 
@@ -1132,6 +1166,6 @@ old profile key usable is not a reset.
 ## 10. Vectors and operation boundary
 
 [`vectors/profiles-v1.json`](../vectors/profiles-v1.json) pins directory schema and operations, numeric policy,
-approvals, the exact settings table, sticky selection, activation/recovery decisions, loser cleanup, wire topology
+approvals, the exact settings table, sticky selection, activation/recovery decisions, stale-candidate cleanup, wire topology
 and multi-profile reset. `python3 tools/validate_profiles.py` checks the canonical input boundary and expected pure
 answers. The vectors specify den-core behavior; they do not authorize a production caller to activate profiles.
