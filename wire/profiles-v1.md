@@ -1383,6 +1383,11 @@ every lookup: it names the lock for a journal, but it carries no authority. Auth
 the library token. Because a profile lock is only granted after the household lock, a competitor that holds some
 other library's token learns nothing about this reset.
 
+The household acquire commit also records which declared successor ids **already existed** as libraries at that
+moment (`preexisting`, a subset of the declared `successor` ids, fixed for the life of the record). A successor
+that already exists was not created by this reset; the sweep (*Abort*) never deletes it, so a household cannot make
+den-edge delete another library by naming it as a successor. The recorded set is internal and is not returned.
+
 Acquisition does not advance any counter. A same-attempt replay is the only request allowed through an active lock.
 A client whose profile acquire answers `migration_source_changed` re-observes and re-authenticates that profile
 source and retries; the failed attempt had no effect, and the household lock keeps every other library stable. A
@@ -1434,8 +1439,12 @@ Once the household lock is `committed` (or `retiring`), each old library is reti
 existing token and `x-den-generation`, plus two headers:
 
 - `x-den-exclusive-attempt: <attempt>`, the owning attempt (the reset attempt, or the recovery attempt that took the
-  household lock over); and
+  household lock over); a present but malformed value (not 32 lowercase hex) is `400 {"error":"bad_request"}`
+  with no effect, as is a malformed `{attempt}` in any §9.1 path; and
 - `x-den-successor: <successor library id>`, the id the lock declared for this library.
+
+The request MUST also carry `x-den-generation` as every library-v4 write does; a missing or different value is
+`409 generation_changed` (condition 6).
 
 On a library with a key-reset lock den-edge requires the owner and the declared successor, then retires the library
 (subsequent requests get `410 library_moved`, as library-v4 §12), records the lock's terminal `retired` result
@@ -1451,11 +1460,16 @@ the door is crossed it can never happen, and a retirement that arrives after a r
 the household `retiring` with nothing retired: the owner or a proven recovery repeats the request; a proofless
 recovery is refused (fail-closed, the old libraries stay readable). The conditions, in order:
 
-1. A library already retired by this lock: `200 {"deleted":true}` when the presented attempt is the lock's owner and
-   the presented successor equals the recorded one, otherwise `410 library_moved`. This is the idempotent replay a
-   lost response needs, and a retired library only reports success to the attempt and successor that retired it.
-2. No lock in force (no record, or a void member lock): `409 {"error":"lock_not_held"}` when the headers are
-   present. A `DELETE` of a locked library with
+1. A library already retired by this lock: `200 {"deleted":true}` when the presented attempt is the lock's owner
+   and the presented successor equals the recorded one, otherwise `410 library_moved`. For a member the owner is
+   decided by the household lock's **current** owner: after a proven takeover the recovery owner may repeat (and look
+   up) a retirement the original owner already made, and still gets `200` and `retired`; the original owner keeps
+   that right for its own retirements; an unrelated attempt gets `410`. This is the idempotent replay a lost
+   response needs. The `410` body of a library retired by a key-reset lock is exactly `{"error":"library_moved"}`
+   and never names the successor; only a legacy library-v4 §12 retirement marker may still carry one.
+2. A library holding a §8.1 `split` or `restore` lock answers any request with these headers
+   `409 {"error":"migration_in_progress"}`, never `lock_not_held`. Otherwise, no lock in force (no record, or a void
+   member lock): `409 {"error":"lock_not_held"}` when the headers are present. A `DELETE` of a locked library with
    **no** attempt header, or an attempt that is not the owner, is `409 migration_in_progress` with no effect;
    retiring a locked library under a different or missing attempt is refused.
 3. A successor that differs from the declared one: `409 {"error":"successor_mismatch"}`.
@@ -1486,9 +1500,10 @@ library: a client has nothing to release there, and its lookup reports `aborted`
 
 *Successor deletion.* After the household decision (abort or rollback) the declared successor libraries (the
 household's and every member's, all listed in the household record) are deleted by separate idempotent commits, one
-per successor library; a successor that was never created is skipped. The driver is **den-edge itself**, which
-on startup, and on the next access to an `aborted` household record, deletes every declared successor that exists
-and then commits "swept" on the household; a client has nothing to repeat. A crash between the decision and a deletion therefore leaves at most an
+per successor library; a successor that was never created is skipped, and so is one recorded as `preexisting` at
+acquire (*Acquire*): the sweep deletes only libraries this reset can have created. The driver is **den-edge
+itself**, which on startup, and on the next access to an `aborted` household record, deletes every other declared
+successor that exists and then commits "swept" on the household; a client has nothing to repeat. A crash between the decision and a deletion therefore leaves at most an
 unreferenced successor that the next driver deletes, and the guarantee that no storage-counting orphan remains is
 eventual, owned by den-edge. Deleting is safe because an `aborted` household was never retired: no device can have
 adopted a successor (*Recovery*).
@@ -1500,7 +1515,9 @@ entirely new keys.
 #### Lookup and lost responses
 
 `GET /lib/{library}/exclusive-operation/{attempt}` returns, with the library token, the stored open body
-byte-for-byte for `open` (and for the household `committed`, with `"state":"committed"`), or a durable terminal:
+byte-for-byte for `open` (and for the household `committed`, with `"state":"committed"`; the household phase
+`retiring` is rendered as `committed`, because committed is monotone and the door is not client-visible), or a
+durable terminal:
 
 ```json
 {"attempt": "0123456789abcdef0123456789abcdef", "state": "retired", "library": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1", "successor": "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1"}
@@ -1518,7 +1535,7 @@ guessing:
 | successor commit | lookup the household lock; `committed` is success, `open` repeats the identical `POST` |
 | retire | repeat the identical `DELETE` (idempotent), or lookup for `retired` |
 | abort | repeat the identical `DELETE`, or lookup for `aborted` |
-| recovery open or takeover | repeat the identical `POST` |
+| recovery open or takeover | repeat the identical `POST`. The same recovery attempt's repeat is looked up **before** any decision, so after a rollback it returns the stored `{"attempt","state":"completed","outcome":"aborted"}` and after a takeover the stored open body, never `409` |
 
 The `observeSuccessorHousehold` step of a reset executor reports `committed` only when the household lookup says
 `committed`; a successor library that exists without it is verified against the intended directory and then

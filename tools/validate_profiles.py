@@ -1834,6 +1834,9 @@ def reset_lock_step(world: dict, request: dict) -> dict:
     library = libraries[library_id_]
     lock = library["lock"]
     presenter = request.get("attempt")
+    if kind in ("retire", "abort", "commit", "lookup") and presenter is not None and not (
+            isinstance(presenter, str) and ID.fullmatch(presenter)):
+        fail("bad_request")
 
     live_phases = ("open", "committed", "retiring")
 
@@ -1931,6 +1934,10 @@ def reset_lock_step(world: dict, request: dict) -> dict:
             return {"effect": "takeover", "phase": lock["phase"], "sideEffects": ["owner-replaced"]}
         if library["source"] != expected:
             return reset_lock_error(409, "migration_source_changed")
+        if request["role"] == "household":
+            declared = [request["successor"], *[m["successor"] for m in request["members"]]]
+            existing = [s for s in declared if s in libraries and libraries[s].get("exists", True)]
+            return {"effect": "open", "sideEffects": ["lock"], "preexisting": existing}
         return {"effect": "open", "sideEffects": ["lock"]}
 
     if kind == "commit":
@@ -1950,8 +1957,8 @@ def reset_lock_step(world: dict, request: dict) -> dict:
                     or member_lock["phase"] != "open"):
                 return reset_lock_error(409, "locks_incomplete")
         successor = libraries.get(lock["successor"])
-        if (successor is None or successor["retired"] or successor["wireMin"] < 5
-                or successor["rows"] < 1):
+        if (successor is None or not successor.get("exists", True) or successor["retired"]
+                or successor["wireMin"] < 5 or successor["rows"] < 1):
             return reset_lock_error(409, "successor_not_ready")
         return {"effect": "committed", "sideEffects": ["phase-committed"]}
 
@@ -1976,17 +1983,34 @@ def reset_lock_step(world: dict, request: dict) -> dict:
     if kind == "sweep":
         if lock is None or lock["role"] != "household" or lock["phase"] != "aborted" or lock.get("swept"):
             return {"effect": "none", "sideEffects": []}
-        return {"effect": "sweep", "delete": [lock["successor"], *[m["successor"] for m in lock["members"]]],
+        declared = [lock["successor"], *[m["successor"] for m in lock["members"]]]
+        return {"effect": "sweep", "delete": [s for s in declared if s not in lock.get("preexisting", [])],
                 "sideEffects": ["successors-deleted", "household-swept"]}
+
+    if kind == "lookup":
+        if lock is None:
+            return reset_lock_error(404, "unknown_attempt")
+        house = lock if lock["role"] == "household" else household_lock(lock)
+        if house is None or presenter not in (lock["attempt"], lock.get("owner")):
+            return reset_lock_error(404, "unknown_attempt")
+        phase = lock["phase"]
+        if lock["role"] == "profile" and house["phase"] == "aborted":
+            phase = "aborted"
+        return {"effect": "lookup", "state": "committed" if phase == "retiring" else phase}
 
     if kind == "retire":
         successor = request.get("successor")
         if library["retired"]:
-            if (lock is not None and lock["phase"] == "retired" and presenter is not None
-                    and presenter in (lock["attempt"], lock.get("owner"))
-                    and successor == lock["successor"]):
-                return {"effect": "lookup"}
+            if lock is not None and lock["phase"] == "retired" and presenter is not None:
+                owner = lock.get("owner")
+                if lock["role"] == "profile":
+                    house = household_lock(lock)
+                    owner = house["owner"] if house is not None and house["attempt"] == lock["attempt"] else None
+                if presenter in (lock["attempt"], owner) and successor == lock["successor"]:
+                    return {"effect": "lookup"}
             return gone
+        if lock is not None and lock.get("purpose") != "key-reset" and held(lock):
+            return conflict
         if not held(lock):
             if presenter is None:
                 return {"effect": "ordinary-delete", "sideEffects": ["library-retired"]}
@@ -2795,7 +2819,9 @@ def main() -> int:
     if ({name: lock_contract.get(name) for name in (
             "purpose", "wire", "acquireOrder", "perLibraryLockRequired", "idleExpiry",
             "ordinaryMutationResponse", "readsContinue", "retireReleasesLockAtomically",
-            "abortAllowedUntil", "householdRetiredLast", "recoveryAfterCommit",
+            "abortAllowedUntil", "householdRetiredLast", "sweepSkipsPreexistingSuccessors",
+            "lookupRendersRetiringAs", "keyResetRetiredBodyNamesSuccessor", "malformedAttemptStatus",
+            "retireCarriesGeneration", "recoveryAfterCommit",
             "everyAtomicStepTouchesOneLibrary", "householdRecordIsAuthority", "householdPhases",
             "memberLockVoidWhenHouseholdAborted", "retirementDoor", "successorDeletion", "plannerChange",
     )} != {
@@ -2809,6 +2835,11 @@ def main() -> int:
         "retireReleasesLockAtomically": True,
         "abortAllowedUntil": "successor-commit",
         "householdRetiredLast": True,
+        "sweepSkipsPreexistingSuccessors": True,
+        "lookupRendersRetiringAs": "committed",
+        "keyResetRetiredBodyNamesSuccessor": False,
+        "malformedAttemptStatus": 400,
+        "retireCarriesGeneration": True,
         "recoveryAfterCommit": {
             "withSuccessorProof": "finish-retirement",
             "withoutProofBeforeDoor": "rollback",

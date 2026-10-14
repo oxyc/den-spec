@@ -586,6 +586,31 @@ class ProfilesVectorsTests(unittest.TestCase):
             case = self.reset_lock_request(name)
             self.assertEqual(self.reset_lock(case["scenario"], case["request"])["effect"], "none")
 
+    def test_reset_lock_sweep_never_deletes_a_successor_that_preexisted(self):
+        case = self.reset_lock_request("a household cannot declare an existing library")
+        actual = self.reset_lock(case["scenario"], case["request"])
+        self.assertNotIn(case["expect"]["delete"][0], [])
+        self.assertEqual(len(actual["delete"]), 2)
+        acquire = self.reset_lock_request("a declared successor that already exists")
+        self.assertEqual(len(self.reset_lock(acquire["scenario"], acquire["request"],
+                                             acquire["mutations"])["preexisting"]), 1)
+
+    def test_reset_lock_replays_and_renderings(self):
+        for name in ("a repeated rollback request", "the recovery owner repeats a member retirement"):
+            case = self.reset_lock_request(name)
+            self.assertEqual(self.reset_lock(case["scenario"], case["request"])["effect"], "lookup")
+        gone = self.reset_lock_request("an unrelated attempt gets library_moved")
+        self.assertEqual(self.reset_lock(gone["scenario"], gone["request"])["status"], 410)
+        door = self.reset_lock_request("lookup renders retiring as committed")
+        self.assertEqual(self.reset_lock(door["scenario"], door["request"])["state"], "committed")
+        locked = self.reset_lock_request("a migration-locked library answers exclusive headers")
+        self.assertEqual(self.reset_lock(locked["scenario"], locked["request"])["error"],
+                         "migration_in_progress")
+        for name in ("a malformed attempt header", "a malformed attempt in the abort", "a malformed attempt in the commit"):
+            case = self.reset_lock_request(name)
+            with self.assertRaisesRegex(ValueError, "bad_request"):
+                self.reset_lock(case["scenario"], case["request"])
+
 
 if __name__ == "__main__":
     unittest.main()
