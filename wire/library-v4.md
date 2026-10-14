@@ -637,6 +637,12 @@ carries a `schema` above 3 (a `rec` above 2); that aborts as step 3 says.
 - **New libraries.** A library's first batch carries `x-den-wire-min: 4`; den-edge sets the minimum to the greater of
   that and the minimum of the library named in `x-den-library-member` (v3 §10). A key reset whose `DELETE` of the old
   library gets `generation_changed` re-copies first.
+- **A library under an exclusive key-reset lock** ([profiles-v1 §9.1](profiles-v1.md)) is not moved by this
+  unlocked flow. Its `DELETE /lib/{id}` additionally carries `x-den-exclusive-attempt` (the owning attempt) and
+  `x-den-successor` (the successor library id the lock declared). Without them, or with another attempt, it is
+  `409 migration_in_progress`; with them, den-edge retires the library and releases the lock in one commit, and a
+  repeat by the same attempt and successor is `200`. Writes are refused while the lock is held, so
+  `generation_changed` cannot occur and is not a re-copy trigger there. An unlocked `DELETE` is unchanged.
 
 ## 13. den-edge
 

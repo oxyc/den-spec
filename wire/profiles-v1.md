@@ -889,8 +889,9 @@ authorization. A split requires another explicit Enable Profiles action plus a f
 source observation; a restore requires another explicit Restore action plus its own fresh Owner PIN and source
 observation. Recovery may not broaden or refresh either old authorization.
 
-There is at most one active `split` or `restore` attempt for a household. A different split attempt, a second
-restore attempt, or a restore faced with corrupt legacy state lacking the invariant bound backup returns exactly
+There is at most one active exclusive lock on a household, of any purpose: `split`, `restore` or the §9.1 key reset.
+A different split attempt, a second restore attempt, any open while a §9.1 key-reset lock is active, or a restore
+faced with corrupt legacy state lacking the invariant bound backup returns exactly
 `409 {"error":"migration_in_progress"}` with no active attempt id, purpose, fence, source, backup, staging or
 timing metadata and with no side effect. This check happens before current-source comparison, so an ineligible
 caller cannot use mismatched expected-source values to probe the active attempt. The sole exception is the atomic
@@ -1193,7 +1194,10 @@ fresh open.
 A household §12 reset is one fenced compound move. It generates a successor household key and one distinct random
 successor key for every live persistent profile, increments each profile's `keyVersion` exactly once, and re-seals
 each complete ordinary library-v4 log while preserving delivery state. Deleted profiles are not moved. No successor
-profile key may equal any old or other successor key.
+profile key may equal any old or other successor key. The whole move runs under one durable exclusive lock per
+library, the household and every live persistent profile, acquired before the first copy and defined in §9.1:
+without that set a device could write an old library after it was copied, or a second reset or a migration could
+race this one.
 
 `profiles_reset_next(input)` is den-core's canonical pure planner. It receives the validated committed directory,
 the household move fence, and for each live profile the old key/version, proposed new key/version, copy head and
@@ -1217,16 +1221,461 @@ committed before every copy verified, is contradictory and returns an error; it 
 effect.
 
 The successor directory is not published until every live profile move is verified. The household move then
-publishes that directory under the successor household, commits its fence, and only afterward retires the old
-household and every old profile library. A conflict or unknown outcome is resolved by reading the committed
-household move before any retirement. Missing verification, a non-incremented version, reused key, unknown/newer
+publishes that directory under the successor household, records the §9.1 successor commit on the household lock,
+and only afterward retires the old household and every old profile library. A conflict or unknown outcome is
+resolved by looking up the household lock (§9.1) and reading the committed household move before any retirement.
+The planner's `fence` is the household source observation that the household lock was acquired at; the lock set
+adds no planner input, phase or effect (§9.1 *Planner boundary*). Missing verification, a non-incremented version, reused key, unknown/newer
 row that library-v4 §12 cannot move, or any unavailable profile returns an error and leaves all old libraries live.
 Revocation is complete only when every old profile library and the old household are confirmed retired; leaving one
 old profile key usable is not a reset.
+
+### 9.1 Exclusive locks for a compound reset
+
+A compound reset is not conforming if it is assembled from ordinary reads, ordinary writes and an ordinary `DELETE`
+(library-v4 §12): a device could write an old library after it was copied and then lose the write to retirement, two
+resets could mint different successors for one household, and a migration could replace the household under a
+reset. The reset therefore holds the **same per-library durable exclusive-operation lock** as §8.1, with
+`purpose: "key-reset"`, on the household and on every live persistent profile library. The store primitive is the
+generic one (compare-and-set at an exact source, same-attempt replay, metadata-free refusal of everyone else,
+atomic release with the terminal effect, atomic handoff) and needs no knowledge of profiles beyond the lock record
+below.
+
+This section names the required operations. The routes are the interoperable HTTP surface; an in-process store may
+expose equivalent calls but MUST return the same evidence and errors. Every request is authenticated as the library
+it names (`x-den-library-token`) and carries exactly the `x-den-wire` that library requires: 5 for the household, 4
+for a profile library (§1). The surface is unavailable for an `off` household and follows the §8.1 capability and
+wire gate. Defining it activates nothing.
+
+| Route | Result |
+|---|---|
+| `GET /lib/{library}/exclusive-operation/source` | `200 {"source":{"generation","head"}}`, read-only |
+| `POST /lib/{library}/exclusive-operation` | acquire (household or profile) or open a recovery; `200` open body, or a replay of the stored answer |
+| `GET /lib/{library}/exclusive-operation/{attempt}` | the stored answer, or a durable terminal result; `404` for an unknown attempt |
+| `POST /lib/{household}/exclusive-operation/{attempt}/successor` | the one successor-household commit |
+| `DELETE /lib/{household}/exclusive-operation/{attempt}` | abort the whole reset, before the successor commit only; household record only |
+| `DELETE /lib/{library}` with `x-den-exclusive-attempt` and `x-den-successor` | retire a locked library and release its lock in one commit |
+
+#### Authority and per-library commits
+
+den-edge stores every library in its own database, so **no storage commit spans two libraries, and this contract
+never requires one.** Every atomic step below touches exactly one library, and the **household's lock record is the
+single authority** over the reset. It holds the reset's phase: `open` → `committed` → `retiring` → `retired`, or
+`open`/`committed` → `aborted` (an abort and a rollback are the same terminal phase), plus the current owner, the
+`proven` flag of a recovery owner and the declaration of every member and successor. A member lock is a subordinate
+record that is **in force** only while its household record is non-terminal (`open`, `committed` or `retiring`)
+and the member itself is not retired.
+
+The complete list of commits, each in one library:
+
+| Commit | Library | Effect |
+|---|---|---|
+| acquire | household | records the lock, the declaration and phase `open` |
+| acquire | one member | records the member lock (only while the household is `open` and owned by the attempt) |
+| successor commit | household | `open` → `committed` |
+| abort | household | `open` → `aborted` |
+| takeover | household | replaces the owner, sets `proven`; or, proofless on `committed`, `committed` → `aborted` (rollback) |
+| retirement door | household | `committed` → `retiring`, taken before the first member is retired |
+| retire | one member | retires the library and records its lock `retired` |
+| retire | household | `retiring` → `retired` with the library retired, after every member |
+| mark swept | household | records that every declared successor was deleted |
+| delete successor | one successor library | deletes it (idempotent) |
+| void-lock cleanup | one member | clears a member lock whose household is `aborted` (idempotent, optional) |
+
+Member effects (lock release after an abort or rollback, retirement, successor deletion) are always separate,
+idempotent commits **performed after the household decision**. They are driven by the owner, a recovery owner or
+den-edge itself, in any number of repetitions, until done. A member checks its household record on every request
+that depends on its lock (den-edge reads the household's database in the same process; a read is not a commit).
+
+*Void locks.* A member lock whose household record says `aborted` is treated as released at once, before any
+cleanup: ordinary writes are allowed, a new reset may lock the library, and den-edge clears the record on next
+access or by a sweep. A member lock whose household says `committed` or `retiring` is released only by the member's
+retirement. A household record that is `retired` implies every member retired. This makes the household commit the
+single linearization point of abort and rollback: the writes refused before it are retried by clients, and no write
+is accepted under a lock that is not in force.
+
+#### Source observation and the lock set
+
+`GET /lib/{library}/exclusive-operation/source` is §8.1's observation for any library: `generation` is the library's
+durable profile-migration fence counter and `head` is the `source` digest (*Canonical migration digests*) computed
+with that library's own id and stored `wireMin` (4 for a profile library). den-edge MUST keep the counter for every
+library, not only households, advancing it atomically on each visible mutation exactly as §8.1 describes. The
+household observation is the planner's `fence`. A client authenticates each observation as §8.1 does (open every
+known row, check every binding, preserve unknown rows, recompute the digest) before it acquires at it.
+
+The lock set is the household plus one lock for every live directory profile, no more and no fewer. A client
+acquires in a deterministic order: the **household first**, then the profile libraries in ascending order of library
+id (raw bytes of the 32-hex id). The household lock carries the complete declaration of the set, so its attempt id
+binds every other lock and the server always knows what the set is. A profile lock is refused unless the household
+lock of the same attempt is open and declares that profile library. Retirement and recovery act only on the declared
+set, so a profile cannot be orphaned by omission: a live profile missing from the declaration would have been
+missing from the planner's evidence, which §9 already treats as an error.
+
+#### Acquire
+
+The household request is:
+
+```json
+{
+  "attempt": "0123456789abcdef0123456789abcdef",
+  "purpose": "key-reset",
+  "role": "household",
+  "expectedSource": {"generation": 14, "head": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"},
+  "successor": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+  "members": [
+    {"libraryId": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1", "successor": "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1"},
+    {"libraryId": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2", "successor": "e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2"}
+  ]
+}
+```
+
+`attempt` is the planner journal's 32-hex attempt id. `successor` and each member `successor` are the library ids
+derived from the proposed successor keys (ids reveal nothing about a key). `members` is sorted ascending by
+`libraryId`, is non-empty, and the household id, every member id and every successor id are pairwise distinct;
+anything else is `400 {"error":"bad_request"}` with no effect. A profile request is:
+
+```json
+{
+  "attempt": "0123456789abcdef0123456789abcdef",
+  "purpose": "key-reset",
+  "role": "profile",
+  "expectedSource": {"generation": 3, "head": "1111111111111111111111111111111111111111111111111111111111111111"},
+  "successor": "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+  "household": "5e1ab5db12f9b30e640e3ee80fb3e072"
+}
+```
+
+den-edge evaluates a request in exactly this order, holding the serialization of every library it reads or writes,
+taken in ascending library-id order so household and profile requests cannot deadlock:
+
+1. **Lookup first.** The same attempt, purpose, role, `expectedSource`, `successor` and `members`/`household` return
+   the stored answer even if the library has since changed. The same attempt with any other value is
+   `409 migration_attempt_mismatch` with no effect.
+2. A retired library is `410 library_moved`.
+3. **Any other lock in force on the library** (a void member lock is not in force), of any purpose or attempt, a profile request whose household lock is not
+   open, not of this attempt, not owned by it, or does not declare this library with this `successor`: exactly
+   `409 {"error":"migration_in_progress"}`, no attempt id,
+   purpose, source, role or timing metadata, and no side effect. This check precedes the source comparison so an
+   ineligible caller cannot probe the lock with mismatched sources.
+4. A source that is not the library's current `{generation, head}` is `409 {"error":"migration_source_changed"}` with
+   no side effect.
+5. Otherwise one storage commit records the lock and answers:
+
+```json
+{
+  "attempt": "0123456789abcdef0123456789abcdef",
+  "state": "open",
+  "purpose": "key-reset",
+  "role": "household",
+  "library": "5e1ab5db12f9b30e640e3ee80fb3e072",
+  "wireMin": 5,
+  "lock": "lock-8f2c61d0a94b37e5c1d2e3f405162738",
+  "fence": {"generation": 14, "base": 418, "head": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"},
+  "successor": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+  "members": [{"libraryId": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1", "successor": "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1"}]
+}
+```
+
+A profile answer has `"role": "profile"`, `household` in place of `members`, and the same `lock`, `fence` and
+`successor`. `fence` is `{generation, base, head}` frozen by the lock; `fence.generation` and `fence.head` equal
+`expectedSource`. `lock` is an opaque durable handle of at least 128 random bits, unique per lock and returned by
+every lookup: it names the lock for a journal, but it carries no authority. Authority is the attempt id together with
+the library token. Because a profile lock is only granted after the household lock, a competitor that holds some
+other library's token learns nothing about this reset.
+
+Acquisition does not advance any counter. A same-attempt replay is the only request allowed through an active lock.
+A client whose profile acquire answers `migration_source_changed` re-observes and re-authenticates that profile
+source and retries; the failed attempt had no effect, and the household lock keeps every other library stable. A
+client that cannot acquire the whole set (a bounded number of source races, `migration_in_progress`, a 5xx it cannot
+resolve by replay) aborts what it holds (*Abort*) before telling the person to try again. Acquisition happens before
+den-core is consulted for any copy.
+
+#### What a lock does
+
+While a library holds a key-reset lock **in force**, every mutation that is not an effect of the owning reset is refused
+before ordinary generation and rewrite handling with exactly `409 {"error":"migration_in_progress"}` and no effect:
+`/batch`, member registration, an ordinary `DELETE /lib/{id}`, rewrite open/rows/commit/abort, and any §8.1 open on
+the household. Reads continue, so playback and inspection work from the frozen old libraries and the executor copies
+from them. The one error code is deliberate: deployed clients already map `migration_in_progress` to a blocking
+setup-in-progress state and pause write retries (§8.1). The lock and its record are durable across client and
+den-edge restart and MUST NOT disappear on an idle timer or a client disconnect; it ends only through the
+terminal effects below. The successor libraries are not locked: they are new ids, created by ordinary batches that
+name an old library of the same store as `x-den-library-member` (library-v3 §10). Reading an old library to prove
+that membership is not a mutation of it.
+
+A key-reset lock blocks a §8.1 migration and a §8.1 lock blocks a key-reset acquisition, both with the same
+metadata-free `409 migration_in_progress`.
+
+#### Successor commit
+
+The household move commits exactly once, on the household lock. After the client has written the complete successor
+household under the successor key, read it back and verified it against the successor directory it intends, it sends
+`POST /lib/{household}/exclusive-operation/{attempt}/successor` with `{"successor":"<successor household id>"}`.
+Under the serialization of the household, with read-only checks of the successor library and every member (member
+locks leave `open` only after the household decides, so these reads cannot go stale before the household commit),
+den-edge verifies that:
+
+- the household lock is open, of this attempt and owned by it (not taken over, *Recovery*);
+- `successor` equals the id declared at acquisition;
+- every declared member holds an open lock of this attempt, else `409 {"error":"locks_incomplete"}`; and
+- the successor library exists, is not retired, has stored minimum at least 5 and holds at least one row, else
+  `409 {"error":"successor_not_ready"}`.
+
+It then moves the household lock to `state: "committed"` in one commit on the household and answers the lookup body with that state. The server
+cannot decrypt anything, so the completeness and correctness of the successor remain the client's and den-core's
+obligation; the commit is the point at which they are final. **This is the only definition of "the successor
+household committed".** A successor household library that exists but has no recorded commit is not committed: the
+old libraries remain authoritative, and an abort remains allowed. A replay with the same body is the stored answer.
+Any other caller gets `409 migration_in_progress`; a different `successor` is `409 migration_attempt_mismatch`.
+
+#### Retirement
+
+Once the household lock is `committed` (or `retiring`), each old library is retired by the §12 `DELETE /lib/{library}` with the
+existing token and `x-den-generation`, plus two headers:
+
+- `x-den-exclusive-attempt: <attempt>`, the owning attempt (the reset attempt, or the recovery attempt that took the
+  household lock over); and
+- `x-den-successor: <successor library id>`, the id the lock declared for this library.
+
+On a library with a key-reset lock den-edge requires the owner and the declared successor, then retires the library
+(subsequent requests get `410 library_moved`, as library-v4 §12), records the lock's terminal `retired` result
+naming that successor and releases the lock, all in one storage commit **on that library**. There is no state in
+which the library is retired but its lock is held, or released but not retired.
+
+**The retirement door.** Retirement is irreversible, and rollback (*Recovery*) is decided on the household record
+alone, so the two must not race across libraries. The first retirement of a reset therefore first commits the
+household `committed` → `retiring` (a commit on the household only, idempotent when it is already `retiring`) and
+only then retires the member in a second commit on the member. Rollback is possible only from `committed`, so once
+the door is crossed it can never happen, and a retirement that arrives after a rollback finds the household
+`aborted`, whose member locks are void, and is refused. A crash between the door and the member retirement leaves
+the household `retiring` with nothing retired: the owner or a proven recovery repeats the request; a proofless
+recovery is refused (fail-closed, the old libraries stay readable). The conditions, in order:
+
+1. A library already retired by this lock: `200 {"deleted":true}` when the presented attempt is the lock's owner and
+   the presented successor equals the recorded one, otherwise `410 library_moved`. This is the idempotent replay a
+   lost response needs, and a retired library only reports success to the attempt and successor that retired it.
+2. No lock in force (no record, or a void member lock): `409 {"error":"lock_not_held"}` when the headers are
+   present. A `DELETE` of a locked library with
+   **no** attempt header, or an attempt that is not the owner, is `409 migration_in_progress` with no effect;
+   retiring a locked library under a different or missing attempt is refused.
+3. A successor that differs from the declared one: `409 {"error":"successor_mismatch"}`.
+4. The household lock is not `committed` or `retiring`: `409 {"error":"successor_not_committed"}`. Nothing retires
+   before the commit, for any library.
+5. For the household only: the household is `retiring` and every declared member lock is `retired`, else
+   `409 {"error":"locks_held"}` (the member retirements are read-only checks; retirement is irreversible, so they
+   cannot go stale). The **household is retired last**, because the old household is the only place the old directory, and with it every old
+   profile key, can be read. Retiring it earlier could strand a profile a recovery could no longer name.
+6. `x-den-generation` mismatch is `409 generation_changed` as library-v3 §10, with no effect. Under a lock the
+   generation cannot change; a mismatch is a storage failure, so the client stops and surfaces it rather than
+   re-copying (library-v4 §12's re-copy rule applies to an unlocked move).
+
+An ordinary `DELETE` of an unlocked library is unchanged.
+
+#### Abort
+
+Before the successor commit nothing irreversible has happened: the old libraries were never altered and any copies
+exist only under keys the journal holds. The owner may therefore release the set, but never inferred from idleness.
+`DELETE /lib/{household}/exclusive-operation/{attempt}` names the presenting attempt and is **one commit on the
+household only**: it succeeds only when that attempt owns the household lock and the phase is `open`, and moves it
+to the terminal `aborted`. At that commit every member lock becomes void (*Authority and per-library commits*), so
+the whole set is released at once, with no ordering between libraries to get wrong and no member state to wait for.
+Against a lock of another owner, or after the successor commit, it is `409 migration_in_progress` and changes
+nothing: from then on the only release is retirement (or the proofless rollback of a `committed` reset, in
+*Recovery*). A replay of an aborted attempt returns the `aborted` result. The route is not defined on a profile
+library: a client has nothing to release there, and its lookup reports `aborted` once the household is.
+
+*Successor deletion.* After the household decision (abort or rollback) the declared successor libraries (the
+household's and every member's, all listed in the household record) are deleted by separate idempotent commits, one
+per successor library; a successor that was never created is skipped. The driver is **den-edge itself**, which
+on startup, and on the next access to an `aborted` household record, deletes every declared successor that exists
+and then commits "swept" on the household; a client has nothing to repeat. A crash between the decision and a deletion therefore leaves at most an
+unreferenced successor that the next driver deletes, and the guarantee that no storage-counting orphan remains is
+eventual, owned by den-edge. Deleting is safe because an `aborted` household was never retired: no device can have
+adopted a successor (*Recovery*).
+
+Abort is a client decision, not a planner effect. A client may abort only while the journal is in the planner's
+`prepared`, `profiles-moving` or `ready-to-publish` phases, and discards the journal afterwards; a retry generates
+entirely new keys.
+
+#### Lookup and lost responses
+
+`GET /lib/{library}/exclusive-operation/{attempt}` returns, with the library token, the stored open body
+byte-for-byte for `open` (and for the household `committed`, with `"state":"committed"`), or a durable terminal:
+
+```json
+{"attempt": "0123456789abcdef0123456789abcdef", "state": "retired", "library": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1", "successor": "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1"}
+{"attempt": "0123456789abcdef0123456789abcdef", "state": "aborted", "library": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1"}
+```
+
+Terminal results are durable tombstones and lookup works for a retired library with the owning attempt; an unknown
+attempt is `404` with no metadata. A member whose household is `aborted` answers `aborted` (computed from the
+household record, even before its own record is cleaned up). A client resolves every lost or unknown response by lookup-first replay, never by
+guessing:
+
+| Lost response | Resolution |
+|---|---|
+| acquire (either role) | repeat the identical `POST`; it returns the stored answer |
+| successor commit | lookup the household lock; `committed` is success, `open` repeats the identical `POST` |
+| retire | repeat the identical `DELETE` (idempotent), or lookup for `retired` |
+| abort | repeat the identical `DELETE`, or lookup for `aborted` |
+| recovery open or takeover | repeat the identical `POST` |
+
+The `observeSuccessorHousehold` step of a reset executor reports `committed` only when the household lookup says
+`committed`; a successor library that exists without it is verified against the intended directory and then
+committed as above, or reported unknown.
+
+#### Journal-less Owner-PIN recovery
+
+A device that lost its reset journal (or a different device) cannot resume, and a lock has no expiry, so §9.1
+defines recovery. It is offered only to a client with no matching local journal, after a **fresh Owner PIN**
+authorization bound to the recovery attempt and the exact source it observed; a client with the journal resumes
+instead. The recovery attempt is a new random 32-hex id `R`. The client reads `GET /lib/{household}/exclusive-operation/source`,
+authenticates it, and sends
+
+```json
+{"attempt": "fedcba9876543210fedcba9876543210", "purpose": "key-reset-recovery", "role": "household",
+ "expectedSource": {"generation": 14, "head": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"}}
+```
+
+to `POST /lib/{household}/exclusive-operation`, optionally with `x-den-successor-token` (the successor household
+library's token, proving possession of the successor key; see *`committed` with proof* below). It is a **takeover**
+of the active reset lock and succeeds only when all of these hold at once under the household serialization:
+
+- the household holds a key-reset lock in phase `open`, `committed` or `retiring` (a reset or an earlier
+  recovery's), and no other purpose holds it;
+- the request's `expectedSource`, the lock's frozen source and the library's current authoritative source are
+  identical;
+- `R` is not already the lock's attempt with another purpose or source (that is `migration_attempt_mismatch`);
+- a present `x-den-successor-token` matches the declared successor library (a wrong proof is refused in any phase);
+  and
+- in phase `committed` without a proof, the rollback applies; in phase `retiring` a proof is required.
+
+Any other request is exactly `409 migration_in_progress` with no metadata, a recovery of a profile library included.
+On success (except the proofless rollback of a committed reset, below) one storage commit replaces the lock's owner with `R`, tombstones the previous owner attempt as
+`recovered` by `R`, and answers:
+
+```json
+{
+  "attempt": "fedcba9876543210fedcba9876543210",
+  "state": "open",
+  "purpose": "key-reset-recovery",
+  "role": "household",
+  "library": "5e1ab5db12f9b30e640e3ee80fb3e072",
+  "wireMin": 5,
+  "lock": "lock-8f2c61d0a94b37e5c1d2e3f405162738",
+  "fence": {"generation": 14, "base": 418, "head": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"},
+  "recovers": {
+    "attempt": "0123456789abcdef0123456789abcdef",
+    "phase": "open",
+    "successor": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+    "members": [{"libraryId": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1", "successor": "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1"}]
+  }
+}
+```
+
+The lock handle is unchanged. The household lock is never released by the takeover, so no ordinary write can slip in
+between it and the finish. After it the previous owner is shut out atomically: its successor commit, its retirements
+and its profile acquires get `409 migration_in_progress`, because owner authority on every member lock follows the
+household lock's current owner. Its lookup answers
+`{"attempt","state":"recovered","recovery":"<R>"}`, and gains `"outcome":"aborted"|"retired"` once `R` completes.
+A journaled executor that finds `recovered` stops: `outcome: "aborted"` means discard the journal, `outcome:
+"retired"` means the old libraries are retired and it adopts its successor (it holds the keys). Without an `outcome`
+it waits. A second recovery `R2` may take `R` over by the same rule; recovery is therefore itself crash-recoverable.
+
+The finish is decided only by `recovers.phase`, which is the lock's phase at takeover, and whether a proof was
+accepted, never by anything the client infers (the rollback below completes inside the takeover itself, so its
+answer is the terminal one and carries no `recovers.phase` to act on):
+
+- **`open` (before the successor commit): abort.** `R` sends one `DELETE /lib/{household}/exclusive-operation/{R}`,
+  a single commit on the household (*Abort*). Every member lock is void at that commit, the old libraries are intact
+  and writable, and den-edge deletes the declared successors afterwards. The result is `state:"completed"`,
+  `outcome:"aborted"` for `R`. A successor household that exists without a recorded commit is not committed
+  (see *Successor commit*) and is among the deleted successors; the commit by the old owner is refused for good
+  by its `recovered` tombstone. A proof (below) is not needed.
+- **`committed` or `retiring` with proof of the successor key: finish retirement.** The request carries the header
+  `x-den-successor-token`, the successor household library's token. den-edge compares its hash with the stored
+  credential of the declared successor library (which must exist and not be retired); a match is the proof that
+  the caller holds the successor household key. The takeover records `proven: true`, and only then may `R` retire:
+  every declared member with `x-den-exclusive-attempt: R` and `x-den-successor` taken from `recovers.members`,
+  never chosen by the client, and only then the household with `recovers.successor`. The result is
+  `state:"completed"`, `outcome:"retired"`. A proof also takes over a `retiring` lock (the door was crossed, possibly with members already retired). A lock owned
+  by a recovery that did not prove possession refuses every retirement (`409 migration_in_progress`).
+- **`committed` without proof: roll back, only before the retirement door.** Possession of the successor key
+  cannot be shown, and finishing retirement could strand the household with a successor nobody can open. Nobody can
+  have adopted that successor yet, because executors adopt only after every old library is retired. If the
+  household phase is exactly `committed` (the door of *Retirement* has not been crossed, hence nothing is
+  retired), the takeover is itself the rollback, **one commit on the household**: phase `committed` → `aborted`,
+  the previous owner tombstoned as `recovered` with `outcome: "aborted"`, and `R` answered as
+  `{"attempt","state":"completed","outcome":"aborted"}`. That one commit voids every member lock. The member
+  clean-up and the deletion of the declared successors follow as separate idempotent commits driven by den-edge
+  (*Abort*). Whenever the phase is `retiring` (or `retired`) the request is exactly `409 migration_in_progress`
+  with no metadata and no effect: the lock stays, the old libraries stay readable and every write stays refused
+  until a holder of the successor key finishes retirement with proof.
+- **A wrong proof** (the header present but not the successor's credential, or the successor library absent or
+  retired) is exactly `409 migration_in_progress` in every phase, with no effect.
+
+Why this is safe. Recovery can release a lock only through a state change the owner could have made, or by the
+rollback above, and it cannot do either unsafe thing:
+
+- *It cannot release a lock out from under a live successor.* A successor is live only once it can be adopted, and
+  adoption follows the retirement of every old library. Commit, door, abort, rollback and takeover are all commits
+  on the one household record, so they serialize: whichever commits first wins and the loser is refused. Abort needs
+  `open`, where no successor is committed. Rollback needs exactly `committed` and no proof; the door makes the first
+  retirement a household commit that precedes any member retirement, so a rollback and a retirement can never both
+  take effect. A caller that can prove the successor key takes the retirement path, so a successor is never deleted
+  under a holder of its key who has proof. A journaled executor that was merely slow sees `recovered` with
+  `outcome: "aborted"`, discards its journal and starts again; it had not adopted anything.
+- *It cannot orphan a profile or lose a write.* The set is declared in the household record, and every member lock
+  is subordinate to it: it is void exactly when the household is `aborted`, and released only by its own retirement
+  otherwise. A member write is refused before the household decides and allowed after an abort; it is never
+  accepted under a lock still in force, and a void lock is never enforced because every check reads the household
+  record.
+- *It cannot strand the household.* Old libraries are retired only by a caller that proved the successor key, or
+  by the original owner, whose journal holds it. Without proof the only outcomes are a full rollback or a refusal
+  that leaves the old libraries readable.
+
+Retiring is required for a reset to be complete: leaving old keys usable is not a reset (§9). A reset left
+partially retired with no key holder reachable stays locked, fails closed and keeps the old libraries readable.
+
+#### Crash boundaries
+
+| Crash | Durable state | Next |
+|---|---|---|
+| before the household acquire commit | no lock | repeat or start again |
+| after it | household `open`, set declared | acquire the rest in order, or abort |
+| between profile acquires | household and some members locked | replay acquires (lookup-first), or abort |
+| before the successor commit | `open`; successor may exist, uncommitted | lookup, verify, commit; or abort |
+| after it | household `committed` | lookup shows `committed`; cross the door, retire members, household last |
+| after the household abort or rollback, before any member or successor effect | household `aborted`; member locks void by rule; successors may exist | writes already allowed; den-edge clears member records and deletes the declared successors, then marks the household swept |
+| between successor deletions | some declared successors gone | the next sweep deletes the rest (idempotent); no live successor can exist because the household was never retired |
+| after the door, before the first member retirement | household `retiring`, nothing retired | owner or proven recovery repeats; proofless recovery is refused; old libraries stay readable and locked |
+| between member retirements | each retirement is one commit on one member | repeat the `DELETE`s; household last |
+| after the last member, before the household retirement | household `retiring`, members `retired` | repeat the household `DELETE`; the old directory is still readable |
+| takeover | owner replaced in one commit on the household | `R` finishes by `recovers.phase` and proof; `R2` may take over |
+| proofless takeover of a `committed` reset | the rollback is one commit on the household | `R` is `completed`/`aborted`; member locks void; den-edge finishes clean-up and successor deletion |
+| a member acquire racing a takeover or abort | the member record names a non-owner or a terminal household | void by rule, or owned by the new owner; harmless |
+
+Every row converges with no lost write (a write is refused only while a lock is in force and is allowed the instant
+the household is `aborted`), no live-successor release (abort, rollback and the door are mutually exclusive
+commits on the household, and a household that was ever `retiring` can no longer be rolled back) and no profile
+orphan (the declaration is in the household record, the household is retired last, and a void or retired member is
+decided by that record). No intermediate state exposes a library retired with its lock held, a lock released
+without its terminal result, a retirement before the commit, or a household retirement before every member.
+
+#### Planner boundary
+
+`profiles_reset_next` needs **no change**: its inputs, phases (`prepared`, `profiles-moving`, `ready-to-publish`,
+`committed`, `retiring-old`, `complete`), effects and error envelope are exactly §9's, and
+`resetCases` in the vectors are unchanged. The lock set is acquired before the first planner call and is not planner
+evidence. `householdCommitted` is set only after the household lock lookup says `committed` and the client has
+verified the successor against the intended directory; `oldRetired` and `oldHouseholdRetired` only after the
+corresponding retirement answered `200` or a lookup says `retired`. Abort and recovery have no planner effect: abort
+is a lock release available only before `householdCommitted`, and recovery runs without a journal and therefore
+without planner evidence, using only the server-recorded phase and declaration above.
 
 ## 10. Vectors and operation boundary
 
 [`vectors/profiles-v1.json`](../vectors/profiles-v1.json) pins directory schema and operations, numeric policy,
 approvals, the exact settings table, sticky selection, activation/recovery decisions, stale-candidate cleanup, wire topology
-and multi-profile reset. `python3 tools/validate_profiles.py` checks the canonical input boundary and expected pure
+multi-profile reset and its exclusive-lock contract (`resetLockContract`, §9.1). `python3 tools/validate_profiles.py` checks the canonical input boundary and expected pure
 answers. The vectors specify den-core behavior; they do not authorize a production caller to activate profiles.

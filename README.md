@@ -29,13 +29,16 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
   selection, backed-up/fenced initial migration and multi-profile reset. Its initial-migration contract includes
   the dormant den-edge storage surface for one durable exclusive attempt, verified pre-write backup, atomic
   in-place household rewrite, an atomic verified-backup recovery handoff, explicit fenced/idempotent backup restore
-  and safe legacy stale-candidate retirement.
+  and safe legacy stale-candidate retirement. Its multi-profile reset contract (§9.1) reuses that lock per library
+  (household and every live profile) with atomic retire-and-release, an explicit successor commit, owner-only abort
+  before it (deleting the unreferenced successor copies) and a journal-less Owner-PIN recovery that finishes
+  retirement only with proof of the successor key and otherwise rolls back only while nothing is retired.
   It defines per-household `off`/`prepare`/`runtime` capability and wire-5 gating plus the migration state machines,
   without activating the split, deploying anything or changing an existing library's minimum.
 - [`schemas/profiles-v1.schema.json`](schemas/profiles-v1.schema.json) and
   [`vectors/profiles-v1.json`](vectors/profiles-v1.json): the profile-directory, per-Kid approval and local-selection
   schemas, accepted/rejected directories and approval documents, numeric policy decisions, topology, ownership,
-  selection, migration/recovery, storage transaction proofs, stale-library cleanup and reset cases. Validate them with
+  selection, migration/recovery, storage transaction proofs, stale-library cleanup, reset and reset-lock cases. Validate them with
   `python3 tools/validate_profiles.py`.
 - [`wire/recovery-code.md`](wire/recovery-code.md) (proposal): a recovery code that unwraps the library key on a
   new device, with no device that holds the library at hand. Argon2id-wrapped, stored at den-edge under a locator
