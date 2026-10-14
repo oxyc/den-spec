@@ -328,7 +328,10 @@ matched versions and authorities conservatively before producing this value; the
 wins, as specified by den-dataset#226. Profile policy stores `maximumAge`, with `null` meaning no age ceiling.
 
 Absent an explicit Kid approval (§5.1), a known title is eligible exactly when `maximumAge` is null or
-`minimumAge <= maximumAge`; an unknown title is eligible exactly when `unknownRatings` is `allow`. Owner migration
+`minimumAge <= maximumAge`; an unknown title is eligible exactly when `unknownRatings` is `allow`, or, for a Kid,
+when the title is **made for the Kid's audience band** as defined by the audience-relevance gate below. That
+admission is a Kid rule, not a maturity age: it applies only where `minimumAge` is unknown, never overrides a known
+one, and does not apply to Owner or Visitor policies. Owner migration
 decodes legacy `pg13` as `maximumAge: 13`, `r` as `maximumAge: 17`, and absent/null as `maximumAge: null`; all three
 preserve Owner's existing `unknownRatings: allow`. No named maturity band remains in the policy or title contract.
 
@@ -351,7 +354,9 @@ fetched to refill a page after filtering.
 The audience-relevance gate is presentation policy, not a second maturity rating. It does not apply to Owner or
 Visitor discovery, does not change `minimumAge`, and does not deny an otherwise age-eligible direct/deep-linked
 detail, Play, Sources, download, autoplay or remote-play request. Those boundaries continue to use the age policy
-and title approvals above. This distinction lets an owner deliberately open a specific obscure or adult-oriented
+and title approvals above, including the made-for-audience admission of an unknown title: a client passes it to the
+shared rule as `madeForAudience` from the title's audience evidence for the Kid's band, so a title the Kid's
+catalogue shows also opens and plays. This distinction lets an owner deliberately open a specific obscure or adult-oriented
 but age-eligible work without filling the Kid's normal catalogue with such titles. Atlas cache and ETag identity for
 Kid discovery additionally includes the Kid role and the child-only versus child-or-teen audience band.
 
