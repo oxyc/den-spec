@@ -14695,6 +14695,115 @@
     },
     {
       "base": 20,
+      "dry_run": {
+        "pass": true
+      },
+      "form": {
+        "ok_subset": {
+          "counts": {
+            "events_folded": 1
+          },
+          "keep": [
+            "k02"
+          ]
+        }
+      },
+      "name": "a v4 log holding a stray v1 event switches again and folds it",
+      "now": 10000,
+      "performer": "a1b2c3d4e5f60718",
+      "rows": [
+        {
+          "bytes": 200,
+          "k": "k00",
+          "row": {
+            "addedAt": 2000,
+            "format": 4,
+            "kind": "title",
+            "status": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "watchlist"
+            },
+            "title": {
+              "id": 1399,
+              "type": "tv"
+            }
+          },
+          "seq": 1
+        },
+        {
+          "bytes": 200,
+          "k": "k01",
+          "row": {
+            "episodes": {
+              "1": {
+                "cleared": null,
+                "imported": false,
+                "plays": {
+                  "0": 3000
+                },
+                "progress": {
+                  "at": [
+                    3000,
+                    0,
+                    "a1b2c3d4e5f60718"
+                  ],
+                  "value": 1,
+                  "viewing": 0
+                }
+              }
+            },
+            "format": 4,
+            "kind": "season",
+            "season": 1,
+            "title": {
+              "id": 1399,
+              "type": "tv"
+            }
+          },
+          "seq": 2
+        },
+        {
+          "bytes": 200,
+          "k": "k02",
+          "row": {
+            "kind": "set",
+            "name": "prefs",
+            "schema": 2,
+            "values": {}
+          },
+          "seq": 3
+        },
+        {
+          "bytes": 200,
+          "k": "k03",
+          "row": {
+            "kind": "set",
+            "name": "tracker-event:e4",
+            "schema": 2,
+            "values": {
+              "event": {
+                "at": [
+                  7100,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ],
+                "value": {
+                  "string": "{\"after\":{\"episode\":4,\"kind\":\"ep\",\"progress\":{\"at\":[7100,0,\"a1b2c3d4e5f60718\"],\"value\":1.0,\"viewing\":0},\"schema\":2,\"season\":1,\"title\":{\"id\":1399,\"type\":\"tv\"}},\"at\":[7100,0,\"a1b2c3d4e5f60718\"],\"before\":{\"episode\":4,\"kind\":\"ep\",\"progress\":{\"at\":[100,0,\"a1b2c3d4e5f60718\"],\"value\":0.0,\"viewing\":0},\"schema\":2,\"season\":1,\"title\":{\"id\":1399,\"type\":\"tv\"}},\"changes\":{\"progress\":{\"after\":{\"at\":[7100,0,\"a1b2c3d4e5f60718\"],\"value\":1.0,\"viewing\":0},\"before\":{\"at\":[100,0,\"a1b2c3d4e5f60718\"],\"value\":0.0,\"viewing\":0}}},\"id\":\"e4\",\"schema\":1}"
+                }
+              }
+            }
+          },
+          "seq": 4
+        }
+      ],
+      "tamper": null
+    },
+    {
+      "base": 20,
       "dry_run": null,
       "form": {
         "error": "newer_v3_row"
