@@ -329,12 +329,14 @@ wins, as specified by den-dataset#226. Profile policy stores `maximumAge`, with 
 
 Absent an explicit Kid approval (§5.1), a known title is eligible exactly when `maximumAge` is null or
 `minimumAge <= maximumAge`; an unknown title is eligible exactly when `unknownRatings` is `allow`, or, for a Kid,
-when the title is **made for the Kid's audience band** as defined by the audience-relevance gate below. That
-admission is a Kid rule, not a maturity age: it applies only where `minimumAge` is unknown, never overrides a known
-one, and does not apply to Owner or Visitor policies. Conversely, a Kid's title that depicts `sexual_content`,
-`graphic_violence`, `drug_use` or `self_harm` (the store's `depicts` evidence at its 0.5 floor) and is not made
-for the Kid's band is ineligible whatever its age, so a single lenient public rating of an adult work cannot admit
-it; only an explicit approval (§5.1) overrides that veto. `animal_harm` is not a veto. Owner migration
+when the title is **made for children** (`made_for_children >= 0.5`). `made_for_teens` never admits an unknown
+age: teens are 13 to 17, too wide to stand in for a missing rating, so a teen-audience title needs a known age.
+That admission is a Kid rule, not a maturity age: it applies only where `minimumAge` is unknown, never overrides a
+known one, and does not apply to Owner or Visitor policies. Conversely, a Kid's title that depicts
+`sexual_content`, `graphic_violence`, `drug_use` or `self_harm` (the store's `depicts` evidence at its 0.5 floor)
+and is not made for children is ineligible whatever its age, and fails the audience-relevance gate in every band,
+so a single lenient public rating of an adult work cannot admit it; only an explicit approval (§5.1) overrides that
+veto. `animal_harm` is not a veto. Owner migration
 decodes legacy `pg13` as `maximumAge: 13`, `r` as `maximumAge: 17`, and absent/null as `maximumAge: null`; all three
 preserve Owner's existing `unknownRatings: allow`. No named maturity band remains in the policy or title contract.
 
