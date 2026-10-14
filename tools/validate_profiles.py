@@ -1687,6 +1687,17 @@ def migration_next(value: dict) -> str:
 
     fence = validate_migration_fence(value.get("fence"))
     observed_fence = validate_migration_fence(value.get("observedFence"))
+    if state == "restore-required":
+        # The lock froze the household at the bound source, so an intact legacy household needs no rewrite.
+        if not value.get("backupVerified", False) or not value.get("recoveryIntent", False):
+            return "recovery-blocked"
+        if lookup == "aborted":
+            return "discard-journal" if value.get("householdFresh", False) else "read-household"
+        if lookup in ("committed", "superseded"):
+            fail("terminal_household_mismatch")
+        if fence != observed_fence:
+            fail("recovery_source_mismatch")
+        return "abort-attempt"
     if value.get("cancelRequested", False):
         if candidate is not None and not retired:
             return "retire-losing-candidate"

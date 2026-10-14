@@ -794,6 +794,18 @@ After any conflict, timeout or process death, resolve the durable journal as fol
   §8.1's atomic handoff when an open split still owns the household lock, and restores only if den-core answers
   `restore-backup`. Split intent, preparation and commit binding do not authorize restore. A backup
   MUST NOT restore over a valid wire-5 directory or lower its minimum.
+- When the splitting device is lost before commit, the household is still the intact legacy household: the
+  exclusive lock froze it and nothing committed. After the §8.1 handoff the recovering device holds a `restore`
+  attempt bound to the split's verified backup with nothing staged, and `restore-required` is paired with an
+  `observed: "legacy"` household. Without `recoveryIntent`, or without `backupVerified`, the answer is
+  `recovery-blocked`, so clients surface the Restore action. With both, and `fence` (the bound backup's frozen
+  source) equal to `observedFence`, the answer is `abort-attempt`: the household already equals the backed-up
+  source, so a restore would be a no-op rewrite, and aborting releases the lock. A differing `observedFence` cannot
+  happen while the lock is held and is `recovery_source_mismatch`, never a restore. After `attemptLookup: "aborted"`
+  the answer is `read-household` until `householdFresh` is true, then `discard-journal`; the household may legitimately
+  have changed once the lock was released, so the fences are not compared after the abort. A `committed` or
+  `superseded` lookup beside a legacy household is `terminal_household_mismatch`. This case needs no
+  `splitAuthorization`.
 - A valid committed directory whose Owner library cannot yet be verified remains `adopting`; it never falls back to
   household activity and never lowers the wire minimum. Repair/finish the referenced Owner library from the verified
   candidate/backup facts, or stop for recovery.
