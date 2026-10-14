@@ -108,7 +108,7 @@ season activity, reactions, resume state, personal recommendations, tracker comm
 delivery documents, or tracker credentials there. It may hold:
 
 - the `profiles` document (§3) and per-Kid title-approval documents (§5.1);
-- the household-scoped settings in §6, including devices, recovery, credentials, addons, servers, routes/trust,
+- the household-scoped settings in §6 (never `set:prefs`), including devices, recovery, credentials, addons, servers, routes/trust,
   private addresses, owner PIN and Visitor policy;
 - the library-v4 §17 download rows and download lease; and
 - rows of a newer kind that it must preserve under library-v4's unknown-row rule.
@@ -121,16 +121,16 @@ only Owner and Kid creation, but the representation accepts any number of `kid` 
 **Once a household is profile-aware, no client writes a profile-scoped row to it, on any path** — ordinary write,
 kept write, write-back, merge, link or restore. The profile-scoped rows are `title:*`, `season:*`, `dlv:*`,
 `set:deliver:*`, `set:handoff:*`, `set:trackers`, `set:assistant-applied`, the legacy `rec:*`, `wat:*`, `snt:*`,
-`ep:*` and `set:tracker-event:*`, the §6 profile half of `set:prefs` (the sixteen-key table's Profile keys and
-`den.maturityCeiling`), and the `simkl` value of `set:keys`. A household-scoped value in `set:prefs` or `set:keys`
-may be written; only the profile-scoped values are withheld. `profile_household_write` (§8.2) is the one rule every
+`ep:*` and `set:tracker-event:*`, `set:prefs` in full (§6), and the `simkl` value of `set:keys`. A household-scoped value in `set:keys` may be
+written; only the profile-scoped values are withheld. `profile_household_write` (§8.2) is the one rule every
 client asks, so Swift and web cannot disagree on it.
 Clients MUST use the same profile-store path for Owner and every other persistent profile; there is no permanent
 Owner projection in the household and no Kid-specific row format.
 
 A profile library MUST NOT hold the profile directory, owner PIN, household credentials, connections, devices,
 downloads, Visitor state, or another profile's data. Household values are read from the simultaneously open
-household control log; they are never copied into every profile log.
+household control log; they are never copied into every profile log. The one exception is the one-time services
+and region seed of §6.3.
 
 ## 3. Profile-directory document
 
@@ -306,7 +306,10 @@ An existing owner's missing/unknown certification remains fail-open: its migrate
 **Kid** is a persistent profile with independent activity, preferences and recommendations. Creation requires an
 owner PIN to exist and defaults `unknownRatings` to `block`; the owner chooses the initial `maximumAge`. Only an
 owner-authorized operation writes a Kid's policy or title approvals. A Kid session receives neither writer and has
-no tracker in v1.
+no tracker in v1. A Kid's Settings, which open only with the owner PIN (§6), are such an operation: the PIN that
+opened them authorizes `profiles_apply` `policy` for that Kid, written to the directory with the exact-row
+compare-and-swap that creates a Kid. A conflict or a lost response is read again, and a policy the directory already
+holds is not rewritten.
 Kid cannot manage profiles or household connections. Resource-consuming download actions are disabled or gated by
 the owner PIN.
 
@@ -417,36 +420,19 @@ effect of play once.
 
 ## 6. Normative settings ownership
 
-Scope is assigned key by key. These are the exact sixteen non-legacy `SettingsLogBridge` preference keys after the
-split. A client MUST NOT infer scope from a row name, UI section or prefix.
+**Every key of `set:prefs` is profile-scoped**: the watch region, picked streaming services, subtitle and audio
+language, content filters, rating sources, autoplay and skip settings, and every key a later contract adds. There is
+no per-key list and no household half of `set:prefs`. A client MUST NOT infer any other scope from a row name, UI
+section or prefix.
 
-| Existing key | Scope after profiles | Split rule |
-|---|---|---|
-| `prefs.den.watchRegion` | Household | Retain; every profile inherits it |
-| `prefs.den.myServicePicks` | Household | Retain; every profile inherits it |
-| `prefs.den.excludedGenreIDs` | Profile | Move to Owner |
-| `prefs.den.excludedLanguages` | Profile | Move to Owner |
-| `prefs.den.preferredSubtitleLanguage` | Profile | Move to Owner |
-| `prefs.den.hasExplicitSubtitlePreference` | Profile | Move to Owner |
-| `prefs.den.shownSubtitleLanguages` | Profile | Move to Owner |
-| `prefs.den.maxSubtitlesPerLanguage` | Profile | Move to Owner |
-| `prefs.den.preferredAudioLanguage` | Profile | Move to Owner |
-| `prefs.den.autoSkipSegments` | Profile | Move to Owner |
-| `prefs.den.autoplayTrailers` | Profile | Move to Owner; Kid use remains subject to policy |
-| `prefs.den.hideAnime` | Profile | Move to Owner |
-| `prefs.den.hideWatched` | Profile | Move to Owner |
-| `prefs.den.minReleaseYear` | Profile | Move to Owner |
-| `prefs.den.enabledRatingSources` | Profile | Move to Owner |
-| `prefs.den.shownWarningCategories` | Profile | Move to Owner |
+`prefs.den.maturityCeiling` is a legacy input: it is decoded into Owner policy by §5 and then removed.
+`keys.simkl` and future tracker credentials move to the owning profile. What stays household-wide is what is not a
+viewing preference: the profiles directory and Kid approvals, `keys.parentalPIN` (the owner PIN), metadata and
+Cloudflare credentials, `plugins.*`, `servers.*`, `trust.*`, `addresses.*`, `devices.*`, `recovery.*`, and download
+rows and policy. The directory's Kid policy and approvals are owner-controlled household documents (a Kid
+profile's Settings may edit them only behind the owner PIN); Visitor inherits Owner policy.
 
-Two legacy inputs are outside the sixteen-key post-split table: `prefs.den.myServiceIDs` remains in the household
-for old readers but is not copied, and `prefs.den.maturityCeiling` is decoded into Owner policy by §5 and then
-removed. `keys.simkl` and future tracker credentials move to the owning profile. Everything else already named
-household-wide in den#234 remains in the household rewrite: metadata and Cloudflare credentials, `keys.parentalPIN`,
-`plugins.*`, `servers.*`, `trust.*`, `addresses.*`, `devices.*`, `recovery.*`, and download rows and policy. The
-directory's Kid policy and approvals are household documents; Visitor inherits Owner policy.
-
-The following device categories are intentionally non-exhaustive and are not part of the sixteen-key contract:
+The following device categories are intentionally non-exhaustive and are not part of that contract:
 
 | Device-only category | Rule |
 |---|---|
@@ -454,22 +440,20 @@ The following device categories are intentionally non-exhaustive and are not par
 | active profile/Visitor marker and Visitor namespace | Follow §7; never enter either library |
 | transient play-once authorization and retained navigation | Clear at the boundaries in §§5.1 and 7 |
 
-Every persistent profile opens its own `set:prefs`; household preferences are read separately from the control log.
-Personal values are never copied between profiles. An unknown or future synced key MUST remain in the household and
-MUST NOT be copied into a profile until a later contract assigns it explicitly.
+Every persistent profile opens its own `set:prefs` and reads and writes only that. Personal values are never copied
+between profiles (the seed of §6.3 reads the household, not a profile).
 
 `profiles_partition_preferences(values)` is den-core's canonical pure split operation for the legacy
-`set:prefs.values` object. It returns three disjoint outputs:
+`set:prefs.values` object. It returns three outputs:
 
-- `household` contains `den.watchRegion`, `den.myServicePicks`, legacy `den.myServiceIDs`, and every unknown key;
-- `owner` contains exactly the fourteen profile-scoped keys in the table, with each complete stamped value kept
-  byte-for-byte; and
+- `household` is always the empty object;
+- `owner` contains every key except `den.maturityCeiling`, with each complete stamped value kept byte-for-byte; and
 - `ownerMaturity` contains the complete legacy `den.maturityCeiling` stamped value, or `null` when absent. It is an
   input to Owner-policy migration and is retained in neither output settings row.
 
 The operation never infers scope from a prefix, never interprets a stamped setting value, and rejects a non-object
-input. The split executor MUST use its result rather than maintaining a second key list. An empty `owner` or
-`household` object means that destination has no `set:prefs` row to write; the executor does not invent an empty row.
+input. An empty `owner` object means that destination has no `set:prefs` row to write; the executor does not invent
+an empty row.
 
 ### 6.1 Canonical initial-split row materialization
 
@@ -640,6 +624,26 @@ Owner head is an error; it never returns a partially valid document or caller-se
 returned `plaintext` and passes it to §8's atomic commit. Constructing it does not activate profiles or raise a
 wire minimum.
 
+### 6.3 Seeding a profile's preferences from an older household
+
+Each persistent profile, Owner and Kid alike, keeps its own preferences in its own `set:prefs`; a profile never reads
+from or writes to another's, and a client writes a preference change to the active profile's `set:prefs` only.
+Visitor has no library; its preferences are device-local. A household that became profile-aware before this rule
+still holds its viewing preferences in its own `set:prefs`, and its profiles hold none (or only some).
+
+`profiles_seed_preferences({household, profile})` answers the values a profile library must be given. `household` and
+`profile` are `set:prefs.values` objects (`profile` may be `null` for a profile with no `set:prefs` row); anything
+else is `invalid_preferences`. The answer is `{values}`: every member of `household` except `den.maturityCeiling`
+whose key the profile's `values` lacks, each complete stamped value kept byte-for-byte, and `{}` when there is
+none. Any member already in the profile counts as a decision, including a cleared one, and is never overwritten.
+
+- **Idempotence.** A seeded value keeps the household's stamp, so devices that seed the same profile concurrently
+  write identical stamped values, and a later edit in the profile (a later stamp) wins by the ordinary stamp rule.
+  A client seeds a profile when it opens that profile's library, and writes only a non-empty answer.
+- **Household copy.** After seeding, the household's `set:prefs` is a stale seed that no profile reads for a key it
+  holds. It is removed by the §8.2 repair (`set:prefs` is `remove`), which a client runs only once every live
+  profile has been seeded, because a profile created later is seeded from it too.
+
 ## 7. Sticky device-local selection
 
 Selection is local, never a library row. Its JSON shape is `profile-selection-v1` in the schema and vectors:
@@ -700,7 +704,7 @@ The states and only permitted next effects are:
 
 The backup MUST be complete through the recorded head, restorable under the unchanged household key/id, readable
 after creation, and retained at least until `active`. No Owner destination write may occur first. The Owner copy
-contains every title and season document, all fourteen profile preferences in §6, SIMKL credentials, commands,
+contains every title and season document, every `set:prefs` value (§6), SIMKL credentials, commands,
 receipts, pending/held work, epochs and delivery documents, including facts needed to avoid replay. Its verification
 compares decoded/derived activity and pending delivery decisions, not merely row counts.
 
@@ -1236,10 +1240,9 @@ answer is `{effect}`:
 
 - `allow` — write it as it is;
 - `refuse` — never write it; for a `set:prefs` or `set:keys` row, none of its values may be written;
-- `restrict` — write the row with exactly the returned `values`. For `set:prefs` these are the
-  `profiles_partition_preferences` `household` half; for `set:keys` they are every value except `simkl`. Stamps and
-  unknown members of the retained values are unchanged. A row from which nothing is withheld is `allow`; one from
-  which every value is withheld is `refuse`.
+- `restrict` — write the row with exactly the returned `values`: for `set:keys`, every value except `simkl`. Stamps
+  and unknown members of the retained values are unchanged. A row from which nothing is withheld is `allow`; one from
+  which every value is withheld is `refuse`. A `set:prefs` row is always `refuse`, whatever it holds.
 
 A `set:prefs` or `set:keys` row without a `values` object is `invalid_household_write`, as is an unknown shape.
 

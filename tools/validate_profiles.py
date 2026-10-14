@@ -464,14 +464,6 @@ def authorization_fingerprint(value: object) -> dict:
     }
 
 
-PROFILE_PREFERENCE_KEYS = {
-    "den.excludedGenreIDs", "den.excludedLanguages", "den.preferredSubtitleLanguage",
-    "den.hasExplicitSubtitlePreference", "den.shownSubtitleLanguages", "den.maxSubtitlesPerLanguage",
-    "den.preferredAudioLanguage", "den.autoSkipSegments", "den.autoplayTrailers", "den.hideAnime",
-    "den.hideWatched", "den.minReleaseYear", "den.enabledRatingSources", "den.shownWarningCategories",
-}
-
-
 def migration_partition_rows(value: object) -> dict:
     """Reference boundary for the canonical initial-split row projection."""
     if not isinstance(value, dict) or set(value) != {"base", "ownerPolicyAt", "rows"}:
@@ -623,19 +615,9 @@ def migration_partition_rows(value: object) -> dict:
                 if setting.startswith("tracker-event:"):
                     fail("legacy_source_row")
                 if setting == "prefs":
-                    household_values: dict = {}
-                    owner_values: dict = {}
-                    maturity = None
-                    for key, stamped_value in values.items():
-                        if key in PROFILE_PREFERENCE_KEYS:
-                            owner_values[key] = stamped_value
-                        elif key == "den.maturityCeiling":
-                            maturity = stamped_value
-                        else:
-                            household_values[key] = stamped_value
-                    if household_values:
-                        household.append(settings_projection(source_row, name, logical, household_values))
-                        destinations.append("household")
+                    split = partition_preferences(values)
+                    owner_values = split["owner"]
+                    maturity = split["ownerMaturity"]
                     if owner_values:
                         owner.append(settings_projection(source_row, name, logical, owner_values))
                         destinations.append("owner")
@@ -2036,38 +2018,24 @@ def reset_lock_step(world: dict, request: dict) -> dict:
     fail("invalid_exclusive_request")
 
 
-PROFILE_PREFERENCE_KEYS = {
-    "den.excludedGenreIDs",
-    "den.excludedLanguages",
-    "den.preferredSubtitleLanguage",
-    "den.hasExplicitSubtitlePreference",
-    "den.shownSubtitleLanguages",
-    "den.maxSubtitlesPerLanguage",
-    "den.preferredAudioLanguage",
-    "den.autoSkipSegments",
-    "den.autoplayTrailers",
-    "den.hideAnime",
-    "den.hideWatched",
-    "den.minReleaseYear",
-    "den.enabledRatingSources",
-    "den.shownWarningCategories",
-}
-
-
 def partition_preferences(values: object) -> dict:
+    """Every preference is profile-scoped (§6): all of it goes to Owner but the legacy maturity input."""
     if not isinstance(values, dict):
         raise ValueError("invalid_preferences")
-    household = {}
-    owner = {}
-    owner_maturity = None
-    for key, value in values.items():
-        if key in PROFILE_PREFERENCE_KEYS:
-            owner[key] = value
-        elif key == "den.maturityCeiling":
-            owner_maturity = value
-        else:
-            household[key] = value
-    return {"household": household, "owner": owner, "ownerMaturity": owner_maturity}
+    owner = {key: value for key, value in values.items() if key != "den.maturityCeiling"}
+    return {"household": {}, "owner": owner, "ownerMaturity": values.get("den.maturityCeiling")}
+
+
+def seed_preferences(value: object) -> dict:
+    """The preferences a profile library is given from an older household's `set:prefs` (§6.3)."""
+    if not isinstance(value, dict) or set(value) != {"household", "profile"}:
+        raise ValueError("invalid_preferences")
+    household, profile = value["household"], value["profile"]
+    if not isinstance(household, dict) or not (profile is None or isinstance(profile, dict)):
+        raise ValueError("invalid_preferences")
+    held = profile or {}
+    return {"values": {key: stamped for key, stamped in household.items()
+                       if key != "den.maturityCeiling" and key not in held}}
 
 
 def household_write(row: object) -> dict:
@@ -2080,9 +2048,8 @@ def household_write(row: object) -> dict:
         if not isinstance(values, dict):
             raise ValueError("invalid_household_write")
         if name == "set:prefs":
-            kept = partition_preferences(values)["household"]
-        else:
-            kept = {key: value for key, value in values.items() if key != "simkl"}
+            return {"effect": "refuse"}
+        kept = {key: value for key, value in values.items() if key != "simkl"}
         if len(kept) == len(values):
             return {"effect": "allow"}
         if not kept:
@@ -2548,27 +2515,17 @@ def main() -> int:
         if actual != case["result"]:
             fail(f"{case['name']}: selection mismatch")
 
-    expected_settings = {
-        "prefs.den.watchRegion": "household",
-        "prefs.den.myServicePicks": "household",
-        "prefs.den.excludedGenreIDs": "profile",
-        "prefs.den.excludedLanguages": "profile",
-        "prefs.den.preferredSubtitleLanguage": "profile",
-        "prefs.den.hasExplicitSubtitlePreference": "profile",
-        "prefs.den.shownSubtitleLanguages": "profile",
-        "prefs.den.maxSubtitlesPerLanguage": "profile",
-        "prefs.den.preferredAudioLanguage": "profile",
-        "prefs.den.autoSkipSegments": "profile",
-        "prefs.den.autoplayTrailers": "profile",
-        "prefs.den.hideAnime": "profile",
-        "prefs.den.hideWatched": "profile",
-        "prefs.den.minReleaseYear": "profile",
-        "prefs.den.enabledRatingSources": "profile",
-        "prefs.den.shownWarningCategories": "profile",
-    }
-    actual_settings = {row["key"]: row["scope"] for row in vectors["settingsOwnership"]}
-    if actual_settings != expected_settings or len(vectors["settingsOwnership"]) != 16:
-        fail("settings_ownership_exact_keys")
+    for case in vectors["settingsSeedCases"]:
+        try:
+            actual = seed_preferences(case["input"])
+        except ValueError as error:
+            if str(error) != case.get("error"):
+                fail(f"{case['name']}: wanted {case.get('error')}, got {error}")
+        else:
+            if "error" in case:
+                fail(f"{case['name']}: invalid seed input accepted")
+            if actual != case["expect"]:
+                fail(f"{case['name']}: preference seed mismatch")
 
     storage = vectors["migrationStorageContract"]
     expected_routes = {
