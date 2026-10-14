@@ -92,29 +92,43 @@ class ProfilesVectorsTests(unittest.TestCase):
         self.assertEqual(validate_profiles.merge_unknown_set(older, {"future": "old"}, newer, expected), expected)
         self.assertEqual(validate_profiles.merge_unknown_set(newer, expected, older, {"future": "old"}), expected)
 
-    def test_losing_migration_candidate_is_cleaned_before_adoption(self):
+    def test_legacy_stale_migration_candidate_is_cleaned_before_adoption(self):
         vectors = json.loads(validate_profiles.VECTORS.read_text())
         case = {
             "state": "ready-to-commit", "observed": "committed",
             "directory": vectors["validDirectories"][0]["document"],
             "candidateAttempt": "fedcba9876543210fedcba9876543210",
             "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=",
+            "legacyStaleCandidate": True,
             "winnerVerified": True, "candidateRetired": False,
         }
         self.assertEqual(validate_profiles.migration_next(case), "retire-losing-candidate")
         case["candidateRetired"] = True
         self.assertEqual(validate_profiles.migration_next(case), "activate")
 
-    def test_cleanup_never_targets_winner(self):
+    def test_legacy_cleanup_never_targets_a_live_profile(self):
         vectors = json.loads(validate_profiles.VECTORS.read_text())
         case = {
             "state": "cleaning-loser", "observed": "committed",
             "directory": vectors["validDirectories"][0]["document"],
             "candidateAttempt": "fedcba9876543210fedcba9876543210",
             "candidateKey": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI=",
+            "legacyStaleCandidate": True,
             "winnerVerified": True,
         }
         self.assertEqual(validate_profiles.migration_next(case), "cleanup_targets_winner")
+
+    def test_new_exclusive_attempt_cannot_enter_stale_candidate_cleanup(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        case = {
+            "state": "ready-to-commit", "observed": "committed",
+            "directory": vectors["validDirectories"][0]["document"],
+            "candidateAttempt": "fedcba9876543210fedcba9876543210",
+            "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=",
+            "winnerVerified": True,
+        }
+        with self.assertRaisesRegex(ValueError, "legacy_cleanup_evidence_required"):
+            validate_profiles.migration_next(case)
 
     def test_storage_transaction_is_durable_and_not_the_sync_generation(self):
         vectors = json.loads(validate_profiles.VECTORS.read_text())
@@ -127,9 +141,28 @@ class ProfilesVectorsTests(unittest.TestCase):
         self.assertTrue(storage["open"]["reopenReturnsSameFence"])
         self.assertTrue(storage["open"]["survivesServerRestart"])
         self.assertFalse(storage["open"]["idleExpiry"])
-        self.assertTrue(storage["open"]["ordinaryWritesRemainAvailable"])
-        self.assertTrue(storage["open"]["concurrentAttemptsCommitByFence"])
-        self.assertTrue(storage["open"]["concurrentAttemptsOnSameSnapshotShareGeneration"])
+        self.assertTrue(storage["open"]["exclusiveHouseholdAttempt"])
+        self.assertTrue(storage["open"]["lockAcquiredAtomicallyWithSourceCheck"])
+        self.assertTrue(storage["open"]["backupCreatedReadBackVerifiedAndBoundWithLock"])
+        self.assertTrue(storage["open"]["lockNeverVisibleWithoutVerifiedBackup"])
+        self.assertEqual(storage["open"]["openCrashSemantics"], {
+            "before": "no-lock-unreferenced-backup-may-be-collected",
+            "after": "open-split-with-bound-verified-backup",
+        })
+        self.assertFalse(storage["open"]["ordinaryWritesRemainAvailable"])
+        self.assertEqual(storage["open"]["ordinaryMutationResponse"],
+                         {"status": 409, "error": "migration_in_progress"})
+        self.assertFalse(storage["open"]["differentAttemptResponseIncludesMetadata"])
+        self.assertTrue(storage["open"]["lockSurvivesRestart"])
+        self.assertTrue(storage["open"]["commitReleasesLockAtomically"])
+        self.assertTrue(storage["open"]["restoreReleasesLockAtomically"])
+        self.assertTrue(storage["open"]["abortRequiresPlannerSafe"])
+        self.assertTrue(storage["open"]["verifiedBackupRecoveryHandoff"])
+        self.assertTrue(storage["open"]["recoveryHandoffAtomic"])
+        self.assertEqual(storage["open"]["handoffCrashSemantics"], {
+            "before": "original-split-remains-open",
+            "after": "new-restore-remains-open-with-bound-backup",
+        })
         self.assertTrue(storage["open"]["restoreNeverReusesGeneration"])
 
     def test_migration_open_requires_the_exact_pre_pin_source(self):
@@ -150,6 +183,25 @@ class ProfilesVectorsTests(unittest.TestCase):
         changed = next(case for case in cases if case["name"].startswith("replaying an attempt"))
         with self.assertRaisesRegex(ValueError, "migration_attempt_mismatch"):
             validate_profiles.migration_open_result(changed["input"])
+
+    def test_different_attempt_is_refused_without_active_attempt_metadata(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        cases = vectors["migrationStorageContract"]["sourceObservation"]["cases"]
+        for prefix in ("a different split attempt", "a restore fails closed"):
+            case = next(item for item in cases if item["name"].startswith(prefix))
+            actual = validate_profiles.migration_open_result(case["input"])
+            self.assertEqual(actual, case["expect"])
+            self.assertEqual(set(actual), {"effect", "status", "error", "sideEffects"})
+
+    def test_verified_backup_allows_atomic_recovery_handoff(self):
+        vectors = json.loads(validate_profiles.VECTORS.read_text())
+        cases = vectors["migrationStorageContract"]["sourceObservation"]["cases"]
+        case = next(item for item in cases if item["name"].startswith("a verified backup permits"))
+        self.assertEqual(validate_profiles.migration_open_result(case["input"]), case["expect"])
+        changed = next(item for item in cases if item["name"].startswith("a verified backup cannot"))
+        actual = validate_profiles.migration_open_result(changed["input"])
+        self.assertEqual(actual, changed["expect"])
+        self.assertEqual(set(actual), {"effect", "status", "error", "sideEffects"})
 
     def test_one_pin_action_resumes_exact_attempt_and_binds_commit_without_second_prompt(self):
         vectors = json.loads(validate_profiles.VECTORS.read_text())
@@ -421,7 +473,7 @@ class ProfilesVectorsTests(unittest.TestCase):
         evidence = copy.deepcopy(vectors["migrationStorageContract"]["restoreBase"])
         self.assertTrue(evidence["terminalLookupRetained"])
         self.assertTrue(evidence["identicalRetryReturnsSameResult"])
-        self.assertEqual(evidence["conflictTerminalState"], "superseded")
+        self.assertEqual(evidence["conflictTerminalState"], "open")
         self.assertEqual(evidence["unknownResolution"],
                          ["lookup-attempt", "fresh-authenticated-read"])
         first = copy.deepcopy(evidence["result"])

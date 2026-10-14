@@ -689,8 +689,7 @@
       "retireCandidate": "POST /lib/{household}/profile-migration/{attempt}/retire-candidate"
     },
     "requiredOrder": [
-      "open-fence",
-      "create-backup",
+      "open-fence-and-create-backup",
       "verify-backup",
       "create-owner-library",
       "copy-owner",
@@ -698,8 +697,7 @@
       "stage-household",
       "record-commit-binding",
       "commit-household",
-      "read-winner",
-      "retire-loser",
+      "verify-committed-household",
       "activate"
     ],
     "activation": {
@@ -714,9 +712,12 @@
       "changedBoundEvidenceClearsAuthorization": true,
       "ordinaryLaunchMayCreateAuthorization": false,
       "restartMayResume": "exact-authorized-attempt-only",
-      "commitUnknownOrder": ["lookup-attempt", "fresh-authenticated-read", "adopt-or-cleanup"],
+      "commitUnknownOrder": ["lookup-attempt", "fresh-authenticated-read", "verify-exact-attempt"],
       "cancelOrder": ["abort-attempt", "fresh-authenticated-read", "retire-unreferenced-candidate", "discard-journal"],
-      "restoreAuthorization": "separate-owner-pin-and-fresh-restore-attempt"
+      "restoreAuthorization": "separate-owner-pin-and-fresh-restore-attempt",
+      "exclusiveAttempt": true,
+      "differentAttemptResponse": {"status": 409, "error": "migration_in_progress", "metadata": false},
+      "abortPolicy": "planner-safe-before-staging-or-irreversible-work-only"
     },
     "sourceObservation": {
       "wire": 5,
@@ -797,6 +798,58 @@
           "error": "migration_attempt_mismatch"
         },
         {
+          "name": "a different split attempt is hidden by the active household lock",
+          "input": {
+            "currentSource": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+            "request": {"attempt": "11111111111111111111111111111111", "purpose": "split", "expectedSource": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
+            "existing": {"attempt": "0123456789abcdef0123456789abcdef", "purpose": "split", "source": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, "result": {"state": "open"}}
+          },
+          "expect": {"effect": "conflict", "status": 409, "error": "migration_in_progress", "sideEffects": []}
+        },
+        {
+          "name": "a restore fails closed on corrupt legacy lock state without its invariant backup",
+          "input": {
+            "currentSource": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+            "request": {"attempt": "fedcba9876543210fedcba9876543210", "purpose": "restore", "expectedSource": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
+            "existing": {"attempt": "0123456789abcdef0123456789abcdef", "purpose": "split", "source": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, "result": {"state": "open"}}
+          },
+          "expect": {"effect": "conflict", "status": 409, "error": "migration_in_progress", "sideEffects": []}
+        },
+        {
+          "name": "a verified backup permits one atomic recovery handoff from the active split",
+          "input": {
+            "currentSource": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+            "request": {"attempt": "fedcba9876543210fedcba9876543210", "purpose": "restore", "expectedSource": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
+            "existing": {
+              "attempt": "0123456789abcdef0123456789abcdef",
+              "purpose": "split",
+              "source": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+              "result": {"state": "open"},
+              "verifiedBackup": {"attempt": "0123456789abcdef0123456789abcdef", "id": "backup-0123456789abcdef", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "readBackVerified": true}
+            }
+          },
+          "expect": {
+            "effect": "recovery-handoff",
+            "source": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+            "backup": {"attempt": "0123456789abcdef0123456789abcdef", "id": "backup-0123456789abcdef", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
+          }
+        },
+        {
+          "name": "a verified backup cannot hand off after an invariant source change",
+          "input": {
+            "currentSource": {"generation": 8, "head": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
+            "request": {"attempt": "fedcba9876543210fedcba9876543210", "purpose": "restore", "expectedSource": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
+            "existing": {
+              "attempt": "0123456789abcdef0123456789abcdef",
+              "purpose": "split",
+              "source": {"generation": 7, "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+              "result": {"state": "open"},
+              "verifiedBackup": {"attempt": "0123456789abcdef0123456789abcdef", "id": "backup-0123456789abcdef", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "readBackVerified": true}
+            }
+          },
+          "expect": {"effect": "conflict", "status": 409, "error": "migration_in_progress", "sideEffects": []}
+        },
+        {
           "name": "a restore attempt also requires its exact fresh observation",
           "input": {
             "currentSource": {"generation": 9, "head": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"},
@@ -830,6 +883,7 @@
       "purpose": "split",
       "state": "open",
       "wireMin": 4,
+      "backup": {"attempt": "0123456789abcdef0123456789abcdef", "id": "backup-0123456789abcdef", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
       "householdId": "5e1ab5db12f9b30e640e3ee80fb3e072",
       "householdKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
       "fence": {
@@ -843,11 +897,24 @@
       "survivesServerRestart": true,
       "idleExpiry": false,
       "terminalLookupRetained": true,
-      "ordinaryWritesRemainAvailable": true,
-      "concurrentAttemptsCommitByFence": true,
-      "concurrentAttemptsOnSameSnapshotShareGeneration": true,
+      "exclusiveHouseholdAttempt": true,
+      "lockAcquiredAtomicallyWithSourceCheck": true,
+      "backupCreatedReadBackVerifiedAndBoundWithLock": true,
+      "lockNeverVisibleWithoutVerifiedBackup": true,
+      "openCrashSemantics": {"before": "no-lock-unreferenced-backup-may-be-collected", "after": "open-split-with-bound-verified-backup"},
+      "ordinaryWritesRemainAvailable": false,
+      "ordinaryMutationResponse": {"status": 409, "error": "migration_in_progress"},
+      "differentAttemptResponseIncludesMetadata": false,
+      "lockSurvivesRestart": true,
+      "commitReleasesLockAtomically": true,
+      "restoreReleasesLockAtomically": true,
+      "abortRequiresPlannerSafe": true,
+      "verifiedBackupRecoveryHandoff": true,
+      "recoveryHandoffAtomic": true,
+      "handoffCrashSemantics": {"before": "original-split-remains-open", "after": "new-restore-remains-open-with-bound-backup"},
       "restoreNeverReusesGeneration": true,
-      "terminalStates": ["committed", "restored", "superseded", "aborted"]
+      "terminalStates": ["committed", "restored", "aborted"],
+      "legacyTerminalStates": ["superseded"]
     },
     "backup": {
       "id": "backup-0123456789abcdef",
@@ -940,7 +1007,7 @@
       "requestMatchesBoundAttempt": true,
       "terminalLookupRetained": true,
       "identicalRetryReturnsSameResult": true,
-      "conflictTerminalState": "superseded",
+      "conflictTerminalState": "open",
       "unknownResolution": ["lookup-attempt", "fresh-authenticated-read"],
       "result": {
         "attempt": "fedcba9876543210fedcba9876543210",
@@ -1040,7 +1107,7 @@
     {"name": "no journal and no explicit intent performs no work", "state": "idle", "observed": "legacy", "explicitIntent": false, "expect": "no-op"},
     {"name": "old explicit-intent input without exact authorization fails closed", "state": "idle", "observed": "legacy", "explicitIntent": true, "omitSplitAuthorization": true, "error": "migration_authorization_required"},
     {"name": "authorization cannot be copied to another attempt", "state": "idle", "observed": "legacy", "explicitIntent": true, "plannerAttempt": "fedcba9876543210fedcba9876543210", "error": "migration_authorization_mismatch"},
-    {"name": "backup precedes any Owner destination write", "state": "fenced", "observed": "legacy", "expect": "create-backup"},
+    {"name": "the atomically bound backup is verified before any Owner destination write", "state": "fenced", "observed": "legacy", "expect": "verify-backup"},
     {"name": "verified backup permits Owner creation", "state": "backed-up", "observed": "legacy", "backupVerified": true, "expect": "create-owner-library"},
     {"name": "copied Owner must be verified", "state": "owner-copied", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "expect": "verify-owner-library"},
     {"name": "prepared journal records its exact commit binding without another prompt", "state": "awaiting-confirmation", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "commitAuthorized": false, "expect": "record-commit-binding"},
@@ -1064,22 +1131,22 @@
     {"name": "cancel performs a fresh authenticated household read after abort", "state": "awaiting-confirmation", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "cancelRequested": true, "attemptAborted": true, "attemptLookup": "aborted", "expect": "read-household"},
     {"name": "cancel conditionally retires only its unreferenced candidate after fresh read", "state": "awaiting-confirmation", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "cancelRequested": true, "attemptAborted": true, "attemptLookup": "aborted", "householdFresh": true, "expect": "retire-losing-candidate"},
     {"name": "cancel discards its journal only after fresh read and candidate absence", "state": "awaiting-confirmation", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "candidateRetired": true, "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "cancelRequested": true, "attemptAborted": true, "attemptLookup": "aborted", "householdFresh": true, "expect": "discard-journal"},
-    {"name": "a committed winner is verified before an unreferenced loser is retired", "state": "ready-to-commit", "observed": "committed", "candidateAttempt": "fedcba9876543210fedcba9876543210", "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "winnerVerified": false, "candidateRetired": false, "expect": "verify-winner"},
-    {"name": "fence loser retires its unreferenced candidate", "state": "ready-to-commit", "observed": "committed", "candidateAttempt": "fedcba9876543210fedcba9876543210", "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "winnerVerified": true, "candidateRetired": false, "expect": "retire-losing-candidate"},
-    {"name": "loser cleanup is idempotent then adopts winner", "state": "cleaning-loser", "observed": "committed", "candidateAttempt": "fedcba9876543210fedcba9876543210", "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "winnerVerified": true, "candidateRetired": true, "expect": "activate"},
-    {"name": "superseded unknown commit still requires a fresh household read", "state": "commit-unknown", "observed": "committed", "candidateAttempt": "0123456789abcdef0123456789abcdef", "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "directoryMutation": {"path": "/migration/attempt", "value": "fedcba9876543210fedcba9876543210"}, "winnerVerified": true, "commitAuthorized": true, "attemptLookup": "superseded", "householdFresh": false, "expect": "read-household"},
-    {"name": "superseded unknown commit cleans its exact authorized loser after the fresh read", "state": "commit-unknown", "observed": "committed", "candidateAttempt": "0123456789abcdef0123456789abcdef", "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "directoryMutation": {"path": "/migration/attempt", "value": "fedcba9876543210fedcba9876543210"}, "winnerVerified": true, "commitAuthorized": true, "attemptLookup": "superseded", "householdFresh": true, "expect": "retire-losing-candidate"},
+    {"name": "legacy stale candidate waits for committed library verification", "state": "ready-to-commit", "observed": "committed", "candidateAttempt": "fedcba9876543210fedcba9876543210", "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "legacyStaleCandidate": true, "winnerVerified": false, "candidateRetired": false, "expect": "verify-winner"},
+    {"name": "legacy stale candidate is retired only when unreferenced", "state": "ready-to-commit", "observed": "committed", "candidateAttempt": "fedcba9876543210fedcba9876543210", "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "legacyStaleCandidate": true, "winnerVerified": true, "candidateRetired": false, "expect": "retire-losing-candidate"},
+    {"name": "legacy stale-candidate cleanup is idempotent before activation", "state": "cleaning-loser", "observed": "committed", "candidateAttempt": "fedcba9876543210fedcba9876543210", "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "legacyStaleCandidate": true, "winnerVerified": true, "candidateRetired": true, "expect": "activate"},
+    {"name": "legacy superseded evidence still requires a fresh household read", "state": "commit-unknown", "observed": "committed", "candidateAttempt": "0123456789abcdef0123456789abcdef", "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "legacyStaleCandidate": true, "directoryMutation": {"path": "/migration/attempt", "value": "fedcba9876543210fedcba9876543210"}, "winnerVerified": true, "commitAuthorized": true, "attemptLookup": "superseded", "householdFresh": false, "expect": "read-household"},
+    {"name": "legacy superseded evidence may clean its exact stale candidate after the fresh read", "state": "commit-unknown", "observed": "committed", "candidateAttempt": "0123456789abcdef0123456789abcdef", "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "legacyStaleCandidate": true, "directoryMutation": {"path": "/migration/attempt", "value": "fedcba9876543210fedcba9876543210"}, "winnerVerified": true, "commitAuthorized": true, "attemptLookup": "superseded", "householdFresh": true, "expect": "retire-losing-candidate"},
     {"name": "superseded lookup cannot substitute a caller-supplied candidate attempt", "state": "commit-unknown", "observed": "committed", "candidateAttempt": "fedcba9876543210fedcba9876543210", "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "winnerVerified": true, "commitAuthorized": true, "attemptLookup": "superseded", "householdFresh": true, "error": "terminal_directory_mismatch"},
-    {"name": "superseded lookup cannot name the same attempt as the fresh directory", "state": "commit-unknown", "observed": "committed", "candidateAttempt": "0123456789abcdef0123456789abcdef", "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "winnerVerified": true, "commitAuthorized": true, "attemptLookup": "superseded", "householdFresh": true, "error": "terminal_directory_mismatch"},
+    {"name": "superseded lookup cannot name the same attempt as the fresh directory", "state": "commit-unknown", "observed": "committed", "candidateAttempt": "0123456789abcdef0123456789abcdef", "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "legacyStaleCandidate": true, "winnerVerified": true, "commitAuthorized": true, "attemptLookup": "superseded", "householdFresh": true, "error": "terminal_directory_mismatch"},
     {"name": "committed lookup cannot name a different fresh directory winner", "state": "commit-unknown", "observed": "committed", "candidateAttempt": "fedcba9876543210fedcba9876543210", "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "winnerVerified": true, "commitAuthorized": true, "attemptLookup": "committed", "householdFresh": true, "error": "terminal_directory_mismatch"},
     {"name": "committed lookup cannot substitute the directory attempt for the authorized attempt", "state": "commit-unknown", "observed": "committed", "candidateAttempt": "fedcba9876543210fedcba9876543210", "candidateKey": "ERERERERERERERERERERERERERERERERERERERERERE=", "directoryMutation": {"path": "/migration/attempt", "value": "fedcba9876543210fedcba9876543210"}, "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "winnerVerified": false, "commitAuthorized": true, "attemptLookup": "committed", "householdFresh": true, "error": "terminal_directory_mismatch"},
     {"name": "own committed candidate is verified after lookup and fresh read", "state": "commit-unknown", "observed": "committed", "candidateAttempt": "0123456789abcdef0123456789abcdef", "candidateKey": "ERERERERERERERERERERERERERERERERERERERERERE=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "winnerVerified": false, "commitAuthorized": true, "attemptLookup": "committed", "householdFresh": true, "expect": "verify-winner"},
     {"name": "own verified committed candidate activates", "state": "adopting", "observed": "committed", "candidateAttempt": "0123456789abcdef0123456789abcdef", "candidateKey": "ERERERERERERERERERERERERERERERERERERERERERE=", "ownerVerified": true, "candidateHead": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "winnerVerified": true, "expect": "activate"},
-    {"name": "matching Owner key without matching immutable evidence is rejected", "state": "ready-to-commit", "observed": "committed", "candidateAttempt": "fedcba9876543210fedcba9876543210", "candidateKey": "ERERERERERERERERERERERERERERERERERERERERERE=", "winnerVerified": true, "error": "winner_evidence_mismatch"},
-    {"name": "cleanup can never target committed Owner", "state": "cleaning-loser", "observed": "committed", "candidateAttempt": "fedcba9876543210fedcba9876543210", "candidateKey": "ERERERERERERERERERERERERERERERERERERERERERE=", "winnerVerified": true, "expect": "cleanup_targets_winner"},
-    {"name": "cleanup can never target any other live profile", "state": "cleaning-loser", "observed": "committed", "candidateAttempt": "fedcba9876543210fedcba9876543210", "candidateKey": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI=", "winnerVerified": true, "expect": "cleanup_targets_winner"},
-    {"name": "cleanup can never target a live adult profile", "state": "cleaning-loser", "observed": "committed", "candidateAttempt": "fedcba9876543210fedcba9876543210", "candidateKey": "MzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM=", "directoryMutation": {"path": "/profiles/9999aaaabbbbccccddddeeeeffff0000/role", "value": "adult"}, "winnerVerified": true, "expect": "cleanup_targets_winner"},
-    {"name": "retired evidence cannot claim a committed key was deleted", "state": "cleaning-loser", "observed": "committed", "candidateAttempt": "fedcba9876543210fedcba9876543210", "candidateKey": "ERERERERERERERERERERERERERERERERERERERERERE=", "candidateRetired": true, "winnerVerified": true, "error": "committed_key_retired"},
+    {"name": "matching Owner key without matching immutable evidence is rejected", "state": "ready-to-commit", "observed": "committed", "candidateAttempt": "fedcba9876543210fedcba9876543210", "candidateKey": "ERERERERERERERERERERERERERERERERERERERERERE=", "legacyStaleCandidate": true, "winnerVerified": true, "error": "winner_evidence_mismatch"},
+    {"name": "cleanup can never target committed Owner", "state": "cleaning-loser", "observed": "committed", "candidateAttempt": "fedcba9876543210fedcba9876543210", "candidateKey": "ERERERERERERERERERERERERERERERERERERERERERE=", "legacyStaleCandidate": true, "winnerVerified": true, "expect": "cleanup_targets_winner"},
+    {"name": "cleanup can never target any other live profile", "state": "cleaning-loser", "observed": "committed", "candidateAttempt": "fedcba9876543210fedcba9876543210", "candidateKey": "IiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiI=", "legacyStaleCandidate": true, "winnerVerified": true, "expect": "cleanup_targets_winner"},
+    {"name": "cleanup can never target a live adult profile", "state": "cleaning-loser", "observed": "committed", "candidateAttempt": "fedcba9876543210fedcba9876543210", "candidateKey": "MzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM=", "legacyStaleCandidate": true, "directoryMutation": {"path": "/profiles/9999aaaabbbbccccddddeeeeffff0000/role", "value": "adult"}, "winnerVerified": true, "expect": "cleanup_targets_winner"},
+    {"name": "retired evidence cannot claim a committed key was deleted", "state": "cleaning-loser", "observed": "committed", "candidateAttempt": "fedcba9876543210fedcba9876543210", "candidateKey": "ERERERERERERERERERERERERERERERERERERERERERE=", "legacyStaleCandidate": true, "candidateRetired": true, "winnerVerified": true, "error": "committed_key_retired"},
     {"name": "winner is verified before activation", "state": "adopting", "observed": "committed", "winnerVerified": false, "expect": "verify-winner"},
     {"name": "committed observation requires a valid stored directory", "state": "adopting", "observed": "committed", "omitDirectory": true, "winnerVerified": true, "error": "committed_directory_missing"},
     {"name": "changed legacy fence restarts after candidate cleanup", "state": "owner-copied", "observed": "legacy", "backupVerified": true, "candidateKey": "REREREREREREREREREREREREREREREREREREREREREQ=", "observedFenceMutation": {"path": "/generation", "value": 8}, "expect": "retire-losing-candidate"},
