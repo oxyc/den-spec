@@ -546,8 +546,10 @@ read until its owner updates it. Its queued writes are never converted. A v4 bui
 on a `426` (§13 *Client work*). A v4 build that meets `rewrite_in_progress` keeps its writes (§11) until it observes
 the generation change, then writes back.
 
-**Pre-v3 logs.** A log that holds an `ep` or `set:tracker-event:*` row and no `wat`, `snt` or `set:deliver:*` row is
-a pre-v3 backup. The client does not convert it: it shows "Library backup predates v3" and writes nothing.
+**Pre-v3 logs.** A log that holds an `ep` or `set:tracker-event:*` row and no `wat`, `snt`, `set:deliver:*` row or v4
+document is a pre-v3 backup. The client does not convert it: it shows "Library backup predates v3" and writes nothing.
+A log that also holds a v4 document is a v4 library a stray row was written into; it switches again, and `v4_form`
+folds the row into its documents (§15 switch vector "a v4 log holding a stray v1 event switches again and folds it").
 
 **Known limit**: a v3 lease holder that sent a command just before the rewrite opened and whose settle is then
 refused leaves the target unsettled in the log; v4 decides it again against the snapshot (v3 §6), so a list or rating

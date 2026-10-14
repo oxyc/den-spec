@@ -557,7 +557,10 @@ UTF-8 bytes; `accounting` has the same order.
 
 A pre-v4 `rec`, `wat`, `snt`, `ep` or `set:tracker-event:*` row, an already-present `profiles` or Kid-approval row,
 a duplicate authenticated logical name, malformed known identity/settings/policy, or any known row whose scope is
-ambiguous is an error. The caller must first finish the ordinary library-v4 conversion or stop for recovery.
+ambiguous is an error. The caller must first finish the ordinary library-v4 conversion or stop for recovery. A
+`legacy_source_row` answer for an attempt that has not staged aborts that attempt, releasing the lock; the client then
+runs the library-v4 switch (library-v4 §10), which folds the stray rows into documents, and a later Enable Profiles
+opens a fresh attempt on the converted source. The frozen backup of the aborted attempt is never partitioned again.
 
 This operation deliberately does not fabricate the complete `profiles` document: Owner display, random id/key and
 their constructor stamps are explicit product inputs, while `migration.ownerHead` exists only after the Owner
