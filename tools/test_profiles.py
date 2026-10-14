@@ -524,7 +524,8 @@ class ProfilesVectorsTests(unittest.TestCase):
                     case["expect"], case["name"])
 
     def test_reset_lock_nothing_aborts_after_the_successor_commit(self):
-        for name in ("nothing aborts after", "the household cannot abort after",
+        for name in ("the household cannot abort after the successor commit",
+                     "the household cannot abort once retirement",
                      "recovery after the commit can never abort"):
             case = self.reset_lock_request(name)
             actual = self.reset_lock(case["scenario"], case["request"])
@@ -532,10 +533,9 @@ class ProfilesVectorsTests(unittest.TestCase):
             self.assertEqual(actual["sideEffects"], [])
 
     def test_reset_lock_household_is_released_and_retired_last(self):
-        aborted = self.reset_lock_request("the household cannot be aborted while")
-        self.assertEqual(self.reset_lock(aborted["scenario"], aborted["request"])["error"], "locks_held")
-        retired = self.reset_lock_request("the household cannot retire while")
-        self.assertEqual(self.reset_lock(retired["scenario"], retired["request"])["error"], "locks_held")
+        for name in ("the household cannot retire while", "the household cannot retire before the door"):
+            retired = self.reset_lock_request(name)
+            self.assertEqual(self.reset_lock(retired["scenario"], retired["request"])["error"], "locks_held")
 
     def test_reset_lock_commit_is_never_inferred_from_an_existing_successor(self):
         # A successor library with rows but no recorded commit does not make the reset committed.
@@ -559,18 +559,32 @@ class ProfilesVectorsTests(unittest.TestCase):
         self.assertEqual(run("recovery with proof of the successor key")["effect"], "takeover")
         rollback = run("recovery without proof after the commit")
         self.assertEqual(rollback["effect"], "rollback")
-        self.assertIn("successors-deleted", rollback["sideEffects"])
+        self.assertEqual(rollback["sideEffects"], ["household-aborted"])
         for name in ("recovery without proof once any library", "recovery without proof once every member",
+                     "recovery without proof after the door",
                      "recovery with a wrong proof is refused after", "recovery with a wrong proof is refused before"):
             refused = run(name)
             self.assertEqual((refused["status"], refused["error"], refused["sideEffects"]),
                              (409, "migration_in_progress", []))
 
-    def test_reset_lock_abort_deletes_the_declared_successor(self):
-        for name in ("the owner aborts a profile lock", "the household is aborted last"):
+    def test_reset_lock_every_decision_is_one_household_commit(self):
+        for name in ("abort is one commit on the household", "recovery without proof after the commit"):
             case = self.reset_lock_request(name)
             actual = self.reset_lock(case["scenario"], case["request"])
-            self.assertIn("successor-deleted", actual["sideEffects"])
+            self.assertEqual(actual["sideEffects"], ["household-aborted"])
+
+    def test_reset_lock_void_member_locks_never_block_writes_or_retire(self):
+        write = self.reset_lock_request("member writes are allowed at once")
+        self.assertEqual(self.reset_lock(write["scenario"], write["request"])["effect"], "allowed")
+        retire = self.reset_lock_request("after a rollback the old owner's member retirement")
+        self.assertEqual(self.reset_lock(retire["scenario"], retire["request"])["error"], "lock_not_held")
+
+    def test_reset_lock_successors_are_swept_after_the_decision_only(self):
+        sweep = self.reset_lock_request("den-edge sweeps every declared successor")
+        self.assertEqual(len(self.reset_lock(sweep["scenario"], sweep["request"])["delete"]), 3)
+        for name in ("a live or committed reset is never swept", "a retiring reset is never swept"):
+            case = self.reset_lock_request(name)
+            self.assertEqual(self.reset_lock(case["scenario"], case["request"])["effect"], "none")
 
 
 if __name__ == "__main__":

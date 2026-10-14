@@ -1824,8 +1824,17 @@ def reset_lock_step(world: dict, request: dict) -> dict:
     lock = library["lock"]
     presenter = request.get("attempt")
 
+    live_phases = ("open", "committed", "retiring")
+
     def held(record: object) -> bool:
-        return record is not None and record["phase"] in ("open", "committed")
+        """A lock in force: a household lock in a live phase, or a member lock whose household is live."""
+        if record is None:
+            return False
+        if record["role"] == "household":
+            return record["phase"] in live_phases
+        house = household_lock(record)
+        return (record["phase"] == "open" and house is not None
+                and house["attempt"] == record["attempt"] and house["phase"] in live_phases)
 
     def household_lock(record: dict) -> object:
         return libraries.get(record["household"], {}).get("lock")
@@ -1904,14 +1913,10 @@ def reset_lock_step(world: dict, request: dict) -> dict:
                 successor = libraries.get(lock["successor"])
                 if successor is None or successor["retired"] or successor.get("credential") != proof:
                     return conflict
-            if lock["phase"] == "committed" and proof is None:
-                if library["retired"] or any(
-                        libraries[m["libraryId"]]["retired"]
-                        or (libraries[m["libraryId"]]["lock"] or {}).get("phase") == "retired"
-                        for m in lock["members"]):
-                    return conflict
-                return {"effect": "rollback", "phase": "committed",
-                        "sideEffects": ["commit-unmarked", "locks-released", "successors-deleted"]}
+            if proof is None and lock["phase"] == "retiring":
+                return conflict
+            if proof is None and lock["phase"] == "committed":
+                return {"effect": "rollback", "phase": "committed", "sideEffects": ["household-aborted"]}
             return {"effect": "takeover", "phase": lock["phase"], "sideEffects": ["owner-replaced"]}
         if library["source"] != expected:
             return reset_lock_error(409, "migration_source_changed")
@@ -1942,20 +1947,26 @@ def reset_lock_step(world: dict, request: dict) -> dict:
     if kind == "abort":
         if library["retired"]:
             return gone
-        if lock is None:
-            return {"effect": "absent", "sideEffects": []}
+        if lock is None or lock["role"] != "household":
+            return reset_lock_error(404, "not_found")
         if lock["phase"] == "aborted" and presenter in (lock["attempt"], lock.get("owner")):
             return {"effect": "lookup"}
-        if not held(lock) or not may_act(lock) or lock["phase"] == "committed":
+        if not held(lock) or lock["owner"] != presenter or lock["phase"] != "open":
             return conflict
-        if lock["role"] == "profile" and household_lock(lock)["phase"] != "open":
+        return {"effect": "aborted", "sideEffects": ["household-aborted"]}
+
+    if kind == "write":
+        if library["retired"]:
+            return gone
+        if held(lock):
             return conflict
-        if lock["role"] == "household" and any(
-                held(libraries[m["libraryId"]]["lock"])
-                and libraries[m["libraryId"]]["lock"]["attempt"] == lock["attempt"]
-                for m in lock["members"]):
-            return reset_lock_error(409, "locks_held")
-        return {"effect": "aborted", "sideEffects": ["lock-released", "successor-deleted"]}
+        return {"effect": "allowed", "sideEffects": []}
+
+    if kind == "sweep":
+        if lock is None or lock["role"] != "household" or lock["phase"] != "aborted" or lock.get("swept"):
+            return {"effect": "none", "sideEffects": []}
+        return {"effect": "sweep", "delete": [lock["successor"], *[m["successor"] for m in lock["members"]]],
+                "sideEffects": ["successors-deleted", "household-swept"]}
 
     if kind == "retire":
         successor = request.get("successor")
@@ -1965,24 +1976,27 @@ def reset_lock_step(world: dict, request: dict) -> dict:
                     and successor == lock["successor"]):
                 return {"effect": "lookup"}
             return gone
-        if lock is None:
+        if not held(lock):
             if presenter is None:
                 return {"effect": "ordinary-delete", "sideEffects": ["library-retired"]}
             return reset_lock_error(409, "lock_not_held")
-        if not held(lock) or not may_act(lock):
+        if not may_act(lock):
             return conflict
         if successor != lock["successor"]:
             return reset_lock_error(409, "successor_mismatch")
         house = lock if lock["role"] == "household" else household_lock(lock)
         if not house.get("proven", True):
             return conflict
-        if house["phase"] != "committed":
+        if house["phase"] not in ("committed", "retiring"):
             return reset_lock_error(409, "successor_not_committed")
-        if lock["role"] == "household" and any(
-                (libraries[m["libraryId"]]["lock"] or {}).get("phase") != "retired"
-                for m in lock["members"]):
-            return reset_lock_error(409, "locks_held")
-        return {"effect": "retired", "sideEffects": ["library-retired", "lock-released"]}
+        if lock["role"] == "household":
+            if house["phase"] != "retiring" or any(
+                    (libraries[m["libraryId"]]["lock"] or {}).get("phase") != "retired"
+                    for m in lock["members"]):
+                return reset_lock_error(409, "locks_held")
+            return {"effect": "retired", "sideEffects": ["library-retired", "lock-released"]}
+        door = ["household-retiring"] if house["phase"] == "committed" else []
+        return {"effect": "retired", "sideEffects": [*door, "library-retired", "lock-released"]}
 
     fail("invalid_exclusive_request")
 
@@ -2770,8 +2784,9 @@ def main() -> int:
     if ({name: lock_contract.get(name) for name in (
             "purpose", "wire", "acquireOrder", "perLibraryLockRequired", "idleExpiry",
             "ordinaryMutationResponse", "readsContinue", "retireReleasesLockAtomically",
-            "abortAllowedUntil", "householdReleasedLast", "recoveryAfterCommit",
-            "abortDeletesDeclaredSuccessors", "rollbackDeletesDeclaredSuccessors", "plannerChange",
+            "abortAllowedUntil", "householdRetiredLast", "recoveryAfterCommit",
+            "everyAtomicStepTouchesOneLibrary", "householdRecordIsAuthority", "householdPhases",
+            "memberLockVoidWhenHouseholdAborted", "retirementDoor", "successorDeletion", "plannerChange",
     )} != {
         "purpose": "key-reset",
         "wire": {"household": 5, "profile": 4},
@@ -2782,15 +2797,20 @@ def main() -> int:
         "readsContinue": True,
         "retireReleasesLockAtomically": True,
         "abortAllowedUntil": "successor-commit",
-        "householdReleasedLast": True,
+        "householdRetiredLast": True,
         "recoveryAfterCommit": {
             "withSuccessorProof": "finish-retirement",
-            "withoutProofNothingRetired": "rollback",
-            "withoutProofAnyRetired": {"status": 409, "error": "migration_in_progress"},
+            "withoutProofBeforeDoor": "rollback",
+            "withoutProofAfterDoor": {"status": 409, "error": "migration_in_progress"},
             "wrongProof": {"status": 409, "error": "migration_in_progress"},
         },
-        "abortDeletesDeclaredSuccessors": True,
-        "rollbackDeletesDeclaredSuccessors": True,
+        "everyAtomicStepTouchesOneLibrary": True,
+        "householdRecordIsAuthority": True,
+        "householdPhases": ["open", "committed", "retiring", "retired", "aborted"],
+        "memberLockVoidWhenHouseholdAborted": True,
+        "retirementDoor": "household-committed-to-retiring-before-first-member-retire",
+        "successorDeletion": {"after": "household-decision", "driver": "den-edge",
+                              "perLibraryIdempotent": True, "guarantee": "eventual"},
         "plannerChange": None,
     }):
         fail("reset_lock_contract_mismatch")
