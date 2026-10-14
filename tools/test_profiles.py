@@ -57,7 +57,7 @@ class ProfilesVectorsTests(unittest.TestCase):
         stricter_unknown = {"maximumAge": 13, "unknownRatings": "block"}
         self.assertEqual(validate_profiles.policy_relation(stricter_age, stricter_unknown), "incomparable")
 
-    def test_preference_partition_keeps_unknowns_in_household(self):
+    def test_preference_partition_moves_every_key_to_owner(self):
         hidden = {"value": {"bool": True}, "at": [1, 0, "a1b2c3d4e5f60718"]}
         future = {"value": {"string": "kept"}, "at": [2, 0, "a1b2c3d4e5f60718"]}
         maturity = {"value": {"string": "r"}, "at": [3, 0, "a1b2c3d4e5f60718"]}
@@ -65,10 +65,23 @@ class ProfilesVectorsTests(unittest.TestCase):
             "den.hideWatched": hidden,
             "future.preference": future,
             "den.maturityCeiling": maturity,
-        }), {"household": {"future.preference": future},
-             "owner": {"den.hideWatched": hidden}, "ownerMaturity": maturity})
+        }), {"household": {},
+             "owner": {"den.hideWatched": hidden, "future.preference": future}, "ownerMaturity": maturity})
         with self.assertRaisesRegex(ValueError, "invalid_preferences"):
             validate_profiles.partition_preferences([])
+
+    def test_seed_gives_only_keys_the_profile_lacks(self):
+        stamp = [1, 0, "a1b2c3d4e5f60718"]
+        region = {"value": {"string": "FI"}, "at": stamp}
+        hidden = {"value": {"bool": True}, "at": stamp}
+        cleared = {"value": None, "at": [2, 0, "a1b2c3d4e5f60718"]}
+        household = {"den.watchRegion": region, "den.hideWatched": hidden}
+        self.assertEqual(validate_profiles.seed_preferences({"household": household, "profile": None}),
+                         {"values": household})
+        self.assertEqual(validate_profiles.seed_preferences(
+            {"household": household, "profile": {"den.hideWatched": cleared}}), {"values": {"den.watchRegion": region}})
+        with self.assertRaisesRegex(ValueError, "invalid_preferences"):
+            validate_profiles.seed_preferences({"household": [], "profile": None})
 
     def test_household_write_withholds_only_profile_scoped_values(self):
         stamp = [1, 0, "a1b2c3d4e5f60718"]
@@ -81,6 +94,7 @@ class ProfilesVectorsTests(unittest.TestCase):
             {"effect": "restrict", "values": {"tmdb": tmdb}})
         self.assertEqual(validate_profiles.household_write({"name": "set:keys", "values": {"simkl": simkl}}),
                          {"effect": "refuse"})
+        self.assertEqual(validate_profiles.household_write({"name": "set:prefs", "values": {}}), {"effect": "refuse"})
         with self.assertRaisesRegex(ValueError, "invalid_household_write"):
             validate_profiles.household_write({"name": "set:prefs"})
 
@@ -92,8 +106,7 @@ class ProfilesVectorsTests(unittest.TestCase):
             {"name": "dlv:simkl:1"},
             {"name": "set:prefs", "values": {"den.watchRegion": region, "den.hideWatched": hidden}},
             {"name": "profiles"},
-        ]), {"remove": ["dlv:simkl:1"],
-             "rewrite": [{"name": "set:prefs", "values": {"den.watchRegion": region}}]})
+        ]), {"remove": ["dlv:simkl:1", "set:prefs"], "rewrite": []})
         with self.assertRaisesRegex(ValueError, "invalid_household_write"):
             validate_profiles.household_audit([{"name": "profiles"}, {"name": "profiles"}])
 

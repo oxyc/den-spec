@@ -472,27 +472,60 @@
       "result": {"action": "picker", "ownerGate": false}
     }
   ],
-  "settingsOwnership": [
-    {"key": "prefs.den.watchRegion", "scope": "household"},
-    {"key": "prefs.den.myServicePicks", "scope": "household"},
-    {"key": "prefs.den.excludedGenreIDs", "scope": "profile"},
-    {"key": "prefs.den.excludedLanguages", "scope": "profile"},
-    {"key": "prefs.den.preferredSubtitleLanguage", "scope": "profile"},
-    {"key": "prefs.den.hasExplicitSubtitlePreference", "scope": "profile"},
-    {"key": "prefs.den.shownSubtitleLanguages", "scope": "profile"},
-    {"key": "prefs.den.maxSubtitlesPerLanguage", "scope": "profile"},
-    {"key": "prefs.den.preferredAudioLanguage", "scope": "profile"},
-    {"key": "prefs.den.autoSkipSegments", "scope": "profile"},
-    {"key": "prefs.den.autoplayTrailers", "scope": "profile"},
-    {"key": "prefs.den.hideAnime", "scope": "profile"},
-    {"key": "prefs.den.hideWatched", "scope": "profile"},
-    {"key": "prefs.den.minReleaseYear", "scope": "profile"},
-    {"key": "prefs.den.enabledRatingSources", "scope": "profile"},
-    {"key": "prefs.den.shownWarningCategories", "scope": "profile"}
+  "settingsSeedCases": [
+    {
+      "name": "a profile without preferences is given the household's, stamps untouched",
+      "input": {
+        "household": {
+          "den.watchRegion": {"value": {"string": "FI"}, "at": [10, 0, "a1b2c3d4e5f60718"]},
+          "den.myServicePicks": {"value": {"strings": ["8@FI"]}, "at": [11, 0, "a1b2c3d4e5f60718"]},
+          "den.hideWatched": {"value": {"bool": true}, "at": [12, 0, "a1b2c3d4e5f60718"]},
+          "den.maturityCeiling": {"value": {"string": "pg13"}, "at": [13, 0, "a1b2c3d4e5f60718"]},
+          "future.preference": {"value": {"int": 7}, "at": [14, 0, "a1b2c3d4e5f60718"]}
+        },
+        "profile": null
+      },
+      "expect": {"values": {
+        "den.watchRegion": {"value": {"string": "FI"}, "at": [10, 0, "a1b2c3d4e5f60718"]},
+        "den.myServicePicks": {"value": {"strings": ["8@FI"]}, "at": [11, 0, "a1b2c3d4e5f60718"]},
+        "den.hideWatched": {"value": {"bool": true}, "at": [12, 0, "a1b2c3d4e5f60718"]},
+        "future.preference": {"value": {"int": 7}, "at": [14, 0, "a1b2c3d4e5f60718"]}
+      }}
+    },
+    {
+      "name": "a key the profile already holds is a decision and is never overwritten, even when cleared",
+      "input": {
+        "household": {
+          "den.watchRegion": {"value": {"string": "FI"}, "at": [10, 0, "a1b2c3d4e5f60718"]},
+          "den.myServicePicks": {"value": {"strings": ["8@FI"]}, "at": [11, 0, "a1b2c3d4e5f60718"]},
+          "den.hideWatched": {"value": {"bool": true}, "at": [12, 0, "a1b2c3d4e5f60718"]}
+        },
+        "profile": {
+          "den.watchRegion": {"value": {"string": "SE"}, "at": [5, 0, "a1b2c3d4e5f60718"]},
+          "den.myServicePicks": {"value": null, "at": [6, 0, "a1b2c3d4e5f60718"]}
+        }
+      },
+      "expect": {"values": {"den.hideWatched": {"value": {"bool": true}, "at": [12, 0, "a1b2c3d4e5f60718"]}}}
+    },
+    {
+      "name": "a profile holding every household key is given nothing",
+      "input": {
+        "household": {"den.watchRegion": {"value": {"string": "FI"}, "at": [10, 0, "a1b2c3d4e5f60718"]}},
+        "profile": {"den.watchRegion": {"value": {"string": "FI"}, "at": [10, 0, "a1b2c3d4e5f60718"]}}
+      },
+      "expect": {"values": {}}
+    },
+    {
+      "name": "a household without preferences gives nothing",
+      "input": {"household": {}, "profile": {}},
+      "expect": {"values": {}}
+    },
+    {"name": "non-object household preferences are rejected", "input": {"household": [], "profile": null}, "error": "invalid_preferences"},
+    {"name": "non-object profile preferences are rejected", "input": {"household": {}, "profile": []}, "error": "invalid_preferences"}
   ],
   "settingsPartitionCases": [
     {
-      "name": "every assigned preference moves to its canonical destination and unknowns stay household",
+      "name": "every preference moves to Owner; the household keeps none and the legacy maturity input is split out",
       "values": {
         "den.watchRegion": {"value": {"string": "FI"}, "at": [10, 0, "a1b2c3d4e5f60718"]},
         "den.myServicePicks": {"value": {"strings": ["8@FI"]}, "at": [11, 0, "a1b2c3d4e5f60718"]},
@@ -515,13 +548,12 @@
         "future.preference": {"value": {"string": "preserved"}, "at": [28, 0, "a1b2c3d4e5f60718"]}
       },
       "expect": {
-        "household": {
+        "household": {},
+        "owner": {
           "den.watchRegion": {"value": {"string": "FI"}, "at": [10, 0, "a1b2c3d4e5f60718"]},
           "den.myServicePicks": {"value": {"strings": ["8@FI"]}, "at": [11, 0, "a1b2c3d4e5f60718"]},
           "den.myServiceIDs": {"value": {"ints": [8]}, "at": [12, 0, "a1b2c3d4e5f60718"]},
-          "future.preference": {"value": {"string": "preserved"}, "at": [28, 0, "a1b2c3d4e5f60718"]}
-        },
-        "owner": {
+          "future.preference": {"value": {"string": "preserved"}, "at": [28, 0, "a1b2c3d4e5f60718"]},
           "den.excludedGenreIDs": {"value": {"ints": [27]}, "at": [13, 0, "a1b2c3d4e5f60718"]},
           "den.excludedLanguages": {"value": {"strings": ["sv"]}, "at": [14, 0, "a1b2c3d4e5f60718"]},
           "den.preferredSubtitleLanguage": {"value": {"string": "fi"}, "at": [15, 0, "a1b2c3d4e5f60718"]},
@@ -565,29 +597,21 @@
     {"name": "profiles directory and approvals stay household", "row": {"name": "profiles"}, "expect": {"effect": "allow"}},
     {"name": "download rows stay household", "row": {"name": "set:download-lease"}, "expect": {"effect": "allow"}},
     {
-      "name": "prefs keep only the household half",
+      "name": "prefs are refused whole, services and region included",
       "row": {"name": "set:prefs", "values": {
         "den.watchRegion": {"value": {"string": "FI"}, "at": [1, 0, "a1b2c3d4e5f60718"]},
-        "den.hideWatched": {"value": {"bool": true}, "at": [2, 0, "a1b2c3d4e5f60718"]},
-        "den.maturityCeiling": {"value": {"string": "pg13"}, "at": [3, 0, "a1b2c3d4e5f60718"]},
+        "den.myServicePicks": {"value": {"strings": ["8@FI"]}, "at": [2, 0, "a1b2c3d4e5f60718"]},
+        "den.hideWatched": {"value": {"bool": true}, "at": [3, 0, "a1b2c3d4e5f60718"]},
         "future.preference": {"value": {"future": true}, "at": [4, 0, "a1b2c3d4e5f60718"]}
       }},
-      "expect": {"effect": "restrict", "values": {
-        "den.watchRegion": {"value": {"string": "FI"}, "at": [1, 0, "a1b2c3d4e5f60718"]},
-        "future.preference": {"value": {"future": true}, "at": [4, 0, "a1b2c3d4e5f60718"]}
-      }}
-    },
-    {
-      "name": "prefs with only household values are written as they are",
-      "row": {"name": "set:prefs", "values": {"den.myServicePicks": {"value": {"strings": ["8@FI"]}, "at": [1, 0, "a1b2c3d4e5f60718"]}}},
-      "expect": {"effect": "allow"}
-    },
-    {
-      "name": "prefs with only Owner values are refused whole",
-      "row": {"name": "set:prefs", "values": {"den.hideAnime": {"value": {"bool": true}, "at": [1, 0, "a1b2c3d4e5f60718"]}}},
       "expect": {"effect": "refuse"}
     },
-    {"name": "empty prefs are written as they are", "row": {"name": "set:prefs", "values": {}}, "expect": {"effect": "allow"}},
+    {
+      "name": "prefs holding only services are refused",
+      "row": {"name": "set:prefs", "values": {"den.myServicePicks": {"value": {"strings": ["8@FI"]}, "at": [1, 0, "a1b2c3d4e5f60718"]}}},
+      "expect": {"effect": "refuse"}
+    },
+    {"name": "empty prefs are refused", "row": {"name": "set:prefs", "values": {}}, "expect": {"effect": "refuse"}},
     {
       "name": "keys drop simkl and keep every other credential",
       "row": {"name": "set:keys", "values": {
@@ -633,16 +657,15 @@
         {"name": "set:download-lease"}
       ],
       "expect": {
-        "remove": ["title:movie:550", "set:trackers", "set:deliver:simkl:4812736"],
+        "remove": ["title:movie:550", "set:trackers", "set:deliver:simkl:4812736", "set:prefs"],
         "rewrite": [
-          {"name": "set:prefs", "values": {"den.watchRegion": {"value": {"string": "FI"}, "at": [1, 0, "a1b2c3d4e5f60718"]}}},
           {"name": "set:keys", "values": {"tmdb": {"value": {"string": "k"}, "at": [2, 0, "a1b2c3d4e5f60718"]}}}
         ]
       }
     },
     {"name": "a clean household needs no repair", "rows": [{"name": "profiles"}, {"name": "set:download-lease"}], "expect": {"remove": [], "rewrite": []}},
     {"name": "an empty list needs no repair", "rows": [], "expect": {"remove": [], "rewrite": []}},
-    {"name": "a prefs row of only Owner values is removed", "rows": [{"name": "set:prefs", "values": {"den.hideAnime": {"value": {"bool": true}, "at": [1, 0, "a1b2c3d4e5f60718"]}}}], "expect": {"remove": ["set:prefs"], "rewrite": []}},
+    {"name": "a prefs row is removed whatever it holds", "rows": [{"name": "set:prefs", "values": {"den.hideAnime": {"value": {"bool": true}, "at": [1, 0, "a1b2c3d4e5f60718"]}}}], "expect": {"remove": ["set:prefs"], "rewrite": []}},
     {"name": "a repeated name is rejected", "rows": [{"name": "title:movie:550"}, {"name": "title:movie:550"}], "error": "invalid_household_write"},
     {"name": "rows must be a list", "rows": {}, "error": "invalid_household_write"}
   ],
@@ -1626,14 +1649,13 @@
       },
       "expect": {
         "household": [
-          {"source": {"k": "0101010101010101010101010101010101010101010101010101010101010101", "seq": 1}, "mode": "materialize", "name": "set:prefs", "row": {"kind": "set", "schema": 2, "name": "prefs", "values": {"den.watchRegion": {"value": {"string": "FI"}, "at": [1, 0, "a1b2c3d4e5f60718"]}, "future.preference": {"value": {"int": 7}, "at": [4, 0, "a1b2c3d4e5f60718"]}}, "extension": "kept"}},
           {"source": {"k": "0606060606060606060606060606060606060606060606060606060606060606", "seq": 6}, "mode": "preserve", "k": "0606060606060606060606060606060606060606060606060606060606060606", "v": "sealed-download"},
           {"source": {"k": "0707070707070707070707070707070707070707070707070707070707070707", "seq": 7}, "mode": "materialize", "name": "set:keys", "row": {"kind": "set", "schema": 2, "name": "keys", "values": {"parentalPIN": {"value": {"string": "sha256:salt:hash"}, "at": [8, 0, "a1b2c3d4e5f60718"]}}, "extension": "kept"}},
           {"source": {"k": "0808080808080808080808080808080808080808080808080808080808080808", "seq": 8}, "mode": "preserve", "k": "0808080808080808080808080808080808080808080808080808080808080808", "v": "sealed-plugins"},
           {"source": {"k": "0909090909090909090909090909090909090909090909090909090909090909", "seq": 9}, "mode": "preserve", "k": "0909090909090909090909090909090909090909090909090909090909090909", "v": "sealed-future"}
         ],
         "owner": [
-          {"source": {"k": "0101010101010101010101010101010101010101010101010101010101010101", "seq": 1}, "mode": "materialize", "name": "set:prefs", "row": {"kind": "set", "schema": 2, "name": "prefs", "values": {"den.hideWatched": {"value": {"bool": true}, "at": [2, 0, "a1b2c3d4e5f60718"]}}, "extension": "kept"}},
+          {"source": {"k": "0101010101010101010101010101010101010101010101010101010101010101", "seq": 1}, "mode": "materialize", "name": "set:prefs", "row": {"kind": "set", "schema": 2, "name": "prefs", "values": {"den.watchRegion": {"value": {"string": "FI"}, "at": [1, 0, "a1b2c3d4e5f60718"]}, "den.hideWatched": {"value": {"bool": true}, "at": [2, 0, "a1b2c3d4e5f60718"]}, "future.preference": {"value": {"int": 7}, "at": [4, 0, "a1b2c3d4e5f60718"]}}, "extension": "kept"}},
           {"source": {"k": "0202020202020202020202020202020202020202020202020202020202020202", "seq": 2}, "mode": "materialize", "name": "title:movie:550", "row": {"format": 4, "kind": "title", "schema": 1, "title": {"type": "movie", "id": 550}}},
           {"source": {"k": "0303030303030303030303030303030303030303030303030303030303030303", "seq": 3}, "mode": "materialize", "name": "set:trackers", "row": {"kind": "set", "schema": 2, "name": "trackers", "values": {"simkl:1": {"value": {"string": "token"}, "at": [5, 0, "a1b2c3d4e5f60718"]}}}},
           {"source": {"k": "0404040404040404040404040404040404040404040404040404040404040404", "seq": 4}, "mode": "materialize", "name": "set:deliver:simkl:1", "row": {"kind": "set", "schema": 2, "name": "deliver:simkl:1", "values": {"lease": {"value": {"strings": ["", "4"]}, "at": [6, 0, "a1b2c3d4e5f60718"]}}}},
@@ -1642,7 +1664,7 @@
         ],
         "ownerPolicy": {"value": {"maximumAge": 13, "unknownRatings": "allow"}, "at": [3, 0, "a1b2c3d4e5f60718"]},
         "accounting": [
-          {"k": "0101010101010101010101010101010101010101010101010101010101010101", "seq": 1, "destinations": ["household", "owner", "ownerPolicy"]},
+          {"k": "0101010101010101010101010101010101010101010101010101010101010101", "seq": 1, "destinations": ["owner", "ownerPolicy"]},
           {"k": "0202020202020202020202020202020202020202020202020202020202020202", "seq": 2, "destinations": ["owner"]},
           {"k": "0303030303030303030303030303030303030303030303030303030303030303", "seq": 3, "destinations": ["owner"]},
           {"k": "0404040404040404040404040404040404040404040404040404040404040404", "seq": 4, "destinations": ["owner"]},
@@ -1677,7 +1699,7 @@
     {"name": "a non-integral tagged int is rejected before Owner materialize", "input": {"base": 1, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "sealed", "opened": {"status": "row", "name": "set:assistant-applied", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "assistant-applied", "values": {"command-1": {"value": {"int": 1.5}, "at": [1, 0, "a1b2c3d4e5f60718"]}}}}}]}, "error": "invalid_settings_row"},
     {"name": "a boolean owner policy stamp component is not an integer", "input": {"base": 0, "ownerPolicyAt": [true, 0, "a1b2c3d4e5f60718"], "rows": []}, "error": "invalid_partition_input"},
     {"name": "all row envelopes are validated before key sorting", "input": {"base": 2, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": 7, "seq": 1, "v": "sealed", "opened": {"status": "newer", "reason": "framing"}}, {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2, "v": "sealed", "opened": {"status": "newer", "reason": "framing"}}]}, "error": "invalid_source_row"},
-    {"name": "split preferences and keys retain stamped-value extensions", "input": {"base": 2, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "sealed-prefs", "opened": {"status": "row", "name": "set:prefs", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "prefs", "values": {"den.watchRegion": {"value": {"string": "FI"}, "at": [1, 0, "a1b2c3d4e5f60718"], "futureStampedMember": "household"}, "den.hideWatched": {"value": {"bool": true}, "at": [1, 1, "a1b2c3d4e5f60718"], "futureStampedMember": "owner"}}}}}, {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2, "v": "sealed-keys", "opened": {"status": "row", "name": "set:keys", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "keys", "values": {"parentalPIN": {"value": {"string": "hash"}, "at": [2, 0, "a1b2c3d4e5f60718"], "futureStampedMember": "household"}, "simkl": {"value": {"string": "token"}, "at": [2, 1, "a1b2c3d4e5f60718"], "futureStampedMember": "owner"}}}}}]}, "expect": {"household": [{"source": {"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1}, "mode": "materialize", "name": "set:prefs", "row": {"kind": "set", "schema": 2, "name": "prefs", "values": {"den.watchRegion": {"value": {"string": "FI"}, "at": [1, 0, "a1b2c3d4e5f60718"], "futureStampedMember": "household"}}}}, {"source": {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2}, "mode": "materialize", "name": "set:keys", "row": {"kind": "set", "schema": 2, "name": "keys", "values": {"parentalPIN": {"value": {"string": "hash"}, "at": [2, 0, "a1b2c3d4e5f60718"], "futureStampedMember": "household"}}}}], "owner": [{"source": {"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1}, "mode": "materialize", "name": "set:prefs", "row": {"kind": "set", "schema": 2, "name": "prefs", "values": {"den.hideWatched": {"value": {"bool": true}, "at": [1, 1, "a1b2c3d4e5f60718"], "futureStampedMember": "owner"}}}}, {"source": {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2}, "mode": "materialize", "name": "set:keys", "row": {"kind": "set", "schema": 2, "name": "keys", "values": {"simkl": {"value": {"string": "token"}, "at": [2, 1, "a1b2c3d4e5f60718"], "futureStampedMember": "owner"}}}}], "ownerPolicy": {"value": {"maximumAge": null, "unknownRatings": "allow"}, "at": [1, 0, "a1b2c3d4e5f60718"]}, "accounting": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "destinations": ["household", "owner"]}, {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2, "destinations": ["household", "owner"]}]}},
+    {"name": "split preferences and keys retain stamped-value extensions", "input": {"base": 2, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "sealed-prefs", "opened": {"status": "row", "name": "set:prefs", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "prefs", "values": {"den.watchRegion": {"value": {"string": "FI"}, "at": [1, 0, "a1b2c3d4e5f60718"], "futureStampedMember": "household"}, "den.hideWatched": {"value": {"bool": true}, "at": [1, 1, "a1b2c3d4e5f60718"], "futureStampedMember": "owner"}}}}}, {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2, "v": "sealed-keys", "opened": {"status": "row", "name": "set:keys", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "keys", "values": {"parentalPIN": {"value": {"string": "hash"}, "at": [2, 0, "a1b2c3d4e5f60718"], "futureStampedMember": "household"}, "simkl": {"value": {"string": "token"}, "at": [2, 1, "a1b2c3d4e5f60718"], "futureStampedMember": "owner"}}}}}]}, "expect": {"household": [{"source": {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2}, "mode": "materialize", "name": "set:keys", "row": {"kind": "set", "schema": 2, "name": "keys", "values": {"parentalPIN": {"value": {"string": "hash"}, "at": [2, 0, "a1b2c3d4e5f60718"], "futureStampedMember": "household"}}}}], "owner": [{"source": {"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1}, "mode": "materialize", "name": "set:prefs", "row": {"kind": "set", "schema": 2, "name": "prefs", "values": {"den.watchRegion": {"value": {"string": "FI"}, "at": [1, 0, "a1b2c3d4e5f60718"], "futureStampedMember": "household"}, "den.hideWatched": {"value": {"bool": true}, "at": [1, 1, "a1b2c3d4e5f60718"], "futureStampedMember": "owner"}}}}, {"source": {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2}, "mode": "materialize", "name": "set:keys", "row": {"kind": "set", "schema": 2, "name": "keys", "values": {"simkl": {"value": {"string": "token"}, "at": [2, 1, "a1b2c3d4e5f60718"], "futureStampedMember": "owner"}}}}], "ownerPolicy": {"value": {"maximumAge": null, "unknownRatings": "allow"}, "at": [1, 0, "a1b2c3d4e5f60718"]}, "accounting": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "destinations": ["owner"]}, {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2, "destinations": ["household", "owner"]}]}},
     {"name": "legacy activity must finish the ordinary v4 switch first", "input": {"base": 1, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "sealed", "opened": {"status": "row", "name": "rec:movie:550", "legacy": true, "row": {"kind": "rec", "schema": 2, "title": {"type": "movie", "id": 550}}}}]}, "error": "legacy_source_row"},
     {"name": "a legacy split cannot overwrite an existing profiles document", "input": {"base": 1, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "sealed", "opened": {"status": "row", "name": null, "legacy": false, "row": {"format": 4, "kind": "profiles", "schema": 1}}}]}, "error": "profiles_already_present"},
     {"name": "duplicate authenticated logical names are rejected", "input": {"base": 2, "ownerPolicyAt": [1, 0, "a1b2c3d4e5f60718"], "rows": [{"k": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "seq": 1, "v": "one", "opened": {"status": "row", "name": "set:plugins", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "plugins", "values": {}}}}, {"k": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "seq": 2, "v": "two", "opened": {"status": "row", "name": "set:plugins", "legacy": false, "row": {"kind": "set", "schema": 2, "name": "plugins", "values": {}}}}]}, "error": "duplicate_logical_name"},
