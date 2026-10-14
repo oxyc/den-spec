@@ -1412,6 +1412,10 @@ An ordinary `DELETE` of an unlocked library is unchanged.
 
 Before the successor commit nothing irreversible has happened: the old libraries were never altered and any copies
 exist only under keys the journal holds. The owner may therefore release the set, but never inferred from idleness.
+Each library's abort also deletes that lock's declared successor library, if it exists, in the same storage commit
+as the lock release, so no unreferenced copy keeps counting against storage; a successor that was never created is
+fine and the deletion is idempotent. (A never-acquired member has no lock record and no copies: copying starts only
+after the whole set is locked.)
 `DELETE /lib/{library}/exclusive-operation/{attempt}` names the presenting attempt. It succeeds only when that
 attempt owns the lock (a profile lock is owned by its own attempt, or by the attempt that currently owns the
 household lock after a takeover), the household lock is `open` (not `committed`) and, for the household only, no
@@ -1424,9 +1428,8 @@ and changes nothing: from then on the only release is retirement. A replay of an
 `aborted` result.
 
 Abort is a client lock release, not a planner effect. A client may abort only while the journal is in the planner's
-`prepared`, `profiles-moving` or `ready-to-publish` phases, and discards the journal afterwards. Successor libraries
-already copied are unreferenced, undecryptable once the journal's keys are gone, and not touched by the contract. A
-retry generates entirely new keys.
+`prepared`, `profiles-moving` or `ready-to-publish` phases, and discards the journal afterwards. The successor copies
+are deleted by the abort itself, so none survives; a retry generates entirely new keys.
 
 #### Lookup and lost responses
 
@@ -1467,17 +1470,21 @@ authenticates it, and sends
  "expectedSource": {"generation": 14, "head": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"}}
 ```
 
-to `POST /lib/{household}/exclusive-operation`. It is a **takeover** of the active reset lock and succeeds only when
-all of these hold at once under the household serialization:
+to `POST /lib/{household}/exclusive-operation`, optionally with `x-den-successor-token` (the successor household
+library's token, proving possession of the successor key; see *`committed` with proof* below). It is a **takeover**
+of the active reset lock and succeeds only when all of these hold at once under the household serialization:
 
 - the household holds a key-reset lock in phase `open` or `committed` (a reset or an earlier recovery's), and no
   other purpose holds it;
 - the request's `expectedSource`, the lock's frozen source and the library's current authoritative source are
   identical;
-- `R` is not already the lock's attempt with another purpose or source (that is `migration_attempt_mismatch`).
+- `R` is not already the lock's attempt with another purpose or source (that is `migration_attempt_mismatch`);
+- a present `x-den-successor-token` matches the declared successor library (a wrong proof is refused in any phase);
+  and
+- in phase `committed` without a proof, the rollback conditions below hold (nothing retired).
 
 Any other request is exactly `409 migration_in_progress` with no metadata, a recovery of a profile library included.
-On success one storage commit replaces the lock's owner with `R`, tombstones the previous owner attempt as
+On success (except the proofless rollback of a committed reset, below) one storage commit replaces the lock's owner with `R`, tombstones the previous owner attempt as
 `recovered` by `R`, and answers:
 
 ```json
@@ -1508,34 +1515,59 @@ A journaled executor that finds `recovered` stops: `outcome: "aborted"` means di
 "retired"` means the old libraries are retired and it adopts its successor (it holds the keys). Without an `outcome`
 it waits. A second recovery `R2` may take `R` over by the same rule; recovery is therefore itself crash-recoverable.
 
-The finish is decided only by `recovers.phase`, which is the lock's phase at takeover, and never by anything the
-client infers:
+The finish is decided only by `recovers.phase`, which is the lock's phase at takeover, and whether a proof was
+accepted, never by anything the client infers (the rollback below completes inside the takeover itself, so its
+answer is the terminal one and carries no `recovers.phase` to act on):
 
-- **`open` (before the successor commit): abort, never roll back anything.** `R` presents itself (path attempt `R`)
+- **`open` (before the successor commit): abort.** `R` presents itself (path attempt `R`)
   to `DELETE /lib/{member}/exclusive-operation/{R}` for every declared member, reading each member's token from the
   old directory, which is still readable from the locked household, and then to
   `DELETE /lib/{household}/exclusive-operation/{R}`. The household abort is refused with `locks_held` while any member
-  remains, so the set is released profile libraries first and the household last. The result is `state:"completed"`,
-  `outcome:"aborted"` for `R`; the old libraries are intact and the lock set is gone. A successor household library
-  that exists without a recorded commit is not committed (see *Successor commit*); it is left as unreferenced
-  storage, and the commit by the old owner is refused for good by its `recovered` tombstone.
-- **`committed` (after the successor commit): finish retirement, never release without it.** `R` retires every
-  declared member with `x-den-exclusive-attempt: R` and `x-den-successor` taken from `recovers.members`, never chosen
-  by the client, and only then the household with `recovers.successor`. The result is `state:"completed"`,
-  `outcome:"retired"`. Abort is refused after the commit, so there is no path back to the old keys. The successor is
-  named by the committed household move: `recovers.successor` and the retired lock's lookup.
+  remains, so the set is released profile libraries first and the household last. Each abort deletes its declared
+  successor library (*Abort*). The result is `state:"completed"`, `outcome:"aborted"` for `R`; the old libraries are
+  intact and the lock set is gone. A successor household that exists without a recorded commit is not committed
+  (see *Successor commit*) and is deleted by the household abort; the commit by the old owner is refused for good
+  by its `recovered` tombstone. A proof (below) is not needed.
+- **`committed` with proof of the successor key: finish retirement.** The request carries the header
+  `x-den-successor-token`, the successor household library's token. den-edge compares its hash with the stored
+  credential of the declared successor library (which must exist and not be retired); a match is the proof that
+  the caller holds the successor household key. The takeover records `proven: true`, and only then may `R` retire:
+  every declared member with `x-den-exclusive-attempt: R` and `x-den-successor` taken from `recovers.members`,
+  never chosen by the client, and only then the household with `recovers.successor`. The result is
+  `state:"completed"`, `outcome:"retired"`. A proof also takes over a lock that is partially retired. A lock owned
+  by a recovery that did not prove possession refuses every retirement (`409 migration_in_progress`).
+- **`committed` without proof: roll back, only while nothing has been retired.** Possession of the successor key
+  cannot be shown, and finishing retirement could strand the household with a successor nobody can open. Nobody can
+  have adopted that successor yet, because executors adopt only after every old library is retired. If neither
+  the old household nor any declared member library is retired (no lock `retired`), the takeover is itself the
+  rollback: in **one storage commit** den-edge un-marks the successor commit, records `aborted` for every lock
+  (members, then household), deletes the declared successor libraries, tombstones the previous owner as `recovered`
+  with `outcome: "aborted"` and answers `R` as `{"attempt","state":"completed","outcome":"aborted"}`. The old
+  libraries are untouched and writable again. Once any old library has been retired, the request is exactly
+  `409 migration_in_progress` with no metadata and no effect: the lock stays, the old libraries stay readable and
+  every write stays refused until a holder of the successor key finishes retirement with proof.
+- **A wrong proof** (the header present but not the successor's credential, or the successor library absent or
+  retired) is exactly `409 migration_in_progress` in every phase, with no effect.
 
-Both paths use only routes and conditions defined above, so recovery can release a lock only through a state change
-the owner could have made, and cannot do either of the two unsafe things. It cannot release a lock out from under a
-live successor, because `abort` is refused once `committed` is recorded, and the commit and the takeover are
-serialized on the same household record (whichever commits first wins; the loser gets `migration_in_progress`). It
-cannot orphan a profile, because the household can be released only after every declared member is `aborted` or
-`retired`, and only declared members are touched.
+Why this is safe. Recovery can release a lock only through a state change the owner could have made, or by the
+rollback above, and it cannot do either unsafe thing:
 
-Recovery returns the old libraries to service or revokes them; it does not recover keys. A reset interrupted after
-the successor commit with every copy of the journal lost leaves the successor household readable only by a device
-that already holds its key (v2 §1 hands the new key to the other devices before retirement). Retiring is still
-required: leaving old keys usable is not a reset (§9).
+- *It cannot release a lock out from under a live successor.* A successor is live only once it can be adopted, and
+  adoption follows the retirement of every old library. Before the commit abort is allowed because no successor is
+  committed, and the commit and the takeover serialize on the same household record (whichever commits first wins;
+  the loser gets `migration_in_progress`). After the commit, a lock is released without retirement only by the
+  rollback, which requires that no library was retired and the caller could not prove possession of the key; a
+  caller that can prove it takes the retirement path, so the successor is never deleted under a holder of its key
+  who has proof. A journaled executor that was merely slow sees `recovered` with `outcome: "aborted"`, discards its
+  journal and starts again; it had not adopted anything.
+- *It cannot orphan a profile.* The household is released only after every declared member is `aborted` or
+  `retired`, and only declared members are touched; the rollback releases the whole declared set in one commit.
+- *It cannot strand the household.* Old libraries are retired only by a caller that proved the successor key, or
+  by the original owner, whose journal holds it. Without proof the only outcomes are a full rollback or a refusal
+  that leaves the old libraries readable.
+
+Retiring is required for a reset to be complete: leaving old keys usable is not a reset (§9). A reset left
+partially retired with no key holder reachable stays locked, fails closed and keeps the old libraries readable.
 
 #### Crash boundaries
 
@@ -1548,7 +1580,8 @@ required: leaving old keys usable is not a reset (§9).
 | after it | household `committed` | lookup shows `committed`; retire members, household last |
 | between retirements | each retirement is one commit | repeat the `DELETE`s; household last |
 | between aborts | each release is one commit | repeat; household last |
-| takeover | owner replaced in one commit | `R` finishes by `recovers.phase`; `R2` may take over |
+| takeover | owner replaced in one commit | `R` finishes by `recovers.phase` and proof; `R2` may take over |
+| proofless takeover of a committed, unretired reset | the whole rollback in one commit | `R` is `completed`/`aborted`; nothing remains locked |
 
 No intermediate state exposes a library retired with its lock held, a lock released without its terminal result, a
 retirement before the commit, or a household retirement before every member.

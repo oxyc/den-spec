@@ -31,7 +31,8 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
   in-place household rewrite, an atomic verified-backup recovery handoff, explicit fenced/idempotent backup restore
   and safe legacy stale-candidate retirement. Its multi-profile reset contract (§9.1) reuses that lock per library
   (household and every live profile) with atomic retire-and-release, an explicit successor commit, owner-only abort
-  before it and a journal-less Owner-PIN recovery that never rolls back after it.
+  before it (deleting the unreferenced successor copies) and a journal-less Owner-PIN recovery that finishes
+  retirement only with proof of the successor key and otherwise rolls back only while nothing is retired.
   It defines per-household `off`/`prepare`/`runtime` capability and wire-5 gating plus the migration state machines,
   without activating the split, deploying anything or changing an existing library's minimum.
 - [`schemas/profiles-v1.schema.json`](schemas/profiles-v1.schema.json) and

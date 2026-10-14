@@ -552,6 +552,26 @@ class ProfilesVectorsTests(unittest.TestCase):
             self.assertEqual(self.reset_lock(case["scenario"], case["request"])["error"],
                              "migration_in_progress")
 
+    def test_reset_lock_recovery_after_the_commit_needs_proof_or_rolls_back_untouched(self):
+        def run(name):
+            case = self.reset_lock_request(name)
+            return self.reset_lock(case["scenario"], case["request"], case.get("mutations", ()))
+        self.assertEqual(run("recovery with proof of the successor key")["effect"], "takeover")
+        rollback = run("recovery without proof after the commit")
+        self.assertEqual(rollback["effect"], "rollback")
+        self.assertIn("successors-deleted", rollback["sideEffects"])
+        for name in ("recovery without proof once any library", "recovery without proof once every member",
+                     "recovery with a wrong proof is refused after", "recovery with a wrong proof is refused before"):
+            refused = run(name)
+            self.assertEqual((refused["status"], refused["error"], refused["sideEffects"]),
+                             (409, "migration_in_progress", []))
+
+    def test_reset_lock_abort_deletes_the_declared_successor(self):
+        for name in ("the owner aborts a profile lock", "the household is aborted last"):
+            case = self.reset_lock_request(name)
+            actual = self.reset_lock(case["scenario"], case["request"])
+            self.assertIn("successor-deleted", actual["sideEffects"])
+
 
 if __name__ == "__main__":
     unittest.main()
