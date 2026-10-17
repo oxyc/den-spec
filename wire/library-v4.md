@@ -812,11 +812,12 @@ Each value is stamped and tagged as v2 §3 says:
 | Value | Tag | Meaning | Written by |
 |---|---|---|---|
 | `release` | `string`: JCS of `{identity, label, url, sizeBytes?, cached?}` | the release being fetched. `identity` is the info-hash, else the lowercased release file name, else the URL. `url` is the writer's play ticket (below) | the starter; the holder on a fallback |
-| `title` | `string`: JCS of `{mediaType, mediaId, imdbId?, season?, episode?, title, posterPath?, stillPath?, originalLanguage?, preferredLanguage?}` | what to show, the IMDb id den-scout lists the content under, and the languages the dub rule ranks against | the starter; any client filling in a title or poster that was empty |
+| `title` | `string`: JCS of `{mediaType, mediaId, imdbId?, season?, episode?, title, posterPath?, stillPath?, originalLanguage?, preferredLanguage?, airDate?}` | what to show, the IMDb id den-scout lists the content under, the languages the dub rule ranks against, and when the content airs (ms), for an episode asked for before it is out | the starter; any client filling in a title or poster that was empty |
 | `queuedAt` | `int` (ms) | when the add was made: the start grace, the stall clock and every lifetime count from it | the starter; the holder on a fallback or a resume |
 | `tried` | `strings` | identities given up on for this content, oldest first | the holder |
 | `candidates` | `int` | how many releases the last resolve offered (not a dead swarm) | the starter, the holder |
-| `exhausted` | `bool` | no working release is left | the holder |
+| `exhausted` | `bool` | no working release is left, or none was found yet: the content is searched for again (`download_retry`) | the starter (a wanted row, below), the holder |
+| `retries` | `int` | how many fresh searches ran since the row was started; the next waits longer | the holder |
 | `announced` | `bool` | "ready" was announced | the holder |
 | `reported` | `bool` | den-scout has described the download at least once | the holder |
 | `reannounced` | `bool` | the current release had its one reannounce | the holder |
@@ -828,8 +829,17 @@ Each value is stamped and tagged as v2 §3 says:
   every setting; then every value stamped **earlier than `removed`** is dropped. A removal therefore ends the row
   in every merge order, and a later start — a fresh stamp on every value — lives after it. `removed` is never
   cleared.
-- A row is **live** while it holds `queuedAt` and `release`. A row holding only `removed` is a tombstone and is kept:
-  a client that read the row before it was removed would otherwise write the download back.
+- A row is **live** while it holds `queuedAt` and either `release` or `exhausted`. A row holding only `removed` is a
+  tombstone and is kept: a client that read the row before it was removed would otherwise write the download back.
+- A **wanted** row is live with `exhausted` and no `release`: content asked for (an episode of a season download)
+  that had nothing to fetch yet — no release listed, every one a dead swarm, its source unreachable, or not aired.
+  The starter writes `title` (with `airDate` when it knows one), `queuedAt` and `exhausted` in one write. It is
+  searched for again like any exhausted row, and the holder's first pick writes its `release`.
+- **Searching again**: an exhausted row is never given up on. When `download_retry` says it is `due`, the holder
+  resolves the content again and picks as `download_next` would (with every release tried and none fresh, the
+  tried list starts over), and writes `retries` as `attempt + 1` with the pick — or, with nothing to pick from a
+  complete answer, with a fresh `exhausted`. An answer that is not complete (a source unreachable or partial)
+  writes nothing and is asked again on the next pass.
 - **Starting** writes, in one write, `release`, `title`, `queuedAt` and `candidates` (and `resumeAt` when the add
   was held back), all with fresh stamps. Starting a content whose row is live with the same `identity`, and not
   `exhausted`, writes only a fresh `queuedAt` and makes the add again (den-scout de-duplicates it); with another
@@ -868,7 +878,7 @@ no device). It is its own row, so it never contends with a tracker's lease.
   so after 2–10 minutes away it waits out the rest of the 10 before moving any download on, and after longer it takes
   again at once. A relaunch always waits the full 10. That is a pause in fallbacks and prunes, never a stuck queue.
 
-**Only the holder** writes `tried`, `exhausted`, `announced`, `reported`, `reannounced` and `progress`, a fallback's
+**Only the holder** writes `tried`, `exhausted` (but a wanted row's first), `retries`, `announced`, `reported`, `reannounced` and `progress`, a fallback's
 `release`, `queuedAt` and `candidates`, a resumed add's `queuedAt`, `progress` and `resumeAt`, a prune's tombstones
 and a renewed `url`. It checks the lease immediately before each such write and writes it by compare-and-set on the
 seq of the row **as read when it decided** (never a seq read afterwards); a conflicted write is **discarded** and
@@ -890,8 +900,9 @@ so a relaunch doesn't announce it again.
 | Op | Input | Answer |
 |---|---|---|
 | `download_merge` | `a`, `b`: two versions of one row | the merged row (above) |
-| `download_status` | `row`, `answer` (absent before any), `clock?`, `now` | `{state, clock, stalled, reannounce, write_progress, report, announce}`, with `service` (refused), `until` (paused) or `renew` (a lapsed ticket; `state` null) |
+| `download_status` | `row`, `answer` (absent before any), `clock?`, `now` | `{state, clock, stalled, reannounce, write_progress, report, announce}`, with `service` (refused), `until` (paused; and for an exhausted row, its next search) or `renew` (a lapsed ticket; `state` null) |
 | `download_next` | `row`, `releases`, `resolution`, `complete` | `{decision: next \| exhausted \| undecided, index?, candidates?, tried}` |
+| `download_retry` | `row` (exhausted), `now` | `{due, at, attempt}`: whether the row searches again now, when (ms), and which search it is |
 | `download_prune` | `rows`, `states` (each row's last state, by name), `watched` (each row's own episode or film watched, by name), `now` | `{remove: [row name…]}` |
 | `download_cancel_safe` | `row`, `rows` (every download row) | `true` when the row's release may be cancelled |
 | `rank_releases` | `releases`, `original?`, `preferred?`, `tried?` | `{order, best, pick}`, indices into `releases` |
@@ -902,7 +913,8 @@ so a relaunch doesn't announce it again.
 (`until`, ms), `ticket_expired` or `unknown` (no answer).
 
 **`download_status`**: `state` is one of `starting`, `fetching`, `not_started`, `refused`, `paused`, `unreachable`,
-`ready` and `no_working_release` (`exhausted`). Silence (`dead`, `not_queued`, `unknown`) within **3 minutes** of
+`ready`, `no_working_release` (`exhausted`) and `awaiting_air` (`exhausted`, with `title.airDate` after `now`). An
+exhausted row's `until` is `download_retry`'s `at`. Silence (`dead`, `not_queued`, `unknown`) within **3 minutes** of
 `queuedAt` is `starting`. The stall clock starts at the **later** of `progress.progressAt` and `queuedAt` (so a
 release asked for again — a re-press, a resumed add — is not stalled by progress older than the new add), or at the
 caller's own clock when that is later. It moves only on a `preparing` answer whose progress rose or whose rate is
@@ -916,6 +928,12 @@ reports the fetch `failed`. `reannounce` is true once, at half that, while the s
 `tried`, as `rank_releases`' `pick` does with the row's `originalLanguage` and `preferredLanguage`; with none left it
 is `exhausted`, or `undecided` when `complete` is false (a source didn't answer). `none` (no sources at all) is
 `exhausted`; `undecided` (unreachable) decides nothing.
+
+**`download_retry`** answers for an exhausted row only (`not_exhausted` otherwise). The wait is 15 minutes × 2^`retries`,
+capped at 6 hours, then scaled to 80–120 %: by `(FNV-1a-64 of "<row name>:<retries>") mod 41`, plus 80, in percent
+of the wait divided by 100 (integer arithmetic), so the episodes of a season that ran out together search apart. It
+counts from the wall time of the stamp `exhausted` was last written with (`queuedAt` without one), and `at` is never
+before `title.airDate`. `due` is `now >= at`.
 
 **`download_prune`** never expires an unfinished row. A request that has no working release is still a user's
 request, not a cache entry, and stays available for later source retries until the user removes it or it succeeds.
