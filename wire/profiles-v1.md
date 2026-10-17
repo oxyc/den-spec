@@ -101,6 +101,49 @@ The household key seals the directory, including all profile keys. Profiles are 
 not protection from a hostile device that holds the household key. Selectively wrapped private profiles are out of
 scope.
 
+### 1.2 Library source and the exclusive-operation lock
+
+Two primitives outlive any one operation that uses them: the §9.1 key reset, the §8 initial split, and the
+construction of a household's first directory (§6.2) all rest on them. They belong to the persistent topology, not to
+the split.
+
+**Source counter.** den-edge keeps, for every library, a durable monotone safe-integer counter in the
+**profile-migration fence namespace** (the name is historical and stays on the wire and on disk). Reading it does not
+advance it; every visible mutation of that library (an applied ordinary batch, a rewrite, a restore) advances it
+atomically. It is never restored backwards or reused: a restore advances from the provider-retained high-water mark,
+and the vanishingly unlikely safe-integer exhaustion refuses mutation rather than wrapping. It is not the public
+`x-den-generation` sync header, is not parsed from that header and need not change when that header changes.
+
+**Snapshot digests.** Every digest here is lowercase hexadecimal SHA-256 of RFC 8785 JCS bytes. Integers are
+nonnegative JSON safe integers. A snapshot row is exactly `{k, seq, v}`; rows are sorted by the raw UTF-8 bytes of `k`
+before canonicalization. Duplicate row keys are invalid, and sequences are distinct and positive. No implementation may
+substitute a platform's ordinary sorted-key JSON mode unless it is proved byte-identical to RFC 8785 for the complete
+accepted input domain.
+
+- The **source** digest hashes `{libraryId, generation, base, wireMin, rows}`: the library's own id, its source
+  counter, its sequence head, its stored minimum and every row through `base`. It is the authenticated `head` of a
+  source observation `{generation, head}`. It includes the source counter, not the opaque public sync generation.
+- The **profile-library head** hashes `{libraryId, base, wireMin, rows}` for an ordinary library-v4 profile library,
+  read back through its observed head. It excludes both the source counter and the library's public sync generation.
+  It is the directory's `migration.ownerHead` (§3) for the Owner library a first directory names.
+
+The two are domain-separated by their distinct exact shapes. `profiles_snapshot_digest(kind, input)` is the den-core
+boundary, with `kind` exactly `source` or `owner` (the profile-library head); any other kind is
+`invalid_migration_digest_kind`. `profiles_migration_digest` answers those two kinds identically, and is the only
+operation for §8.1's split-only `backup` and `staged` kinds. `migrationDigestCases` in `vectors/profiles-v1.json`
+pin the answers, which both operations give. Neither performs I/O.
+
+**Exclusive-operation lock.** A library carries at most one durable exclusive-operation lock, of any purpose (the §9.1
+key reset, or §8's `split` and `restore`). It is acquired only at an exact `{generation, head}` the caller observed,
+and only while no other lock is held; the one way a held lock changes hands is an atomic handoff or takeover its
+operation defines (§8.1's recovery handoff, §9.1's journal-less recovery). Repeating the acquiring request is a
+lookup that returns the stored answer; anyone else is refused with exactly `409 {"error":"migration_in_progress"}` and no attempt, purpose, fence, source or
+timing metadata, before any comparison with the current source. While it is held, every ordinary mutation of the
+library is refused before ordinary generation and rewrite handling with that same `409` and no effect; reads continue.
+The lock and its record survive client and den-edge restart and never expire on an idle timer or a disconnect. Its
+release is atomic with the terminal effect that ends it. A source that moved is `409
+{"error":"migration_source_changed"}` with no side effect. These error codes keep their deployed names.
+
 ## 2. What each store may hold
 
 The **household library** is configuration only. A profile-aware client MUST NOT derive or write title activity,
@@ -191,10 +234,12 @@ The directory is one document named `profiles`. Its row key is
   identifies the exact den-edge rewrite generation and head that the backup and copy came from. `backup.id` is the
   durable provider handle and `backup.digest` authenticates the verified backup artifact. `ownerProfile` MUST equal
   `owner`, and `ownerHead` is the verified activity-snapshot digest of that entry's destination library before
-  commit, as defined in §8.1. It is deliberately not den-edge's opaque public sync generation and cannot reuse the
+  commit: §1.2's profile-library head. It is deliberately not den-edge's opaque public sync generation and cannot reuse the
   household source head, whose input contains a provider-only migration generation. All digests and heads are 32
   bytes in lowercase hexadecimal. These values are immutable evidence, not a progress register;
-  pre-commit progress lives only in the local journal in §8.
+  pre-commit progress lives only in the local journal in §8. `migration` is persistent directory provenance, not
+  split machinery: stored validation (§3.1) requires it of every stored directory, whatever constructed it (§6.2),
+  and it stays when §8's split transport retires.
 
 The schema permits extension fields so a newer client can add display or lifecycle facts. A writer keeps unknown
 fields byte-for-byte in the logical document unless den-core tells it how to merge them. A client that does not know
@@ -571,8 +616,9 @@ document through the existing den-core lifecycle/validation operations.
 
 ### 6.2 Initial Owner-directory construction
 
-`profiles_migration_construct_directory(input)` is the only canonical constructor for the first stored directory.
-It is pure and accepts no clock, randomness, ciphertext, storage handle or network authority beyond the explicit
+`profiles_construct_directory(input)` is the only canonical constructor for the first stored directory, whether a §8
+split or a household's first profile-aware setup supplies its verified values. `profiles_migration_construct_directory`
+is the same operation under its earlier name and answers identically. It is pure and accepts no clock, randomness, ciphertext, storage handle or network authority beyond the explicit
 verified values below:
 
 ```json
@@ -621,7 +667,7 @@ document.
 The constructor then validates its result as a **stored** directory, including mandatory migration evidence. A
 malformed id, display, policy, stamp, canonical 32-byte key, attempt, source generation/head, backup id/digest or
 Owner head is an error; it never returns a partially valid document or caller-selected bytes. The caller seals the
-returned `plaintext` and passes it to §8's atomic commit. Constructing it does not activate profiles or raise a
+returned `plaintext` and passes it to the commit that publishes it (§8's atomic commit for a split). Constructing it does not activate profiles or raise a
 wire minimum.
 
 ### 6.3 Seeding a profile's preferences from an older household
@@ -668,6 +714,15 @@ expiry.
   reset, and profile-specific caches are cleared before another mode becomes active. Household services stay open.
 
 ## 8. Initial split: explicit, backed up and fenced
+
+**Retiring.** The split is one-time machinery for a household that predates profiles
+([den#294](https://github.com/oxyc/den/issues/294)). What retires with it: the split planner
+(`profiles_migration_next`), its authorization (`profiles_migration_authorization`), the backup and restore, the
+staged household commit, and the stale-candidate retirement transport of §8.1 (`/lib/{household}/profile-migration…`).
+What stays, because profile-aware households keep needing it: §1.2's source counter, snapshot digests and
+exclusive-operation lock; §6.2's first-directory constructor; the directory's stored `migration` provenance (§3);
+and §8.2's adoption and household write rule, which every client applies to a cache that predates its household's
+topology.
 
 The split starts only when Owner explicitly chooses **Enable Profiles** and supplies a fresh valid owner PIN. That
 single action authorizes preparation, verification and the final household commit for exactly one attempt. It does
@@ -855,30 +910,23 @@ any household in `prepare` or authorize activation.
 
 #### Canonical migration digests
 
-Every digest in this section is lowercase hexadecimal SHA-256 of RFC 8785 JCS bytes. Integers are nonnegative JSON
-safe integers. A snapshot row is exactly `{k, seq, v}`; a staged row is exactly `{k, v}`. Before canonicalization,
-rows are sorted by the raw UTF-8 bytes of `k`. Duplicate row keys are invalid; snapshot rows also require distinct,
-positive `seq` values. No implementation may substitute a platform's ordinary sorted-key JSON mode unless it is
-proved byte-identical to RFC 8785 for the complete accepted input domain. The
+The canonicalization rules are §1.2's; a staged row is exactly `{k, v}`, sorted the same way. The
 `profiles_migration_digest(kind, input)` den-core operation is the cross-client canonical boundary and is pinned by
 `vectors/profiles-v1.json`:
 
-- `kind: "source"` hashes JCS of
-  `{libraryId, generation, base, wireMin, rows}`. This is the authenticated `head` in an opened household source
-  fence. It includes the profile-migration generation, not the opaque public sync generation.
+- `kind: "source"` is §1.2's source digest. This is the authenticated `head` in an opened household source
+  fence.
 - `kind: "backup"` hashes JCS of the complete immutable manifest
   `{id, householdId, attempt, source, wireMin, authorization, rows}`. `source` is the complete four-field storage
   fence `{generation, base, head, rewrite}`; `authorization` is the provider's non-secret
   `{tokenHash, memberHash}` representation, with `memberHash: null` when no member exists.
 - `kind: "staged"` hashes JCS of the sorted array of complete staged `{k, v}` rows. There is no wrapper object and
   sequences are absent because the in-place rewrite assigns them atomically.
-- `kind: "owner"` hashes JCS of `{libraryId, base, wireMin, rows}` for the verified ordinary library-v4 Owner
-  destination. This value is the directory's `migration.ownerHead` and the planner's `candidateHead`. It excludes
-  both the household migration generation and the destination's opaque public sync generation, neither of which is
-  part of an ordinary profile snapshot. `base` and every `{k, seq, v}` are read back from that destination through
-  its observed head; `wireMin` is 4 for the initial Owner library.
+- `kind: "owner"` is §1.2's profile-library head of the verified ordinary library-v4 Owner destination. This value
+  is the directory's `migration.ownerHead` and the planner's `candidateHead`; `wireMin` is 4 for the initial Owner
+  library.
 
-The four kinds are domain-separated by their distinct exact JSON shapes. Extra or missing members, a malformed id,
+`source` and `owner` are also answered by §1.2's `profiles_snapshot_digest`. The four kinds are domain-separated by their distinct exact JSON shapes. Extra or missing members, a malformed id,
 digest, fence or row, values outside the safe-integer range, an unsatisfied `base`/sequence snapshot, or a digest
 request of another kind is an error. The operation computes evidence only; it performs no I/O and does not authorize
 or activate a migration. Wire 5 remains library-v4 row encoding plus the profile topology, not a new row format.
@@ -894,8 +942,8 @@ Before asking for the Owner PIN, a client reads the exact source it proposes to 
 
 This route uses the same household authentication and exact `x-den-wire: 5` requirement as every other migration
 route. It is read-only: it MUST NOT create an attempt, freeze a snapshot, allocate a rewrite handle, create a backup
-or staging area, or advance any counter. `generation` is the current profile-migration generation described below;
-`head` is the authenticated source digest described above. The observation deliberately excludes the public sync
+or staging area, or advance any counter. `generation` is the household's §1.2 source counter; `head` is its §1.2
+source digest. The observation deliberately excludes the public sync
 generation, `base` and a rewrite handle. The client binds this exact `{generation,head}` into the fresh Owner-PIN
 authorization for its newly generated attempt id.
 
@@ -914,7 +962,8 @@ authorization. A split requires another explicit Enable Profiles action plus a f
 source observation; a restore requires another explicit Restore action plus its own fresh Owner PIN and source
 observation. Recovery may not broaden or refresh either old authorization.
 
-There is at most one active exclusive lock on a household, of any purpose: `split`, `restore` or the §9.1 key reset.
+The split's lock is §1.2's exclusive-operation lock: at most one active lock on a household, of any purpose:
+`split`, `restore` or the §9.1 key reset.
 A different split attempt, a second restore attempt, any open while a §9.1 key-reset lock is active, or a restore
 faced with corrupt legacy state lacking the invariant bound backup returns exactly
 `409 {"error":"migration_in_progress"}` with no active attempt id, purpose, fence, source, backup, staging or
@@ -959,8 +1008,8 @@ current-source comparison and has no side effect. A successful new-open answer i
 }
 ```
 
-`wireMin` is the minimum observed in the same locked read as `fence`. `generation` is a durable monotone
-safe-integer counter per household in the **profile-migration fence namespace**.
+`wireMin` is the minimum observed in the same locked read as `fence`. `generation` is the household's §1.2 source
+counter, a durable monotone safe-integer counter in the **profile-migration fence namespace**.
 Opening an attempt reads the current value; it does not allocate a random value or advance it. Every visible
 household mutation (an applied ordinary batch, migration rewrite or restore) advances it atomically. Outside an
 active migration lock, later writes therefore invalidate an earlier source observation. While the lock is active,
@@ -1299,8 +1348,8 @@ old profile key usable is not a reset.
 A compound reset is not conforming if it is assembled from ordinary reads, ordinary writes and an ordinary `DELETE`
 (library-v4 §12): a device could write an old library after it was copied and then lose the write to retirement, two
 resets could mint different successors for one household, and a migration could replace the household under a
-reset. The reset therefore holds the **same per-library durable exclusive-operation lock** as §8.1, with
-`purpose: "key-reset"`, on the household and on every live persistent profile library. The store primitive is the
+reset. The reset therefore holds §1.2's **per-library durable exclusive-operation lock** (the one §8.1's split also
+takes), with `purpose: "key-reset"`, on the household and on every live persistent profile library. The store primitive is the
 generic one (compare-and-set at an exact source, same-attempt replay, metadata-free refusal of everyone else,
 atomic release with the terminal effect, atomic handoff) and needs no knowledge of profiles beyond the lock record
 below.
@@ -1308,8 +1357,9 @@ below.
 This section names the required operations. The routes are the interoperable HTTP surface; an in-process store may
 expose equivalent calls but MUST return the same evidence and errors. Every request is authenticated as the library
 it names (`x-den-library-token`) and carries exactly the `x-den-wire` that library requires: 5 for the household, 4
-for a profile library (§1). The surface is unavailable for an `off` household and follows the §8.1 capability and
-wire gate. Defining it activates nothing.
+for a profile library (§1). The surface is unavailable for an `off` household and follows the §1.1 capability and
+wire gate. It does not depend on the split's §8.1 surface, which may be disabled or removed while this one stays.
+Defining it activates nothing.
 
 | Route | Result |
 |---|---|
@@ -1360,12 +1410,12 @@ is accepted under a lock that is not in force.
 
 #### Source observation and the lock set
 
-`GET /lib/{library}/exclusive-operation/source` is §8.1's observation for any library: `generation` is the library's
-durable profile-migration fence counter and `head` is the `source` digest (*Canonical migration digests*) computed
-with that library's own id and stored `wireMin` (4 for a profile library). den-edge MUST keep the counter for every
-library, not only households, advancing it atomically on each visible mutation exactly as §8.1 describes. The
-household observation is the planner's `fence`. A client authenticates each observation as §8.1 does (open every
-known row, check every binding, preserve unknown rows, recompute the digest) before it acquires at it.
+`GET /lib/{library}/exclusive-operation/source` is §1.2's source observation for any library: `generation` is the
+library's source counter and `head` is the source digest computed with that library's own id and stored `wireMin` (4
+for a profile library). den-edge MUST keep the counter for every library, not only households, advancing it
+atomically on each visible mutation as §1.2 describes. The household observation is the planner's `fence`. A client
+authenticates each observation before it acquires at it: it opens every known row, checks every AEAD and
+logical-name binding, preserves every unknown row and recomputes the digest.
 
 The lock set is the household plus one lock for every live directory profile, no more and no fewer. A client
 acquires in a deterministic order: the **household first**, then the profile libraries in ascending order of library
