@@ -823,6 +823,7 @@ Each value is stamped and tagged as v2 §3 says:
 | `reannounced` | `bool` | the current release had its one reannounce | the holder |
 | `resumeAt` | `int` (ms), or `null` | a held-back add is made again at this time | the starter, the holder |
 | `progress` | `string`: JCS of `{lastProgress, progressAt}` | the stall clock | the holder, coarsely (below) |
+| `race` | `string`: JCS of `{stage, stageAt, startedAt, cappedAt?, entries: [{identity, label, url, sizeBytes?, cached?, queuedAt}]}` | the alternates fetched beside `release` (§17 *Racing*), the race's stage and when it began, when the download was first asked for, and when the debrid last refused an add. Absent reads as stage 0 from `queuedAt`, no entries, and the holder's first write of it keeps that `queuedAt` as `startedAt` | the holder |
 | `removed` | `bool` `true` | a tombstone: the download was cancelled, removed or pruned | anyone |
 
 - **Merge** (den-core `download_merge`, and `merge` of any `set:download:*` row): each value by the later stamp, as
@@ -878,7 +879,7 @@ no device). It is its own row, so it never contends with a tracker's lease.
   so after 2–10 minutes away it waits out the rest of the 10 before moving any download on, and after longer it takes
   again at once. A relaunch always waits the full 10. That is a pause in fallbacks and prunes, never a stuck queue.
 
-**Only the holder** writes `tried`, `exhausted` (but a wanted row's first), `retries`, `announced`, `reported`, `reannounced` and `progress`, a fallback's
+**Only the holder** writes `tried`, `exhausted` (but a wanted row's first), `retries`, `announced`, `reported`, `reannounced`, `progress` and `race`, a take's or a fallback's
 `release`, `queuedAt` and `candidates`, a resumed add's `queuedAt`, `progress` and `resumeAt`, a prune's tombstones
 and a renewed `url`. It checks the lease immediately before each such write and writes it by compare-and-set on the
 seq of the row **as read when it decided** (never a seq read afterwards); a conflicted write is **discarded** and
@@ -904,7 +905,8 @@ so a relaunch doesn't announce it again.
 | `download_next` | `row`, `releases`, `resolution`, `complete` | `{decision: next \| exhausted \| undecided, index?, candidates?, tried}` |
 | `download_retry` | `row` (exhausted), `now` | `{due, at, attempt}`: whether the row searches again now, when (ms), and which search it is |
 | `download_prune` | `rows`, `states` (each row's last state, by name), `watched` (each row's own episode or film watched, by name), `now` | `{remove: [row name…]}` |
-| `download_cancel_safe` | `row`, `rows` (every download row) | `true` when the row's release may be cancelled |
+| `download_cancel_safe` | `row`, `rows` (every download row), `identity?` (one of the row's `race` entries) | `true` when the row's release (or that entry) may be cancelled: no other live, non-exhausted row names it as its `release` or races it |
+| `download_escalate` | `releases`, `original?`, `preferred?`, `tried?`, `in_flight`, `stage`, `stage_at`, `started_at`, `capped_at?`, `now` | `{decision, take?, reason?, add, cancel, stage, stage_at, capped}` (§17 *Racing*) |
 | `rank_releases` | `releases`, `original?`, `preferred?`, `tried?` | `{order, best, pick}`, indices into `releases` |
 
 **An answer** is what den-scout said to a probe, as the client read it: `{"kind": "ready"}`, `{"kind":
@@ -956,20 +958,68 @@ of the median of the sizes reported, when at least three are. `order` sorts by t
 tier's best picture (`resolution` × 4, + 2 for Dolby Vision, + 1 for HDR or Dolby Vision), the first of equals.
 `order` and `best` are what Play uses, and readiness weighs most there: a cached release plays now.
 
-`pick`, the release a download starts with, is ranked for keeping instead: picture quality comes before readiness,
-and 1080p is always enough. It leaves out `tried`, then takes the lowest **download tier**, compared member by
-member:
+### Choosing a download
 
-1. a dead swarm;
-2. a proven dub;
-3. a runt (the median is over the releases left after `tried`);
-4. a **legacy** release: a software-decode codec as above, or a `filename` or `identity` that ends `.avi` or names
-   `xvid` or `divx` as a word (an AVI is MPEG-4 Part 2 in practice, and den-scout reads no codec from such a name);
-5. 3D;
-6. the **resolution band**: 1080p, then 720p, then 2160p, then anything else (480p, or none named). A 2160p is
-   taken only when no 1080p or 720p is listed, and SD only when nothing above it is;
-7. readiness: `cached` true before `cached` false or unreported.
+`pick`, the release a download starts with, aims at the soonest *watchable* file instead. With `tried` left out:
 
-Within one download tier the best picture wins, the first of equals. So a download takes an uncached 1080p over a
-cached SD AVI and over a cached 2160p, and takes the cached one of two 1080p releases. `download_next` picks the same
-way.
+- A release is **good** when it is 720p or better, not 3D, not a proven dub, not a runt (the median over the releases
+  left), and not **legacy**: a software-decode codec as above, or a `filename` or `identity` that ends `.avi` or names
+  `xvid` or `divx` as a word. An AVI is MPEG-4 Part 2 in practice, and den-scout reads no codec from such a name.
+- Its **expected time** to arrive, before it starts: 0 when `cached`; otherwise `sizeBytes` (else 16 GB for 2160p,
+  4 GB for 1080p, 1.5 GB for 720p, 0.7 GB for anything else) over `seeders` × 100 kB/s, at most 5 MB/s, integer
+  seconds. Unreported `seeders` count as 1; 0 never arrives.
+
+1. A good release the debrid holds (`cached` true) is taken: the best picture of them. A cached 1080p beats any
+   uncached 4K; of a cached 4K and a cached 1080p, the 4K.
+2. Otherwise the first of the **race order**: the live (not a dead swarm), not-cached releases, only the good ones
+   while any is good. Those expected within 3 hours come first, the best picture among them; the rest by expected
+   time, soonest first. A well-seeded 4K is therefore taken over a 1080p; a poorly seeded one is not.
+3. Otherwise a cached release that isn't good: hardware-decoded before legacy, then the best picture.
+4. Otherwise the best picture left.
+
+`download_next` picks the same way.
+
+### Racing
+
+A download that isn't arriving races alternates beside its `release`, and keeps whichever finishes first. The holder
+runs den-core's `download_escalate` on each pass for every live, non-exhausted row, and writes what it says. The op
+takes no row, so a client without the library (den-hearth) calls it with the same inputs:
+
+- `releases` (a fresh resolve), `original?`, `preferred?`, `tried?`;
+- `in_flight`: every release added for the content — the row's `release` and each `race` entry — as
+  `{identity, since, answer?, stalled?}`. `since` is when it was added (ms), `answer` den-scout's latest word on it
+  (as `download_status` takes one), and `stalled` the holder's `download_status` verdict for the `release`;
+- the race's `stage`, `stage_at`, `started_at` and `capped_at?` (the `race` value, below), and `now`.
+
+It answers `{decision: take | add | wait | exhausted, take?, reason?, add, cancel, stage, stage_at, capped}`, in this
+order:
+
+1. A release in flight whose answer is `ready` is **taken** (`reason` `finished`; the best picture of several), and
+   every other in-flight release is in `cancel`.
+2. A good release the debrid now holds is taken the same way (`cached`).
+3. With nothing watchable **24 hours** after `started_at` — or nothing in flight and nothing left to race — a cached
+   release that isn't good (an SD or AVI) is taken (`fallback`). Rebecka Martinsson S2 sitting a week with nothing
+   playable is what this exists for.
+4. Otherwise in-flight releases that failed (`dead`, or the debrid's fetch `failed`) are in `cancel`, and count as
+   tried. A release is **behind** when `stalled`, or when, at least **10 minutes** after `since`, the debrid projects
+   more than **12 hours** left (`etaSeconds`, else the remaining bytes over `bytesPerSecond`), or when it has been in
+   flight the stall time (20 minutes) with no progress and no rate.
+   - Stage 0 races one release. Once every live one is behind, stage 1: up to **1 + 2** live releases.
+   - **4 hours** into stage 1 with nothing finished, or with nothing alive, stage 2: every live release.
+   - `add` is the race order's best not yet in flight, up to the stage's width — none while `capped_at` is within
+     **15 minutes**. With nothing in flight and nothing to add the answer is `exhausted`; otherwise `add`, or `wait`.
+
+The holder adds each of `add` in order, as a prefetch (den-scout's `?prefetch=1`), and stops at the first refusal
+(`service_unavailable`): that is the debrid's active-download limit, a cap and not a failure, and it writes
+`capped_at` = `now`. It cancels each of `cancel` at the debrid only where `download_cancel_safe` (with that `identity`)
+allows; the row drops it either way. On `take` the taken release becomes the row's `release` (with a fresh `queuedAt`),
+`race` is cleared to `{stage: 0, stageAt: now, startedAt, entries: []}`, and the rest are cancelled the same way.
+
+The constants are den-core's, named in `crates/den-sync/src/downloads.rs`: `FINISH_SOON` (3 h), `SLOW_ETA` (12 h),
+`JUDGE_AFTER` (10 min), `RACE_WIDEN` (2), `RACE_ALL_AFTER` (4 h), `FALLBACK_AFTER` (24 h), `CAP_RETRY` (15 min),
+`PER_SEEDER_RATE` (100 kB/s) and `MAX_FETCH_RATE` (5 MB/s).
+
+Why one `race` value and not a row per alternate: a take changes the `release` and every alternate at once, which a
+single compare-and-set write of one row does and several rows cannot, and a sibling row would need its own prune,
+tombstone and display rules. Only the lease holder writes `race`, by compare-and-set like every holder value, so the
+ordinary per-value merge (the later stamp) stays commutative, associative and idempotent.
