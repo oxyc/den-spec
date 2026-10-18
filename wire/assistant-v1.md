@@ -622,6 +622,12 @@ part_i    = base64url(nonce_i ‖ AES-256-GCM(read key, nonce_i, aad_i, chunk_i)
 - The TV publishes whenever it runs; Den Web while it is open. Each builds with `assistant_projection` from the
   documents it holds read to the log's head, the layouts it knows, the `set:prefs` row (`prefs`), its revoked set (§6)
   and fresh random bytes.
+- **A household split into profiles** (profiles-v1): the read and grants rows stay whole household rows (profiles-v1
+  §6.1), while the lists are Owner's, which assistant activity targets (profiles-v1 §4). A device builds with the
+  household's library id, `read`, `grants` and revoked set, and with Owner's activity log for `documents`, `head` and
+  `prefs`; it publishes as a member of the household, the library the connection was made for. Owner's log holds no
+  read records, so a device that builds from it alone publishes nothing; the household's holds no documents, so one
+  that builds from it alone publishes empty lists. A change to either log is a change of the inputs.
 - **When**: when `digest` (the SHA-256 of the lists and `hide`, not of `at` or `head`) differs from the one it last published
   for that grant, debounced **30 s**; and as a heartbeat every **15 minutes** while running, so `at` stays fresh.
   Two devices publishing replace each other; both publish the same lists once both have read the same log.
