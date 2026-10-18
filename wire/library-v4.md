@@ -946,12 +946,30 @@ tombstone, not this op's. Past 100 live rows the oldest go too, ready or not. Th
 
 **`rank_releases`** is the one release ranking both clients use. A release is den-scout's stream `attributes`
 (`resolution`, `codec`, `dolbyVision`, `hdr`, `threeD`, `sizeBytes`, `seeders`, `cached`, `probed`,
-`audioLanguages`, `untaggedAudioTracks`) with its `identity`. Its **tier**, lowest first, is the sum of: 32 for a
+`audioLanguages`, `untaggedAudioTracks`) with its `identity` and, when the client knows it, the release file's
+`filename`. Its **tier**, lowest first, is the sum of: 32 for a
 dead swarm, 16 for `cached` false, 8 for a proven dub, 4 for a runt, 2 for a codec the Apple TV only decodes in
 software (AV1, VP9, MPEG-4 Part 2, MPEG-2, VC-1, by any of their tags) and 1 for 3D. A **dub** is a probed release
 with no untagged audio track, at least one tagged one, and none in `preferred` or `original` (languages compared as
 canonical two-letter codes); with neither language given, nothing is a dub. A **runt** has a size below a quarter
 of the median of the sizes reported, when at least three are. `order` sorts by tier, stably. `best` is the lowest
 tier's best picture (`resolution` × 4, + 2 for Dolby Vision, + 1 for HDR or Dolby Vision), the first of equals.
-`pick`, the release a download starts with, leaves out `tried`, then takes `best` of the cached releases, or of all
-of them when none is cached; the runt median is over that set.
+`order` and `best` are what Play uses, and readiness weighs most there: a cached release plays now.
+
+`pick`, the release a download starts with, is ranked for keeping instead: picture quality comes before readiness,
+and 1080p is always enough. It leaves out `tried`, then takes the lowest **download tier**, compared member by
+member:
+
+1. a dead swarm;
+2. a proven dub;
+3. a runt (the median is over the releases left after `tried`);
+4. a **legacy** release: a software-decode codec as above, or a `filename` or `identity` that ends `.avi` or names
+   `xvid` or `divx` as a word (an AVI is MPEG-4 Part 2 in practice, and den-scout reads no codec from such a name);
+5. 3D;
+6. the **resolution band**: 1080p, then 720p, then 2160p, then anything else (480p, or none named). A 2160p is
+   taken only when no 1080p or 720p is listed, and SD only when nothing above it is;
+7. readiness: `cached` true before `cached` false or unreported.
+
+Within one download tier the best picture wins, the first of equals. So a download takes an uncached 1080p over a
+cached SD AVI and over a cached 2160p, and takes the cached one of two 1080p releases. `download_next` picks the same
+way.
