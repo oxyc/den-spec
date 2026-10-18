@@ -1002,12 +1002,17 @@ order:
    playable is what this exists for.
 4. Otherwise in-flight releases that failed (`dead`, or the debrid's fetch `failed`) are in `cancel`, and count as
    tried. A release is **behind** when `stalled`, or when, at least **10 minutes** after `since`, the debrid projects
-   more than **12 hours** left (`etaSeconds`, else the remaining bytes over `bytesPerSecond`), or when it has been in
-   flight the stall time (20 minutes) with no progress and no rate.
+   more than **12 hours** left (`etaSeconds`, else the remaining bytes over `bytesPerSecond`). `stalled`, where given,
+   is the stall rule; a release given none (a race entry, which has no stall clock) is stalled once in flight the stall
+   time (20 minutes) with no progress and no rate.
    - Stage 0 races one release. Once every live one is behind, stage 1: up to **1 + 2** live releases.
    - **4 hours** into stage 1 with nothing finished, or with nothing alive, stage 2: every live release.
    - `add` is the race order's best not yet in flight, up to the stage's width — none while `capped_at` is within
      **15 minutes**. With nothing in flight and nothing to add the answer is `exhausted`; otherwise `add`, or `wait`.
+
+A holder need not resolve the title on every pass: until a race is under way (stage 0), it may call the op with the
+releases it last resolved, or none, and resolve only when that answer escalates or adds. A healthy download then costs
+den-scout no lists.
 
 The holder adds each of `add` in order, as a prefetch (den-scout's `?prefetch=1`), and stops at the first refusal
 (`service_unavailable`): that is the debrid's active-download limit, a cap and not a failure, and it writes
