@@ -555,8 +555,9 @@ A projection is the **whole** library's lists — no list is cut short, whatever
   touched last, the furthest finished episode and the furthest episode watched with no mark (an import), handed with
   the series' layout to `continue_entry`; a series whose answer is `none` is left out. `layouts` is the season layout
   the client knows, by TMDB id — `{"seasons": [{season, episodes}], "last_aired": {season, episode} | null}` — and a
-  series with none can still resume, but not move on to its next episode. Series by their latest mark (one known only
-  by an import last), then films `inProgress` and not dismissed since, latest first. `at` is the latest mark's time.
+  series with none can still resume, but not move on to its next episode. Films `inProgress` and not dismissed since
+  join the series in one order, latest first: a series at its latest mark, a film at its `resume`; a series known only
+  by an import has no time and comes last. `at` is that time.
 - **`seen`**: one entry per visible play of a film or an episode (`film_state_v4` / `episode_state_v4`'s `plays`), at
   its time; one entry with `at` null for something watched with no play to date it. Newest first, untimed last.
   Deleted titles are left out of every list.
