@@ -631,6 +631,19 @@ part_i    = base64url(nonce_i ‖ AES-256-GCM(read key, nonce_i, aad_i, chunk_i)
 - **When**: when `digest` (the SHA-256 of the lists and `hide`, not of `at` or `head`) differs from the one it last published
   for that grant, debounced **30 s**; and as a heartbeat every **15 minutes** while running, so `at` stays fresh.
   Two devices publishing replace each other; both publish the same lists once both have read the same log.
+- **One build per household.** Every device builds the same projection from the same log, and a build is the
+  costliest thing a phone's page does for an assistant. A device MAY name the **library state** it built from with
+  each `PUT` (`state`): a SHA-256, as 64 lowercase hex, that is the same on every device that has read the same log
+  and differs when the lists or `hide` may. Den Web's is the SHA-256 of
+  `[<library id>,[<each document, JCS, in code-unit order>],<JCS of [read, grants, prefs, revoked set]>]`, the read
+  and grants rows with each record's `expiresAt` left out, as its renewal changes nothing published; the read keys
+  in it keep den-edge from telling a library by it. Before building, such a device reads what den-edge holds for each
+  live grant (`GET /assistant/projection/{grant}`) and takes it as that grant's last publish, whichever device sent
+  it: one held for the state it has read, within the heartbeat, is not built again; a change is built once it has
+  stood 30 s and five minutes have passed since that publish; a grant den-edge holds none for is built and sent at
+  once. A device due to build first claims the build (`POST /assistant/projection/claim`) and builds only when it
+  is given it, reading what den-edge holds once more first; refused, it looks again at its next tick. A projection
+  stored with no `state` (a device that names none) is the current one for no device.
 - **What**: `PUT` every entry of `publish` (its `set` and `parts`, as they are); `DELETE` every grant in `delete` —
   read records revoked (in the record, in
   the grant with their id, or in the device's revoked set), expired, or malformed — once, and again whenever one
@@ -642,10 +655,12 @@ part_i    = base64url(nonce_i ‖ AES-256-GCM(read key, nonce_i, aad_i, chunk_i)
 
 Every answer is JSON; errors `{"error": "<code>"}` as §9.
 
-**`PUT /assistant/projection/{grant}`** — member. Body `{"set": "<32 hex>", "parts": ["<base64url>", …]}`, at most
-17 MiB. Replaces the grant's projection with the whole set, **atomically**: a reader gets the old set or the new one,
-never a mix. `204`.
+**`PUT /assistant/projection/{grant}`** — member. Body `{"set": "<32 hex>", "parts": ["<base64url>", …],
+"state"?: "<64 hex>"}`, at most 17 MiB. Replaces the grant's projection with the whole set, **atomically**: a reader
+gets the old set or the new one, never a mix, and keeps `state` with it (absent or `null`: none). It ends the
+member's library's build claim. `204`.
 - `400 invalid_set` when `set` is not 32 lowercase hex.
+- `400 invalid_state` when `state` is present and neither `null` nor 64 lowercase hex.
 - `400 invalid_sealed` when there are no parts or more than **64**, a part is not unpadded base64url, is over
   **262,144 characters** or decodes to 28 bytes or fewer, or the parts come to more than **16 MiB** of characters.
 - `404 unknown_grant` when no session with the read scope of the member's library names that grant (den-edge never
@@ -654,6 +669,14 @@ never a mix. `204`.
 
 **`DELETE /assistant/projection/{grant}`** — member, for a grant of the member's library. `204`, also when there was
 none.
+
+**`GET /assistant/projection/{grant}`** — member. `200 {"state": "<64 hex>" | null, "age": <ms>}`: the state the
+member's library's projection for that grant was stored with, and how long ago by den-edge's clock; none of its
+parts. `404 no_projection` when it holds none for that grant of the member's library.
+
+**`POST /assistant/projection/claim`** — member, no body. `204`: the member's library's next build is this device's.
+`409 claimed`, with `Retry-After`, while another claim of the library stands: until a projection of the library is
+stored, or **60 s**. Kept in memory only; it spares work and guards nothing.
 
 **`GET /assistant/projection`** — Bearer, with the `den:library.read` scope, the session standing (§9). `200
 {"library": "<id>", "grant": "<grant id>", "set": "<32 hex>", "parts": ["…", …], "storedAt": <ms>}` — one stored set,
