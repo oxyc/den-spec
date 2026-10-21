@@ -11,12 +11,15 @@ advice.
 
 ## 1. Roles and the code
 
-The **host** is a device already in the library, and shows the code; today that is a TV. The **joiner** is the device
-joining, and types or scans it.
+The **host** is a device already in the library and gives that library. The **joiner** is the device receiving it.
+Either role may show the code. In the original flow the host shows it and the joiner types or scans it. In the
+TV-initiated flow an unlinked TV (the joiner) shows it, and a phone holding the library (the host) scans or types it.
 
-The host asks den-edge for a **nameplate** (§2) and generates the **secret** itself: 8 characters, each chosen
-uniformly from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (no 0/O or 1/I), so 40 bits. The code is the nameplate
-followed by the secret, shown as `ABCD-EFGH-JKLM`, and as a QR of `<den-edge origin>/#pair=ABCDEFGHJKLM`, which opens Den Web.
+The device showing the code asks den-edge for a **nameplate** (§2) and generates the **secret** itself: 8 characters,
+each chosen uniformly from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (no 0/O or 1/I), so 40 bits. The code is the nameplate
+followed by the secret, shown as `ABCD-EFGH-JKLM`. A host-initiated QR uses
+`<den-edge origin>/#pair=ABCDEFGHJKLM`. A TV-initiated QR uses
+`<den-edge origin>/settings#tv=ABCDEFGHJKLM`, which opens the confirmation beside the phone's current library.
 A URL fragment is never sent to a server, so den-edge sees the nameplate and never the secret.
 
 A joiner reads a typed code by uppercasing it and dropping spaces and dashes. Anything that is then not 12
@@ -39,8 +42,8 @@ read or either side deletes it. Every slot is write-once.
 | `GET /pair/{sid}/{slot}` | | `{"m"}`; 202 `{"status":"pending"}`; 410 |
 | `DELETE /pair/{sid}` | | 200, idempotent |
 
-- The host generates `sid`: 16 random bytes, lowercase hex. den-edge answers with a nameplate of 4 characters
-  from the same alphabet, unique among live sessions.
+- The device showing the code generates `sid`: 16 random bytes, lowercase hex. den-edge answers with a nameplate of
+  4 characters from the same alphabet, unique among live sessions. The other device trades the nameplate for `sid`.
 - A nameplate opens once. A second `open` is refused, so the host sees a stranger's claim as a failed
   pairing rather than a quiet second device.
 - Slots, in order: `a` and `c` are the joiner's, `b` and `d` the host's (§4). den-edge doesn't check which side
@@ -101,11 +104,12 @@ In order:
 3. The joiner reads `b`, checks `Tb` in constant time, and only then writes `c`.
 4. The host reads `c` and checks `Ta`.
 5. The host MUST then ask its user, "Allow *joiner label*?". The label is authenticated: it is in `ADa`, so
-   den-edge can't rename the device. Only on yes does the host write `d`.
+   den-edge can't rename the device. Only on yes does the host write `d`. This remains true when the joiner is the
+   TV that showed the code: the scanned phone is the host and confirms the TV before giving it anything.
 
 A failed check, a declined prompt, a cancel or an expired session ends the pairing: that side MUST `DELETE` the
-session, and the host shows a new code. A joiner that finds its session gone says the pairing was declined or
-failed, not which.
+session, and the device showing it makes a new code. A joiner that finds its session gone says the pairing was
+declined or failed, not which.
 
 ## 6. Handover
 
@@ -117,11 +121,15 @@ The host seals one message to the joiner:
 - The plaintext is a UTF-8 JSON object:
 
 ```json
-{"v": 1, "host": "Living room", "hostDeviceId": "a1b2c3d4e5f60718", "linkKey": "<base64url, 32 bytes>", "libraryKey": "<base64url, 32 bytes>"}
+{"v": 1, "host": "Living room", "hostDeviceId": "a1b2c3d4e5f60718", "linkKey": "<base64url, 32 bytes>", "libraryKey": "<base64url, 32 bytes>", "grantTicket": "<optional guest-device ticket>"}
 ```
 
 - `libraryKey` is the library's key ([library-v2.md](library-v2.md) §1). A joiner MUST refuse a handover
   without it.
+- `grantTicket` is optional. A guest host includes the one-use, ten-minute den-edge device ticket for the exact
+  shared grant the person selected. It stays inside the encrypted handover; the receiving TV redeems it before
+  opening the library, so library access and the shared add-ons arrive together. A receiver MUST refuse a present
+  value unless it is the canonical `<8 lowercase hex>.<22 base64url>` ticket shape.
 - `hostDeviceId` is optional for compatibility with existing hosts. A host that supports the field MUST include
   its 16-character lowercase-hex stamp device id ([library-v2.md](library-v2.md) §4): the same `d` it puts in
   stamps and uses for its entries in `set:devices`. A joiner keeps it with the link, so that local link record can
