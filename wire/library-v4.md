@@ -23,19 +23,16 @@ Words: *MUST* is a rule a client breaks at the cost of other clients; *should* i
 | Rules on den-edge seqs | `seededThrough`, the `seedBound` and `connectedFrom` windows, handoff `head` | none: a seq is only a compare-and-set base, and the lease row's is observed for liveness (§9) |
 | Per-change history | none (v3 folds `ep` rows and v1 events) | none; v4 writes neither (§8) |
 | den-edge value cap | 32 KiB | 256 KiB for a library at minimum 4 (§13) |
-| Switch | from v2: drain, handoffs, facade, waiting commands | from v3: an automatic, checked conversion by the first v4 build to open the library (§10) |
+| Old-format restore | converted by the migration-era build | refused by current builds with the recovery instruction in §10 |
 
 Everything else — keys, names hashed with `macKey`, AES-GCM sealing, settings rows, credentials in `set:trackers`,
-`set:deliver` (less three settings v4 reads only at the switch), the lease, the generation and wire-minimum headers —
+`set:deliver` (less three retired migration settings), the lease, the generation and wire-minimum headers —
 is unchanged.
 
-## 1. How a library moves to v4
+## 1. Library format
 
-A household has one or two libraries, and every device is updated by its owner. The first v4 build to open a v3
-library converts it, with no prompt, and checks the conversion before committing it (§10). From the commit on, only
-v4 builds can read or write it. den-edge refuses an older build's reads and writes with `426`; a shipped v3 build
-logs that, shows nothing, and keeps showing the state it last read, so its owner has to update it (§10 *Other
-devices*). Nothing an old build writes is ever converted.
+Every live library is v4. Only v4 builds can read or write it, and den-edge refuses older builds with `426`.
+Current clients do not contain the former v3 → v4 conversion; §10 defines the refusal for an old backup.
 
 ## 2. Guarantees
 
@@ -48,16 +45,12 @@ v3 §2's guarantees hold, restated where documents change them:
 3. **Monotonic reads.** Content never moves between rows: a coordinate lives in exactly one document name for the
    life of the library. A reader that has read the log to any point holds, for every document, a version that is a
    merge-ancestor of the current one, so a partial read only ever holds older state, never less state.
-4. **No lost state at the switch.** At the rewrite's `base`, the v4 form derives the same state for every title and
-   coordinate as shipped v3 derives from the log; the dry run (§10) verifies it before the commit. Pending commands
-   are compared and their differences reported; after the commit, v4's own rules decide every target (known limits:
-   §9 *Removed rules*, §10).
-5. **Imports never override a person** (v3 §2.4).
-6. **Bounded growth.** Rows grow with titles and seasons — per account, one delivery document per title and per
+4. **Imports never override a person** (v3 §2.4).
+5. **Bounded growth.** Rows grow with titles and seasons — per account, one delivery document per title and per
    season with a receipt — never with changes. A document's size grows with its season's episodes, and is capped
    (§4).
-7. **Idempotence.** Replaying any write, any number of times, in any order, changes nothing further.
-8. **Nothing delivered twice, nothing dropped.** One device at a time delivers for an account; a settled change is
+6. **Idempotence.** Replaying any write, any number of times, in any order, changes nothing further.
+7. **Nothing delivered twice, nothing dropped.** One device at a time delivers for an account; a settled change is
    not sent again; an unsettled or held one stays pending (known limits: §9, §10).
 
 ## 3. Documents
@@ -84,8 +77,8 @@ its identity:
 - A document is created by its first write (`base` 0). Rows are removed only as §4 *Unreadable rows* says.
 - **Settings rows** (`set:<name>`) are v2's and v3's, unchanged and uncompressed (§4).
 - **Rows of other kinds** — a kind this version does not know — are kept with `k` and `v` unchanged.
-- **v2 and v3 rows** (`rec`, `wat`, `snt`, `ep`, `set:tracker-event:*`): a v4 client that reads one runs the switch
-  (§10).
+- **v2 and v3 rows** (`rec`, `wat`, `snt`, `ep`, `set:tracker-event:*`) are old-format restore evidence and trigger
+  §10's read-only refusal.
 
 ### Title document — `title:<type>:<id>`
 
@@ -370,8 +363,8 @@ and the lease row's seq for v3 §6 *Taking*.
 ### Account settings
 
 `set:deliver:<provider>:<account id>` keeps `since`, `lease`, `removals` and `unverified` with v3's rules, and is
-still a settings row. `seededThrough` and `seedBound` are read only by the switch (§10); `connectedFrom` by no rule.
-No v4 client writes any of the three. Write-back writes back `since` only.
+still a settings row. `seededThrough`, `seedBound` and `connectedFrom` are read by no current rule, and no v4 client
+writes them. Write-back writes back `since` only.
 
 - **Encodings.** `since`: `{"string": <JSON stamp>}`. `lease`: `{"strings": [<device or "">, "<epoch>"]}`.
   `removals`: `{"string": <JSON>}` holding an object with an `approved` stamp, a `held` stamp, or both, written as
@@ -462,8 +455,8 @@ No v4 client writes any of the three. Write-back writes back `since` only.
 ### Writing delivery documents
 
 - **Who.** Only the account's lease holder writes its delivery documents, except write-back after a generation
-  change (§11), which merges only entries that were already settled (intents included), the switch's `v4_form`, and
-  moves to another key (§12).
+  change (§11), which merges only entries that were already settled (intents included), and moves to another key
+  (§12).
 - **Fit before sending.** Before sending a pass's commands, the holder builds, with `delivery_write`, each delivery
   document as it would be after **every** intent and settle the pass writes to it, together, at the 256 KiB cap. It
   adds the pass's commands for that document in order; from the first command whose intent and settle no longer fit
@@ -488,117 +481,22 @@ No v4 client writes any of the three. Write-back writes back `since` only.
 
 Every v3 rule that exists for the v2→v3 switch or compares a row's den-edge seq is gone from v4:
 
-- *Seeded accounts*' `seededThrough` test and its compaction renumbering — applied once, by the switch's seeding
-  (§10).
+- *Seeded accounts*' `seededThrough` test and its compaction renumbering.
 - §9's handoff qualification (`head`, `headAt`, `readyFrom`, `unsettled`, `held`, `discarded`), facade, `delivers`,
   waiting commands and drain — v4 has no v2 outbox.
 - The `seedBound` and `connectedFrom` windows: v3 §9's acknowledgement of a viewing by a play within a day of its
   watchedAt (Trakt and Simkl) and of a `[p, null, T]` element, and v3 §7's import matching windows (§8).
   `[p, null, T]` elements are carried in `sending` and read by no v4 rule; writers keep them as v3 does.
 
-**Known limit**: a viewing that v3 §9's windows acknowledged (a Den play at or before `seedBound`, or a
-`[p, null, T]` element) and that is decided after the switch is checked without the window, so a v2-era scrobble of
-it may be sent once more as a play, and on a later pull a v2-era Trakt scrobble may be written as an imported play.
-Plays never set watched state and the 8-kept rule bounds them, so only play history changes. Trakt is switched off,
-and the switch's dry run (§10) reports how many entries hold either.
+The one-time migration accounted for the former windows before it was retired. Current v4 delivery does not read
+those legacy settings.
 
-## 10. The switch
+## 10. Retired conversion
 
-The first v4 build to open a library below minimum 4 converts it, automatically, with no prompt. A v4 client also
-runs the switch, whatever the minimum, when it reads any `rec`, `wat`, `snt`, `ep` or `set:tracker-event:*` row (a
-restore, §11).
-
-1. **Open** the rewrite (v3 §9's fenced rewrite) and take `base`. Read the log through `base`. From here until commit
-   or abort the device sends no tracker command and no scrobble `stop`.
-2. **Dry run.** Build `v4_form` (below). `doc_encode` and `doc_decode` every document. The reference is den-core's
-   shipped `library_v3` (`v3_compact`, `episode_state`, `film_state`, `pending_targets`) run on the log through
-   `base`, with the same clock. **Derived state** — every title's `rec` fields, and every coordinate's
-   `episode_state` or `film_state` — must match the decoded documents exactly. A register the reference cannot
-   derive (a malformed member, which `v4_form` drops, §4 *Malformed parts*) is derived on both sides with that member
-   dropped, and counted. **Pending commands**, v4's `pending_targets` on the decoded documents against the
-   reference's, are compared on (target key, command kind, `added`, `rating`, `p`). **Known limit**: shipped v3 has
-   no target builder of its own, so the reference builds its targets with v4's rules and no receipts. The comparison
-   therefore cannot catch a target-building bug, and the receipt-dependent rules (*An un-watch survives playback*,
-   *Un-watch then re-mark*) show as differences that are not real; it is a log, not a verification of v4's target
-   rules (the §15 delivery vectors are). Check the row count, stored bytes and every document's cap. Where the log already holds a
-   document, its coordinates and targets are the §6/§9 merge of the converted rows and that document, which v3 never
-   saw: they are checked for the round trip and caps only. **Receipts and rows**: every receipt entry the form
-   carries (below) must decode in its delivery document as stored — or, for an `n` at −1, as seeding stores it — and
-   every v3 row that v3 itself keeps must be placed; anything else is a `receipt_dropped` or `row_dropped` abort
-   naming the row or the document and key. The only rows the form drops are the ones it says it drops.
-3. A **derived-state** difference, a dropped receipt or row, a round-trip or cap failure, or a `v4_form` failure aborts: write nothing, log the
-   diff (titles and coordinates) to the device log, and show "Library update failed" with the reason. The device
-   keeps the library read-only and retries on its next launch and every hour while the app runs. A
-   **pending-command** difference does not abort: it is logged with its titles and counted, since after the commit
-   v4 decides every target by its own rules and no v3 build may be left to deliver.
-4. Otherwise **stage** the form and commit `{base, wireMin: 4}`. On `409`, abort and start over from 1. If the fence
-   lapsed during the dry run (v3 §9: 5 minutes without a staging request), staging is refused; start over from 1.
-
-The device that committed shows the toast "Library updated to v4". Settings › About shows "Library format: v4" as a plain
-read-only value beside the existing "Version" row ("v3" while a failed switch leaves the library unconverted). There is no other UI.
-
-The dry run also logs the row count, stored bytes, the largest document, the pending-command differences, and the
-number of entries the §9 known limit covers.
-
-**Other devices.** den-edge refuses a build below v4 on reads and writes (`426 {"min": 4}`). A shipped v3 build
-logs "library log requires wire 4; local writes remain queued", shows nothing, and keeps showing the state it last
-read until its owner updates it. Its queued writes are never converted. A v4 build shows "Library update required"
-on a `426` (§13 *Client work*). A v4 build that meets `rewrite_in_progress` keeps its writes (§11) until it observes
-the generation change, then writes back.
-
-**Pre-v3 logs.** A log that holds an `ep` or `set:tracker-event:*` row and no `wat`, `snt`, `set:deliver:*` row or v4
-document is a pre-v3 backup. The client does not convert it: it shows "Library backup predates v3" and writes nothing.
-A log that also holds a v4 document is a v4 library a stray row was written into; it switches again, and `v4_form`
-folds the row into its documents (§15 switch vector "a v4 log holding a stray v1 event switches again and folds it").
-
-**Known limit**: a v3 lease holder that sent a command just before the rewrite opened and whose settle is then
-refused leaves the target unsettled in the log; v4 decides it again against the snapshot (v3 §6), so a list or rating
-command may be sent twice. A watch play is covered by its intent.
-
-### The v4 form
-
-`v4_form` takes every row through `base`, with seqs, and the performer's id. It starts from v3's compaction form
-(den-core `v3_compact`: `wat` and `snt` rows merged, stray `ep` rows and v1 events folded through v3 §8).
-
-- **v3 row metadata.** A v3 row's `kind`, `schema`, `block` and `entries` are consumed. No writer of v3 rows adds
-  unknown members (v3 has no newer format), so row-level unknown fields and invalid keys of `rec`, `wat` and `snt`
-  rows are dropped and counted in the log; v3 reads none of them. A `wat` or `snt` key that fails v3's block condition
-  is dropped too, since v3 never read it and it would collide with another block's register.
-- **Title documents.** For each title, the `rec` row's known fields; for a film, `watch` = the `"0"` register of
-  `wat:movie:<id>:0:0` (`plays`, `cleared`, and its own unknown members as register-level unknowns). A film `wat`
-  row's other keys are dropped (v3 reads only `"0"`). A `wat` row with no `rec` row makes a title document with no
-  `rec` fields.
-- **Season documents.** For each series and season, the union of its blocks' valid-key registers, with their
-  register-level unknown members; `seasonReset` from block 0 (v3 ignores it on other blocks).
-- **Delivery documents.** Every v3 receipt carried as stored, settle order and all: an episode's entry into its
-  season delivery document; a `t<shard>` row's `rec:<type>:<id>#watch|list|rating` entries into that title's
-  delivery document. Both shipped v3 clients write a title's receipts instead as a row with `target`
-  `rec:<type>:<id>` and entries keyed `watch` (films), `list` and `rating`, stored under the same `t<shard>` name;
-  those entries go into that title's delivery document under the same keys. A key v3 never reads (`watch` on a
-  series, any other key) is an invalid key. Two rows holding one entry merge by §9's entry merge. An `snt` row
-  whose `target` is neither `wat:<type>:<id>:<season>:<block>` nor `rec:<type>:<id>` cannot be placed.
-- **Seeding** (v3 §10's default receipts). For an account whose `set:deliver` holds a `seededThrough` at or below
-  `base`, a target whose v3 row has seq above it — the `wat` row for an episode; for a film's watch, the greater seq
-  of its `rec` and `wat` rows; the `rec` row for a list or rating; a folded row taking the greater of its parts' seqs
-  (v3 §9) — is seeded:
-  - with no receipt: the default entry for its kind (`n`, `out`, `null`), value stamp `[0, 0, ""]`, settle order
-    `[0, n, <performer>]` (`n` counting from 1 per account);
-  - with an `n` entry at `p` −1: the same entry stored at `p` 0, its watched-at kept.
-
-  Against an `n` receipt at 0, v3 §6 *Rewatch* and *Earlier viewings* already count every viewing, as v3's
-  above-`seededThrough` rule does. Any other target stores nothing new: §9 *Pending* reads the same `since` and
-  decides as the v3 spec does. Shipped v3 code reads no `seededThrough`, so targets above it can differ from the
-  reference (a no-receipt null rating, say); the dry run logs and counts them (step 3).
-- **Documents already in the log** are merged (§6, §9) with the documents converted from v3 rows; seeding applies
-  only to a target with no entry after that merge.
-- **Settings.** Every `set` row except `set:tracker-event:*` is staged with `k` and `v` unchanged; the commit's new
-  generation ends every lease (v3 §6).
-- **Unknown kinds.** Every row of a kind `v4_form` does not know is staged with `k` and `v` unchanged. A v3 row that
-  v3 itself drops (failed identity) is dropped.
-
-It holds no `rec`, `wat`, `snt`, `ep` or `set:tracker-event:*` row. `v4_form` **fails** when the form would exceed
-den-edge's 50,000-row limit or its stored-bytes cap, when any document would exceed 224 KiB sealed, or when a v3 row
-carries a `schema` above 3 (a `rec` above 2); that aborts as step 3 says.
+The v3 → v4 switch was removed after every live library reported zero old-format rows. A current client never
+interprets `rec`, `wat`, `snt`, `ep` or `set:tracker-event:*` rows. Restoring a backup that contains them is
+refused read-only with: **“This backup predates Library v4. Restore it with a build that can convert Library
+v3 first.”** The old switch, its staging form, dry run and policy operations are not retained.
 
 ## 11. Clients, restores and generations
 
@@ -607,7 +505,7 @@ carries a `schema` above 3 (a `rec` above 2); that aborts as step 3 says.
 - **Refused writes are kept** — on `409 rewrite_in_progress`, `409 generation_changed` or `426` — durably, as ops
   (never as encoded rows), and sent after `Retry-After`, through write-back when the generation changed. A kept write
   never includes a delivery document or a `lease`. Kept v2 or v3 work is discarded.
-- **Write-back after a generation change** (a switch or a restore), in v4 form only. The client forgets its head and
+- **Write-back after a generation change** (such as a restore), in v4 form only. The client forgets its head and
   bases, reads from 0, and for every document it holds writes the merge of its copy with the log's when that differs
   from the log's (§6), applies its kept writes as ops, merges every **settled** delivery entry it holds (intents
   included) by §9's order, and writes back `since` (v3 §10's credential rules apply to `set:trackers`). Never a
@@ -621,10 +519,8 @@ carries a `schema` above 3 (a `rec` above 2); that aborts as step 3 says.
   work for that household and writes none of it back. Once a household is profile-aware, write-back, kept writes
   and merges never write a profile-scoped row, the Owner half of `set:prefs` or `simkl` in `set:keys` to it
   (profiles-v1 §2); every row is first passed through `profile_household_write`.
-- **Restores.** A restored v4 log needs only write-back. A restored v3 log, or a log in which v2 or v3 rows appear
-  (a store restored with its minimum lost, written by an old build), runs the switch (§10), merging the log's
-  documents, and then write-back. A v4 client that reads a minimum below 4 runs the switch too, which then only
-  raises the minimum.
+- **Restores.** A restored v4 log needs only write-back. A restored log containing v2 or v3 rows is refused as §10
+  says. A minimum below 4 is likewise old-format restore evidence and is refused.
 - **Delivery after a generation change** waits as v3 §6 *Taking* says: 10 minutes of observation under the new
   generation, a fresh take, and decisions only on state read to the head. A device that holds documents to write back
   also waits until its write-back has landed: a receipt it still holds would otherwise be missing from the log, and a
@@ -641,7 +537,7 @@ carries a `schema` above 3 (a `rec` above 2); that aborts as step 3 says.
   v2 says. No row is copied as sealed bytes.
 - **A row that cannot be renamed** — a newer framing, or an unknown kind — has a name this build cannot rebuild. While
   one exists, a key reset or link does not start, and the client shows "Library update required".
-- Linking into a library below minimum 4 runs the switch there first (§10).
+- Linking into a library below minimum 4 is refused as §10 says.
 - **New libraries.** A library's first batch carries `x-den-wire-min: 4`; den-edge sets the minimum to the greater of
   that and the minimum of the library named in `x-den-library-member` (v3 §10). A key reset whose `DELETE` of the old
   library gets `generation_changed` re-copies first.
@@ -665,8 +561,7 @@ den-edge interprets no row. Beyond v3 §13:
   row from `/changes`. (A missing `v` already means "no row": den-edge answers one as `{seq: 0, v: null}`.)
 - **Charge**: a library is charged by its stored bytes, the sum of `k` + `v` over its rows (den-edge 0.241.2), against
   its stored-library cap (32 MiB today); staging is charged the same way, so a staging that is accepted also commits.
-- **Rows**: the 50,000-row limit stays. A v4 library holds about titles × (1 + seasons) × (1 + accounts) rows; the
-  dry run reports the count (§16.6).
+- **Rows**: the 50,000-row limit stays. A v4 library holds about titles × (1 + seasons) × (1 + accounts) rows.
 - Accepting `x-den-wire: 4`, and applying v3 §10's refusal, generation and highest-minimum rules with minimum 4,
   need no new mechanism.
 
@@ -681,35 +576,29 @@ den-edge interprets no row. Beyond v3 §13:
 ## 14. den-core
 
 The rules live in den-sync so both clients share them. Clients do the sealing (v2 §2) and the HMAC check against the
-name den-core returns. An op v3 also defines has its own name for v4: `episode_state_v4`, `film_state_v4`,
-`pending_targets_v4`, `settle_v4` and `write_back_v4`. The v3 names keep exactly v3's shapes, so no op chooses a
-version by which fields a request carries.
+name den-core returns. The retired v3 operation names are invalid requests; current operations keep their explicit
+`_v4` names where changing the deployed contract would add compatibility risk.
 
 - `doc_decode`: plaintext → document and its name with the malformed parts it dropped, a JSON row, or unreadable /
   newer with its reason (§4).
 - `doc_encode`: document → plaintext, or `too_large` against the cap it is given (224 KiB for a §8 write, 256 KiB
   otherwise; §4).
 - `doc_name`: identity → name. `doc_merge` (§6, §9).
-- `title_state`, `episode_state`, `film_state`: documents + resets + clock → v3 §5's derived state.
+- `title_state`, `episode_state_v4`, `film_state_v4`: documents + resets + clock → v3 §5's derived state.
 - `apply_write`: write kind + the documents it touches + clock → the documents to write, or nothing (§8: every write
   kind, imports included).
 - `compaction_guard`: unreadable rows + rows read through `base` → whether a compaction may remove them (§4).
 - `merge` of a `set:deliver` row: §9 *Account settings*' per-setting rules.
-- `pending_targets`: documents + delivery documents + `set:deliver` (with the holder's `removals_sent`) + clock →
+- `pending_targets_v4`: documents + delivery documents + `set:deliver` (with the holder's `removals_sent`) + clock →
   commands, the `held` to write when the latch closes, the `approval` of what it holds, and the account's
   `unverified` epochs (§9, v3 §6); `decide` (v3 §6);
-  `settle`: outcome + built-from value + entry → the entry, or nothing; `delivery_write`: delivery document + every
+  `settle_v4`: outcome + built-from value + entry → the entry, or nothing; `delivery_write`: delivery document + every
   settle and intent of one write → the document, or `too_large`; `lease` (v3 §6).
-- `v4_form`: every row through `base`, with seqs, + the performer id → the switch's rows, or a failure (§10). Keeps
-  `v3_compact` for it.
-- `v4_dry_run`: the log through `base` + `v4_form`'s rows + clock → pass or abort, the pending-command differences,
-  and the counts §10 logs. Its reference is the shipped `library_v3` module, kept unchanged for it.
-- `write_back`: held documents, delivery documents and kept writes + the new log → the writes to send (§11).
+- `write_back_v4`: held documents, delivery documents and kept writes + the new log → the writes to send (§11).
 
 ## 15. Vectors the implementation MUST pin
 
-- **Round trip.** For every v3 vector row set, `doc_decode(doc_encode(L)) == L` in JCS for the documents `v4_form`
-  makes of it.
+- **Round trip.** `doc_decode(doc_encode(L)) == L` in JCS for every current document vector.
 - **Framing.** A `0x00` plaintext and a `{` plaintext both read; a JSON `set` row is never compressed; a `0x00`
   plaintext with a trailing byte after the final block, and a JSON plaintext with leading whitespace, unreadable; a
   plaintext starting with another byte read as a newer framing, kept, and stopping delivery.
@@ -760,18 +649,6 @@ version by which fields a request carries.
   each fit alone but not together, holding every command from the first that does not fit; a conflicted settle
   discarded and decided again; a chained settle on the holder's own previous seq applied; a chain
   broken by another writer's version refused; an unknown outcome ending the chain; an intent then settle chained.
-- **Switch.** For a corpus of v3 libraries, `v4_dry_run` against shipped `library_v3` passes with no derived-state
-  difference — including targets below and above `seededThrough`, accounts with and without it, `["b", …]` entries,
-  `n` entries at −1 above `seededThrough`, unverified epochs, and accounts connected after the v3 switch; a
-  no-receipt null rating above `seededThrough` logged and counted as a pending-command difference, and the switch
-  committing; a derived-state difference aborting. Blocks merged into one season document; `seasonReset` from block 0 only; row-level
-  unknowns, invalid keys, a film `wat` row's non-`"0"` keys and a key failing the block condition dropped and
-  counted; a stray `ep` row and a v1 event folded; `set:tracker-event:*` dropped; unknown kinds and every other `set`
-  row staged unchanged; a log holding documents and v3 rows merged; failure on rows, bytes and a too-large season;
-  a pre-v3 log refused, and a v3 log with no `wat` row but an `snt` or `set:deliver:*` row converted; title receipts
-  in the `rec:<type>:<id>` target form carried into the title's delivery document with no pending-command
-  difference, an unplaceable `snt` row and a lost receipt entry each aborting with `receipt_dropped`; the window
-  known-limit count.
 - **Write-back.** A held document merged and written only when the merge differs; kept ops re-applied; settled
   entries merged by §9's order; kept v3 work discarded; never a `lease`; a merge over 256 KiB leaving the log's
   version.
@@ -786,15 +663,13 @@ version by which fields a request carries.
 ## 16. Settled questions
 
 1. **Seasons over the cap**: no sub-season coordinate. Typical seasons fit ~9,800 episodes and heavy ones ~1,700;
-   the dry run reports the largest document and `v4_form` fails on one over the cap. A sub-season shape can come in a
-   later switch if a real title needs it.
-2. **The delivery gate** is deleted; the windows' loss is a stated known limit (§9), counted by the dry run.
+   a write over the document cap is refused. A sub-season shape can be introduced if a real title needs it.
+2. **The delivery gate** is deleted; the former migration windows are read by no current rule (§9).
 3. **v3 §7's import windows** are dropped (§8); the cost is play history only, and Trakt is off.
 4. **Compressor**: `miniz_oxide` level 9, pinned in `Cargo.lock`; inflate capped at 8 MiB, trailing bytes rejected
    (§4).
 5. **`set:deliver` stays a settings row**: the lease's compare-and-set on a small uncompressed row is unchanged.
-6. **Row count**: per-season delivery documents stay. If the dry run shows the owner's library above half of
-   den-edge's 50,000 rows, ask den-edge for 100,000 (stored bytes are the real bound); otherwise change nothing.
+6. **Row count**: per-season delivery documents stay; stored bytes are the practical bound.
 7. **v3 §14's open items** are about v2-era handoffs, which v4 never reaches: a pre-v3 log is refused (§10).
 
 ## 17. The download queue
