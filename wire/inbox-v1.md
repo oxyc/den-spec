@@ -122,6 +122,7 @@ base64url.
 - The TV drains the queue with its link queues and applies its messages as it applies a paired link's (§3), except
   that it MUST drop every `type` but `play`. Everything else a household device may change already travels in the
   library's rows (`plugins`, `keys`), where the TV's own approval rules apply.
+- The other way round, a TV drops a `play` that arrives on a link queue: a play comes only through this queue.
 - A TV MUST make a new play key when its library key changes: a device shut out by a reset still knows the old one.
   Otherwise it keeps the key.
 - When a pushed play starts, the TV writes `<d>.played` (library-v2 §3).
