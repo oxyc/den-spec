@@ -1,0 +1,20 @@
+{
+  "comment": "wire/wake-controller-v1.md, computed by tools/wake-controller-vectors.mjs. The inbox credential is pairing-v1.json's fixed link. Inputs and outputs are lowercase hex. wakeInbox hashes the UTF-8 domain and canonical credential text; assistantLane repeats assistant-v1.",
+  "inbox": {
+    "domain": "den/wake/inbox/v1:",
+    "credential": "38d972a13fa43c0ae35b6d5a65fe2a6061790c94456a0427",
+    "wakeId": "9f172550e8f60822b619c9bcf457b074d99aa68c607698fd2c85f16c003ff72f"
+  },
+  "assistant": {
+    "householdPlayKey": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "salt": "den/link/v1",
+    "info": "assistant-tv",
+    "laneId": "579a181ad69c71c579c33c0aac33a1f9"
+  },
+  "invalidInboxCredentials": [
+    "38D972A13FA43C0AE35B6D5A65FE2A6061790C94456A0427",
+    "38d972a13fa43c0ae35b6d5a65fe2a6061790c94456a042700",
+    "38d972a13fa43c0ae35b6d5a65fe2a6061790c94456a04",
+    " 38d972a13fa43c0ae35b6d5a65fe2a6061790c94456a0427"
+  ]
+}

@@ -17,6 +17,12 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
 - [`wire/inbox-v1.md`](wire/inbox-v1.md): a paired device's messages to its TV, sealed under its link key.
 - [`vectors/inbox-v1.json`](vectors/inbox-v1.json): sealed messages for pairing's fixed link key. Generated:
   `node tools/inbox-vectors.mjs > vectors/inbox-v1.json`.
+- [`wire/wake-controller-v1.md`](wire/wake-controller-v1.md): the public queue identifiers and authenticated,
+  bounded outbound long poll a household controller uses to wake and launch a TV without receiving sealed plays or
+  claiming playback.
+- [`vectors/wake-controller-v1.json`](vectors/wake-controller-v1.json): the household inbox wake-id and existing
+  assistant-lane derivations. Generated: `node tools/wake-controller-vectors.mjs >
+  vectors/wake-controller-v1.json`; validate with `python3 tools/validate_wake_controller.py`.
 - [`vectors/library-v4-moves.json`](vectors/library-v4-moves.json): moving a library to another key
   (library-v4 §12) — rows sealed under one fixed key, and what the other holds after the move. Generated:
   `node tools/move-vectors.mjs > vectors/library-v4-moves.json`.

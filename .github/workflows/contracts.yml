@@ -23,3 +23,5 @@ jobs:
         run: python3 -B -m unittest discover -s tools -p 'test_addon_contracts.py'
       - name: Profile contract vectors
         run: python3 -B -m unittest discover -s tools -p 'test_profiles.py'
+      - name: Wake controller contract vectors
+        run: python3 -B -m unittest discover -s tools -p 'test_wake_controller.py'
