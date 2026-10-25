@@ -429,7 +429,7 @@ an answer, not an error.
 | **Quantum adversary recording traffic** | X-Wing is hybrid: a sealed request or claim stays confidential while either ML-KEM-768 or X25519 holds. Signatures (Ed25519) are not post-quantum; forging one needs a quantum computer at the time, not later. A projection is AES-256-GCM under a 32-byte key carried only by X-Wing seals and wraps, so it is as safe. |
 | **Projections at rest** (§15) | den-edge stores each read grant's projection sealed under its read key, which it holds only wrapped under a refresh secret it does not keep: unreadable at rest. Captured `dr` claims open with `MCP_WRITE_KEY`, as `dw` claims do. **Known limit**: the sealed size, compressed, tells den-edge roughly how large the library's lists are and when they change. An assistant's writes do put chosen titles beside the rest, so a den-edge watching sizes while an assistant writes could guess whether a title is already listed — but a den-edge that live already reads the projection outright (below), so compression exposes nothing more than that. |
 | **A live den-edge or den-mcp, and reads** | Either can read a projection while serving a request — den-edge unwraps the read key at every refresh, den-mcp opens `dr` on every call — so a live compromise reads **the watchlist, Continue Watching and Seen history** of connections that may read, as fresh as the last publish. Never the library itself, its settings, credentials (`set:keys`, tracker tokens), devices, or anything a projection does not carry (§15 lists all of it). A forged or stale projection is possible for a live den-edge (it holds the key); it misleads an assistant, never a device, which only writes projections. |
-| **Playing on the TV** (§16) | A forged `play` needs what a forged write needs (a live grant key) and a live play record, and is applied only by a TV that is awake with Den open, within 120 s. den-edge cannot move a play into the library's queue or a library op into the TV's: the queue is the signed op's, so either is `wrong_queue`. den-edge learns when a TV is awake and drains the TV queue — which it already learns from drains — and whether an appended request was taken, never whether it was applied or refused. |
+| **Playing on the TV** (§16) | A forged `play` needs what a forged write needs (a live grant key) and a live play record, and is applied only by a TV that is awake with Den open, within 120 s. den-edge cannot move a play into the library's queue or a library op into the TV's: the queue is the signed op's, so either is `wrong_queue`. den-edge learns when a TV is awake and drains the TV queue — which it already learns from drains — and whether an appended request was taken, never whether it was applied or refused. A TV lane is not signed: den-edge can deliver a play to another TV of the same household, which plays it as that TV's own (the play was still the household's, asked by its connection). It learns each TV's lane id, which changes with the library key, and the name the TV gives it. |
 | **A revoked or expired read** | Devices stop publishing for it and ask den-edge to delete it at once (§15); den-edge also deletes it when the session ends. A revocation in either the read record or the grant with its id counts, so a client that knows nothing of reads still revokes them by revoking the grant. |
 
 ## 13. Limits
@@ -712,6 +712,25 @@ message stays v1 (a strict v1 parser on an old client refuses a TV op as `malfor
 there). A request drained from the other queue — den-edge moving a play into the library queue, or a write into the
 TV's — is refused `wrong_queue` (§6, rule 6a) and acknowledged; it is never applied from the wrong queue.
 
+### TV lanes
+
+A household with more than one TV needs a play to reach the TV it is meant for. The TV queue's acknowledgements
+remove what they cover for every drainer, so two TVs cannot share it. Each TV therefore drains a **lane** of its own,
+and the shared TV queue is left to a TV and a den-mcp from before lanes.
+
+- A TV's **lane id** is 16 bytes, lowercase hex: HKDF-SHA256 of its household play key (inbox-v1 §5) with salt
+  `den/link/v1` and info `assistant-tv`. A TV with no play key yet drains the shared TV queue. The id is made anew with
+  the play key, so it changes when the library key does, and it says nothing of the library or the device.
+- Draining its lane, the TV names it: the drain's body is `{"name": "<label>"}`, its `<d>.name` (library-v2 §3) cleaned
+  as a pairing label (pairing-v1 §3). den-edge already sees pairing labels in the clear (pairing-v1 §7); this adds no
+  other kind of fact.
+- den-mcp lists the lanes (`GET /assistant/tv`) and appends a play to the lane of the TV it means. With no TV named, it
+  plays on the one TV that is awake; with several awake it asks which. When no TV has a lane, it appends to the shared
+  TV queue, as before.
+- **The lane is not signed.** A request is the same v1 message on every lane, so den-core and the signed message are
+  unchanged; a TV opens it with `"queue": "tv"` exactly as from the shared queue. The cost is the threat model's: den-edge
+  can deliver a play to another TV of the same household.
+
 ### Applying on the TV
 
 - The TV drains both queues. It drains the TV queue only while Den is open on it (in the foreground), with `wait`
@@ -724,7 +743,9 @@ TV's — is refused `wrong_queue` (§6, rule 6a) and acknowledged; it is never a
   applied entry (`setting`/`value`, recorded as §6 says, so a replay is refused); playback then writes progress as any
   playback does.
 - **Acknowledging** is as §6: every request handled — applied, or refused (`stale`, `wrong_queue`, …) — is acked,
-  except `from_future`. The TV queue's acks are its own (`?queue=tv`).
+  except `from_future`. The TV queue's acks are its own (`?queue=tv`), and each lane's its own (`?queue=tv&tv=<lane>`).
+- A TV with a lane drains its lane and not the shared TV queue: den-edge holds at most two drains per address, and the
+  library queue's and the TV's already take both.
 
 ### den-edge
 
@@ -737,10 +758,18 @@ The library queue's endpoints (§9) take a queue: `queue` in the append body, `?
   `play_trailer` to the TV queue and everything else to the library queue; den-edge does not read the op.
 - **`POST /assistant/drain?queue=tv[&wait=S]`** and **`POST /assistant/ack?queue=tv {"upTo"}`** — member, as §9. Only a TV
   drains the TV queue; den-edge records the time of every TV-queue drain for the library.
-- **`GET /assistant/tv`** — Bearer, write scope. `200 {"online": <bool>, "lastSeenAt": <ms | null>}`: `online` when the TV
-  queue was drained within the last **40 s** (a TV draining with `wait=25` drains at least that often), `lastSeenAt`
-  the last such drain, `null` if never.
-- **`GET /assistant/request/{seq}?queue=library|tv`** — Bearer, write scope, for the session's library. `200 {"state":
+- **A lane** is `"tv": "<lane id>"` beside `"queue": "tv"` in an append, and `&tv=<lane id>` on a drain, an ack and a
+  request's state: a queue of its own, with its own seqs, holds and caps (as the TV queue's). A lane exists once its TV
+  has drained it: an append to another is `404 unknown_tv`. `400 invalid_tv` for an id that is not 32 lowercase hex,
+  and `400 invalid_queue` for a `tv` without `"queue": "tv"`. A lane drain's body may be `{"name"}`; den-edge keeps
+  the last name a lane gave, and a name that is not a clean label (at most 40 characters, no control, bidi or zero-width
+  characters) is ignored. It remembers 16 lanes per library, in memory: a TV draining lists itself again within
+  seconds of a restart.
+- **`GET /assistant/tv`** — Bearer, write scope. `200 {"online": <bool>, "lastSeenAt": <ms | null>, "tvs": [{"tv":
+  <lane id>, "name": <string | null>, "online": <bool>, "lastSeenAt": <ms>}]}`: `online` when a TV queue or lane was
+  drained within the last **40 s** (a TV draining with `wait=25` drains at least that often), `lastSeenAt` the last
+  such drain, `null` if never; `tvs` each lane, the one drained last first.
+- **`GET /assistant/request/{seq}?queue=library|tv[&tv=<lane id>]`** — Bearer, write scope, for the session's library. `200 {"state":
   "queued" | "taken"}`: `queued` while the message waits, `taken` once a device acknowledged it. `404 unknown_request`
   for a seq this library's queue never issued or has expired. `taken` says nothing of whether the request was applied
   or refused: devices tell den-edge only what they acknowledge.
@@ -750,6 +779,10 @@ The library queue's endpoints (§9) take a queue: `queue` in the append body, `?
 `play` and `play_trailer` tools build and seal requests as §4 (`seal_request_with_rng`) and append them with `"queue":
 "tv"`. Before appending they may check `GET /assistant/tv` and say the TV is off or asleep rather than queue a play
 that will go stale; after appending, `GET /assistant/request/{seq}?queue=tv` tells whether a TV took it.
+
+They take an optional TV, by the name its lane gave (any case). Given one, they play on that TV's lane, or say it is
+off; given none, on the one TV awake, or they name the TVs awake and ask which. A status answer names every TV and
+whether it is awake.
 
 ### den-core
 
