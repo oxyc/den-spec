@@ -177,7 +177,8 @@ Each setting is its own stamped value, so two devices changing different setting
   once a day). A TV also writes `<d>.pending` (`{"strings": [<manifest URL>, …]}`, sorted), the addons waiting
   for its approval, so another device can show which TV still has an addon to approve. A TV that takes playback
   commands from the household writes `<d>.play` (`{"string": <base64url, 32 bytes>}`), its household command key
-  (the field keeps its original name; [inbox-v1.md](inbox-v1.md) §5), and `<d>.played` (`{"int": <ms>}`), when a play sent from another device last started on it, so a sender can
+  (the field keeps its original name; [inbox-v1.md](inbox-v1.md) §5), `<d>.control` (`{"int": 1}`), the household
+  transport protocol version it accepts, and `<d>.played` (`{"int": <ms>}`), when a play sent from another device last started on it, so a sender can
   offer the TV used last first. Clearing a device's settings takes it off the list, not out of the library: it still
   holds the library key and lists itself again the next time it opens the library. Only resetting the library key
   shuts it out. Pairing credentials (inbox and link keys) never go here; a household command key does, because every
