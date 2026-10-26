@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec.den.invalid/preferences-v1.schema.json",
+  "title": "Den preferences v1 semantic request",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "operation", "values"],
+      "properties": {
+        "op": { "const": "preferences_subtitle_v1" },
+        "operation": { "const": "read" },
+        "values": { "$ref": "#/$defs/values" }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "operation", "choice"],
+      "properties": {
+        "op": { "const": "preferences_subtitle_v1" },
+        "operation": { "const": "write" },
+        "choice": { "$ref": "#/$defs/choice" }
+      }
+    }
+  ],
+  "$defs": {
+    "choice": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["mode"], "properties": { "mode": { "const": "automatic" } } },
+        { "type": "object", "additionalProperties": false, "required": ["mode"], "properties": { "mode": { "const": "off" } } },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "language"],
+          "properties": {
+            "mode": { "const": "language" },
+            "language": { "type": "string", "pattern": "^[a-z]{2}$" }
+          }
+        }
+      ]
+    },
+    "configValue": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["bool"], "properties": { "bool": { "type": "boolean" } } },
+        { "type": "object", "additionalProperties": false, "required": ["string"], "properties": { "string": { "type": "string" } } },
+        { "type": "null" }
+      ]
+    },
+    "values": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/configValue" },
+      "maxProperties": 4096
+    }
+  }
+}
