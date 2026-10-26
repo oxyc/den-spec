@@ -34,6 +34,7 @@ x-den-link: <inbox>
 |---|---|---|
 | `watchlist` | `tmdbId`, `mediaType` (`movie`/`tv`), `title`; `posterPath`, `year` optional | adds it |
 | `play` | `tmdbId`, `mediaType`, `title`; `season`, `episode` optional | plays it, if `sentAt` is within two minutes. Sent on a TV's household queue (§5) |
+| `transport` | `action` (`play`/`pause`/`skip`), `tmdbId`, `mediaType`; `season`, `episode` optional; `offsetSeconds` required only for `skip` | controls the named title if it is still the one playing and `sentAt` is within two minutes. Sent on that TV's household queue (§5) |
 | `addon` | `manifestUrl`: https, or http to a LAN host | offers it for approval on the TV |
 | `libraryKey` | `key`: the new library key, base64 of 32 bytes | moves to it, as when joining a library (library-v2 §1): its rows go up to the new key's log, and the link the message came from stays paired |
 | `tmdbKey` | `key` | sets the TMDB key |
@@ -108,23 +109,29 @@ for 7 days, and hands the queue to the next drain. It learns when a device sends
 In a `POST` drain a queue it cannot read is answered empty and left for the next drain, and one it cannot delete
 is handed over now and again next time, where the TV drops what it already applied (§3).
 
-## 5. A TV's household queue
+## 5. A TV's household command queue
 
-Every device holding the library may play on every TV in it: a play is the household's, not a pairing's. Each TV
-publishes a **household play key** in its `set:devices` entry, `<d>.play` (library-v2 §3): 32 random bytes, unpadded
-base64url.
+Every device holding the library may play on and control every TV in it: playback belongs to the household, not to
+one pairing. Each TV publishes a **household command key** in its `set:devices` entry. Its wire field remains
+`<d>.play` for compatibility with clients that only know how to start playback (library-v2 §3): 32 random bytes,
+unpadded base64url.
 
-- A sender treats the play key exactly as a link key (pairing-v1 §6): `inbox` and `enc` are its derivations, and a
-  message is appended and sealed as §1 says. Only `play` (§2) is sent on it.
+- A sender treats the command key exactly as a link key (pairing-v1 §6): `inbox` and `enc` are its derivations, and
+  a message is appended and sealed as §1 says. Only `play` and `transport` (§2) are sent on it.
 - A sender lists the household's TVs from `set:devices` (`<d>.kind` `tv` with a `<d>.play`) and sends a play to the
-  chosen TV's household queue. It no longer sends `play` on a link: a TV without a play key is one too old to take
-  household plays.
+  chosen TV's household queue. A transport sender selects the TV whose stable `<d>` wrote the live playback state;
+  it does not guess from an editable device label. A TV without a command key is one too old to take household
+  playback commands.
 - The TV drains the queue with its link queues and applies its messages as it applies a paired link's (§3), except
-  that it MUST drop every `type` but `play`. Everything else a household device may change already travels in the
-  library's rows (`plugins`, `keys`), where the TV's own approval rules apply.
-- The other way round, a TV drops a `play` that arrives on a link queue: a play comes only through this queue.
-- A TV MUST make a new play key when its library key changes: a device shut out by a reset still knows the old one.
-  Otherwise it keeps the key.
+  that it MUST drop every `type` but `play` and `transport`. It applies a transport command only while the command's
+  exact title and episode coordinates still identify the active player; a delayed command cannot affect its
+  replacement. Everything else a household device may change already travels in the library's rows (`plugins`,
+  `keys`), where the TV's own approval rules apply.
+- New senders MUST put `play` and `transport` on this household queue: household playback control does not depend on
+  which device originally paired with the TV. During migration, a TV MAY still accept those message types from a
+  legacy paired-link queue, but this is receive-side compatibility rather than a second authorization model.
+- A TV MUST make a new command key when its library key changes: a device shut out by a reset still knows the old
+  one. Otherwise it keeps the key.
 - When a pushed play starts, the TV writes `<d>.played` (library-v2 §3).
 - The stamp device id is not part of any derivation (library-v2 §4): the key is random, and the id only names where
   it is published.

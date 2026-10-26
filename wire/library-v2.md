@@ -175,13 +175,13 @@ Each setting is its own stamped value, so two devices changing different setting
   id `d` (§4): `<d>.name` (`{"string": …}`, what it calls itself), `<d>.kind` (`{"string": "tv"}` or
   `{"string": "browser"}`) and `<d>.seen` (`{"int": <ms>}`, when it last opened the library, rewritten at most
   once a day). A TV also writes `<d>.pending` (`{"strings": [<manifest URL>, …]}`, sorted), the addons waiting
-  for its approval, so another device can show which TV still has an addon to approve. A TV that takes plays from
-  the household writes `<d>.play` (`{"string": <base64url, 32 bytes>}`), its household play key ([inbox-v1.md](inbox-v1.md)
-  §5), and `<d>.played` (`{"int": <ms>}`), when a play sent from another device last started on it, so a sender can
+  for its approval, so another device can show which TV still has an addon to approve. A TV that takes playback
+  commands from the household writes `<d>.play` (`{"string": <base64url, 32 bytes>}`), its household command key
+  (the field keeps its original name; [inbox-v1.md](inbox-v1.md) §5), and `<d>.played` (`{"int": <ms>}`), when a play sent from another device last started on it, so a sender can
   offer the TV used last first. Clearing a device's settings takes it off the list, not out of the library: it still
   holds the library key and lists itself again the next time it opens the library. Only resetting the library key
-  shuts it out. Pairing credentials (inbox and link keys) never go here; a household play key does, because every
-  holder of the library key may play on that TV.
+  shuts it out. Pairing credentials (inbox and link keys) never go here; a household command key does, because every
+  holder of the library key may play on and control that TV.
 
 - `addresses`: addresses of the deployment's own services that its routes table does not publish, one setting per
   service name as routes-v1 spells one (`remux`, …): `{"string": "<base url>"}`. A deployment may serve a narrower
