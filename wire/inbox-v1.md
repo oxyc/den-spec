@@ -132,13 +132,21 @@ unpadded base64url.
 - A sender treats the command key exactly as a link key (pairing-v1 §6): `inbox` and `enc` are its derivations, and
   a message is appended and sealed as §1 says. Only `play` and `transport` (§2) are sent on it.
 - A sender lists the household's TVs from `set:devices` (`<d>.kind` `tv` with a `<d>.play`) and sends a play to the
-  chosen TV's household queue. A transport sender selects the TV whose stable `<d>` wrote the live playback state;
-  it does not guess from an editable device label, and sends only when that TV publishes `<d>.control` at version 1
-  or newer (library-v2 §3). If that writer is not listening, while exactly one other control-capable household TV is
-  listening, the sender may route there instead: simultaneous devices can overwrite one title's projected position,
-  while the receiver's exact-title guard below prevents the fallback from affecting unrelated playback. With no
-  listening TV, or more than one fallback, it reports that Den is not reachable instead of guessing. A TV without a
-  command key is too old for household play; one without the capability is too old for transport controls.
+  chosen TV's household queue. A transport sender identifies a TV from the device id in an unfinished profile
+  progress stamp: a film's `resume`, or an exact episode's `progress` (library-v4 §3). Movie coordinates have no
+  season or episode; series coordinates have `season ≥ 0` and `episode > 0`. It does not guess from an editable
+  device label, and sends only when that TV publishes `<d>.control` at version 1 or newer (library-v2 §3).
+- A progress stamp is **active** through the implementation's live-play window and **resumable** through 10 minutes,
+  inclusive. These are different claims: only active evidence offers `pause` and `skip`; either offers `play`. One
+  active exact writer wins over older resumable positions. More than one active writer fails closed. With none
+  active, exactly one resumable writer may be offered; more than one fails closed. A stamp more than one day ahead of
+  the reader is not activity; ordinary allowed HLC skew has age zero for these windows. The position comes only from
+  the currently authenticated persistent profile, so changing profiles removes the controls.
+- If the selected writer is not listening, while exactly one other control-capable household TV is listening, the
+  sender may route there instead: simultaneous devices can overwrite one title's projected position, while the
+  receiver's exact-title guard below prevents the fallback from affecting unrelated playback. With no listening TV,
+  or more than one fallback, it reports that Den is not reachable instead of guessing. A TV without a command key is
+  too old for household play; one without the capability is too old for transport controls.
 - The TV drains the queue with its link queues and applies its messages as it applies a paired link's (§3), except
   that it MUST drop every `type` but `play` and `transport`. It applies a transport command only while the command's
   exact title and episode coordinates still identify the active player; a delayed command cannot affect its
