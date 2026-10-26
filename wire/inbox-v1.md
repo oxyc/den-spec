@@ -120,16 +120,16 @@ unpadded base64url.
   a message is appended and sealed as §1 says. Only `play` and `transport` (§2) are sent on it.
 - A sender lists the household's TVs from `set:devices` (`<d>.kind` `tv` with a `<d>.play`) and sends a play to the
   chosen TV's household queue. A transport sender selects the TV whose stable `<d>` wrote the live playback state;
-  it does not guess from an editable device label. A TV without a command key is one too old to take household
-  playback commands.
+  it does not guess from an editable device label, and sends only when that TV publishes `<d>.control` at version 1
+  or newer (library-v2 §3). A TV without a command key is too old for household play; one without the capability is
+  too old for transport controls.
 - The TV drains the queue with its link queues and applies its messages as it applies a paired link's (§3), except
   that it MUST drop every `type` but `play` and `transport`. It applies a transport command only while the command's
   exact title and episode coordinates still identify the active player; a delayed command cannot affect its
   replacement. Everything else a household device may change already travels in the library's rows (`plugins`,
   `keys`), where the TV's own approval rules apply.
-- New senders MUST put `play` and `transport` on this household queue: household playback control does not depend on
-  which device originally paired with the TV. During migration, a TV MAY still accept those message types from a
-  legacy paired-link queue, but this is receive-side compatibility rather than a second authorization model.
+- Senders MUST put `play` and `transport` on this household queue, and TVs MUST drop either type from a legacy
+  paired-link queue: household playback control does not depend on which device originally paired with the TV.
 - A TV MUST make a new command key when its library key changes: a device shut out by a reset still knows the old
   one. Otherwise it keeps the key.
 - When a pushed play starts, the TV writes `<d>.played` (library-v2 §3).
