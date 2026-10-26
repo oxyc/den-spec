@@ -92,6 +92,19 @@ POST /inbox/drain
   not drain again straight after an early empty answer: it waits as it would without `wait`. Its request timeout
   must outlast `S`.
 
+A sender may check whether a receiver is presently holding a drain on one queue, without reading or emptying it:
+
+```
+POST /inbox/listening
+x-den-link: <inbox>
+{}
+→ 200 {"listening": true}
+```
+
+The inbox key is the credential, as for append. The answer reveals only whether a drain is waiting on that exact
+queue at that instant; it carries no device identity or message. `false` is only a liveness hint—receivers briefly
+move between drains—so it MUST NOT be used to revoke a device or rotate its key.
+
 For a paired link, the TV:
 
 - MUST drop any message that isn't sealed. Anything den-edge could write itself counts for nothing.
@@ -121,8 +134,11 @@ unpadded base64url.
 - A sender lists the household's TVs from `set:devices` (`<d>.kind` `tv` with a `<d>.play`) and sends a play to the
   chosen TV's household queue. A transport sender selects the TV whose stable `<d>` wrote the live playback state;
   it does not guess from an editable device label, and sends only when that TV publishes `<d>.control` at version 1
-  or newer (library-v2 §3). A TV without a command key is too old for household play; one without the capability is
-  too old for transport controls.
+  or newer (library-v2 §3). If that writer is not listening, while exactly one other control-capable household TV is
+  listening, the sender may route there instead: simultaneous devices can overwrite one title's projected position,
+  while the receiver's exact-title guard below prevents the fallback from affecting unrelated playback. With no
+  listening TV, or more than one fallback, it reports that Den is not reachable instead of guessing. A TV without a
+  command key is too old for household play; one without the capability is too old for transport controls.
 - The TV drains the queue with its link queues and applies its messages as it applies a paired link's (§3), except
   that it MUST drop every `type` but `play` and `transport`. It applies a transport command only while the command's
   exact title and episode coordinates still identify the active player; a delayed command cannot affect its
