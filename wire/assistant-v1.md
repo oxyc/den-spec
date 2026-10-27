@@ -552,7 +552,8 @@ A projection is the **whole** library's lists — no list is cut short, whatever
 - **`watchlist`**: every title document whose `status` is `watchlist`, not `deleted`; `addedAt`, else the status's
   time. Newest first.
 - **`continue`**: den-core's Continue Watching, built as both clients build their row: per series, the episode mark
-  touched last, the furthest finished episode and the furthest episode watched with no mark (an import), handed with
+  touched last, the episode finished last with its time (ties to the furthest) and the furthest episode watched with
+  no mark (an import), handed with
   the series' layout to `continue_entry`; a series whose answer is `none` is left out. `layouts` is the season layout
   the client knows, by TMDB id — `{"seasons": [{season, episodes}], "last_aired": {season, episode} | null}` — and a
   series with none can still resume, but not move on to its next episode. Films `inProgress` and not dismissed since
