@@ -24,6 +24,19 @@ class ProfilesVectorsTests(unittest.TestCase):
         stricter_unknown = {"maximumAge": 13, "unknownRatings": "block"}
         self.assertEqual(validate_profiles.policy_relation(stricter_age, stricter_unknown), "incomparable")
 
+    def test_browser_local_preference_partition_preserves_unknowns(self):
+        hidden = {"value": {"bool": True}, "at": [1, 0, "a1b2c3d4e5f60718"]}
+        future = {"value": {"string": "kept"}, "at": [2, 0, "a1b2c3d4e5f60718"]}
+        maturity = {"value": {"string": "r"}, "at": [3, 0, "a1b2c3d4e5f60718"]}
+        self.assertEqual(validate_profiles.partition_preferences({
+            "den.hideWatched": hidden,
+            "future.preference": future,
+            "den.maturityCeiling": maturity,
+        }), {"household": {},
+             "owner": {"den.hideWatched": hidden, "future.preference": future}, "ownerMaturity": maturity})
+        with self.assertRaisesRegex(ValueError, "invalid_preferences"):
+            validate_profiles.partition_preferences([])
+
     def test_seed_gives_only_keys_the_profile_lacks(self):
         stamp = [1, 0, "a1b2c3d4e5f60718"]
         region = {"value": {"string": "FI"}, "at": stamp}
