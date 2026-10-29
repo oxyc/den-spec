@@ -1164,6 +1164,14 @@ def household_audit(rows: object) -> dict:
     return {"remove": remove, "rewrite": rewrite}
 
 
+def partition_preferences(values: object) -> dict:
+    """Partition preferences for the supported browser-local household conversion."""
+    if not isinstance(values, dict):
+        raise ValueError("invalid_preferences")
+    owner = {key: value for key, value in values.items() if key != "den.maturityCeiling"}
+    return {"household": {}, "owner": owner, "ownerMaturity": values.get("den.maturityCeiling")}
+
+
 def main() -> int:
     # Loading both files is part of validation: malformed JSON fails before any vector runs.
     schema = json.loads(SCHEMA.read_text())
@@ -1377,6 +1385,18 @@ def main() -> int:
     for case in vectors["policyOrderingCases"]:
         if policy_relation(case["a"], case["b"]) != case["relation"]:
             fail(f"{case['name']}: policy ordering mismatch")
+
+    for case in vectors["settingsPartitionCases"]:
+        try:
+            actual = partition_preferences(case["values"])
+        except ValueError as error:
+            if str(error) != case.get("error"):
+                fail(f"{case['name']}: wanted {case.get('error')}, got {error}")
+        else:
+            if "error" in case:
+                fail(f"{case['name']}: invalid preferences accepted")
+            if actual != case["expect"]:
+                fail(f"{case['name']}: preference partition mismatch")
 
     for key, function, field in (("householdWriteCases", household_write, "row"),
                                  ("householdAuditCases", household_audit, "rows")):

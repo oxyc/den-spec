@@ -430,6 +430,12 @@ The following device categories are intentionally non-exhaustive and are not par
 Every persistent profile opens its own `set:prefs` and reads and writes only that. Personal values are never copied
 between profiles (the seed of §6.2 reads the household, not a profile).
 
+Browser-local conversion of an older household remains a supported lifecycle distinct from the retired server-side
+household split. `profiles_partition_preferences(values)` is its canonical pure boundary. It returns `household` as
+an empty object, `owner` with every complete stamped preference except `den.maturityCeiling`, and `ownerMaturity`
+with that complete legacy value or `null`. Unknown preferences and stamped-value extensions are preserved; a
+non-object input is `invalid_preferences`. An empty destination means no `set:prefs` row is written.
+
 ### 6.1 Initial Owner-directory construction
 
 `profiles_construct_directory(input)` is the only canonical constructor for the first stored directory. It is pure

@@ -472,6 +472,30 @@
       "result": {"action": "picker", "ownerGate": false}
     }
   ],
+  "settingsPartitionCases": [
+    {
+      "name": "browser-local conversion moves every preference to the profile and splits out legacy maturity",
+      "values": {
+        "den.hideWatched": {"value": {"bool": true}, "at": [1, 0, "a1b2c3d4e5f60718"]},
+        "future.preference": {"value": {"string": "kept"}, "at": [2, 0, "a1b2c3d4e5f60718"]},
+        "den.maturityCeiling": {"value": {"string": "pg13"}, "at": [3, 0, "a1b2c3d4e5f60718"]}
+      },
+      "expect": {
+        "household": {},
+        "owner": {
+          "den.hideWatched": {"value": {"bool": true}, "at": [1, 0, "a1b2c3d4e5f60718"]},
+          "future.preference": {"value": {"string": "kept"}, "at": [2, 0, "a1b2c3d4e5f60718"]}
+        },
+        "ownerMaturity": {"value": {"string": "pg13"}, "at": [3, 0, "a1b2c3d4e5f60718"]}
+      }
+    },
+    {
+      "name": "empty preferences create no destination values",
+      "values": {},
+      "expect": {"household": {}, "owner": {}, "ownerMaturity": null}
+    },
+    {"name": "non-object preferences are rejected", "values": [], "error": "invalid_preferences"}
+  ],
   "settingsSeedCases": [
     {
       "name": "a profile without preferences is given the household's, stamps untouched",
