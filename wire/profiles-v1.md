@@ -1,15 +1,9 @@
-# Household profiles, v1 — proposal
+# Household profiles, v1
 
-**Status: complete contract; not activated.** This document is the normative contract for
-[den-spec#39](https://github.com/oxyc/den-spec/issues/39) and the architecture in
-[den#234](https://github.com/oxyc/den/issues/234). It defines the data model clients and den-core will implement.
-Its maturity values follow the conservative numeric model selected in
-[den-dataset#226](https://github.com/oxyc/den-dataset/issues/226).
-It does **not** authorize a client to split an existing library, publish a profile directory or approval document,
-raise a production wire minimum, or make an existing wire-4 household refuse a wire-4 client. Sections 8 and 9 pin
-those state machines so implementations can be built and reviewed; activation still requires an explicit product
-release after every participant implements this contract. Reading or shipping this specification is not activation.
-
+**Status: active runtime contract.** This document is the normative profile topology for Den. It defines the
+household and profile data model, persistent selection, policy, adoption filtering, Kid creation and compound key
+reset. The one-time existing-household split and its transport were retired after rollout; they are not part of this
+contract. Stored directory `migration` evidence remains permanent provenance and is still validated.
 Words: *MUST* is a rule a client breaks at the cost of another client or profile; *should* is advice.
 
 ## 1. Topology and wire version
@@ -33,69 +27,21 @@ Visitor ──> device-local namespace; no library and no directory entry
 **Wire 5 is library-v4 row framing, sealing, settings and document merge rules plus the household/profile topology
 in this document.** It is not a fifth row encoding. The household's rows use library-v4 §4 plaintext framing and
 library-v2 sealing. A persistent profile's log is an ordinary library-v4 library: requests to that log advertise
-`x-den-wire: 4`, and a new profile log starts with `x-den-wire-min: 4`. Profile-aware requests to the household
-advertise `x-den-wire: 5` only after §8's fenced commit.
+`x-den-wire: 4`, and a new profile log starts with `x-den-wire-min: 4`. Profile-aware requests to a committed
+household advertise `x-den-wire: 5`.
 
-Merely understanding this document, constructing a directory in memory, or reading the vectors MUST NOT raise a
-household's `x-den-wire-min`. A §8 commit atomically rewrites the household and raises its minimum to 5, but this
-contract does not enable any caller to initiate that commit. Until a separately reviewed implementation is
-activated, every existing household minimum stays unchanged.
+### 1.1 Runtime wire gate
 
-Experiments or canary behavior at `d.oxy.fi` may exercise this contract behind deployment controls, but do not
-alter the wire contract, activate the split, or authorize any production wire-minimum change. Wire behavior changes
-only through §8's fenced activation operation after that operation is deliberately enabled in product code.
+A committed profile-aware household has minimum wire 5 and an authenticated `profiles` row which opens under the
+household key, has the logical name `profiles`, and passes den-core stored-directory validation. Ordinary household
+requests advertise wire 5; persistent profile libraries remain ordinary wire-4 libraries. A lower-wire request to
+the household is update-required, never an empty or reset library. A minimum above the supported wire is likewise
+update-required.
 
-### 1.1 Per-household capability and wire gate
-
-Profile support is a **per-household state**, not a binary host feature. A conforming implementation resolves exactly
-one of these states independently for each household:
-
-| State | Authenticated household evidence | Behavior |
-|---|---|---|
-| `off` | legacy minimum below 5, no `profiles` row, preparation not enabled for this household | Ordinary legacy sync remains available. Every §8.1 profile-migration route is the same `404 not_found` before method, wire, authentication or body distinctions. |
-| `prepare` | legacy minimum below 5, no `profiles` row, preparation explicitly enabled for this household | Ordinary legacy sync remains available, including wire-4 Owner use. Only the exact authenticated §8.1 storage surface is added, and every request to it carries exactly `x-den-wire: 5`. Availability does not start or authorize migration. |
-| `runtime` | household minimum is at least 5 and its authenticated `profiles` row opens, has the logical name `profiles`, and passes den-core stored-directory validation | Profile-aware household sync is live. Ordinary household requests use wire 5; persistent profile libraries remain ordinary wire-4 libraries. The §8.1 surface remains available for attempt resolution, recovery and safe cleanup. |
-
-`runtime` is derived from durable household state. It is not another deployment switch: once §8 atomically commits a
-valid directory and minimum 5, a wire-5 client can immediately read, authenticate and validate that directory and
-enter profile runtime. No operator action may be required between commit and that read. Conversely, enabling
-`prepare` MUST NOT change the household minimum, reinterpret its rows, hide legacy Owner activity, or enter profile
-runtime. A prepare-capable client continues using the household as the legacy wire-4 Owner until the atomic commit.
-Because den-edge cannot decrypt rows, its transport gate derives the committed side from the stored minimum of 5;
-the client completes the `runtime` decision by authenticating and den-core-validating the directory. Failure of that
-client proof is the fail-closed recovery state below, not permission for the provider or client to infer legacy mode.
-Transport recovery and usable runtime are deliberately separate: at minimum 5 the authenticated §8.1 surface stays
-reachable when the directory is absent, unreadable or invalid, because attempt lookup and restore are how that state
-is diagnosed and repaired. Those routes do not make ordinary profile runtime usable and never relax the directory
-proof.
-
-The resolver is evaluated for the addressed household. One den-edge process MUST be able to serve, at the same time,
-an `off` legacy household, a `prepare` legacy household and a committed `runtime` household. A process-wide boolean
-MUST NOT be used as the runtime truth, and disabling preparation MUST NOT demote an already committed household.
-
-For a legacy `prepare` household, and for every household whose stored minimum is 5 whether or not its directory can
-currently be validated, the §8.1 routes accept only the methods and paths listed in
-`migrationStorageContract.routes`, only with the household credential (and the separately required candidate
-credential for retirement), and only with the literal decimal header `x-den-wire: 5`. Missing, lower or higher wire
-values perform no storage effect. All other routes keep their existing library-v3/v4 behavior; `prepare` does not
-create a second profile API or make an ordinary wire-5 legacy read profile-aware.
-
-After the committed minimum becomes 5, a wire-4 request that could read or mutate the household is refused with
-library-v3 §10's `426` and `x-den-wire-min: 5` (the existing non-data home-check exemption remains only that
-exemption). The client treats `426` as update-required, never as an empty, missing or reset library. A wire-5 client
-reads through the authenticated household head before selecting a profile. A missing `profiles` row, failed AEAD or
-logical-name binding, malformed directory, or failure of den-core validation with `stored: true` is recovery-blocked:
-the client MUST NOT fall back to legacy Owner, synthesize a directory, or expose profile activity. A visible
-`profiles` row below minimum 5 is likewise an inconsistent partial state and fails closed. A minimum above the
-client's supported wire remains update-required even if the client previously cached a valid directory. That newer
-minimum gate takes precedence for ordinary and migration requests alike: a wire-5 client receives `426` and performs
-no v1 attempt lookup, restore or other migration effect against a household whose minimum is greater than 5.
-
-Clients MUST decode capability conservatively. `404` from an explicitly requested migration operation means that
-preparation is unavailable for that household; it is not a successful empty attempt and causes no local state
-transition. Merely observing `prepare`, probing a route, receiving a successful authenticated open, or caching a
-directory never supplies §8's owner intent, exact-attempt authorization or recovery authorization. Only the explicit
-PIN-gated actions and durable state machine in §8 may do so.
+A missing, unreadable, name-mismatched or invalid directory at minimum 5 is recovery-blocked. The client MUST NOT
+fall back to a legacy Owner, synthesize a directory, or expose profile activity. A visible directory below minimum 5
+is an inconsistent partial state and also fails closed. New profile-aware households are constructed through the
+current setup flow; no retired split capability or migration-storage route is implied by this runtime state.
 
 The household key seals the directory, including all profile keys. Profiles are UX and data-isolation boundaries,
 not protection from a hostile device that holds the household key. Selectively wrapped private profiles are out of
@@ -103,12 +49,11 @@ scope.
 
 ### 1.2 Library source and the exclusive-operation lock
 
-Two primitives outlive any one operation that uses them: the §9.1 key reset, the §8 initial split, and the
-construction of a household's first directory (§6.2) all rest on them. They belong to the persistent topology, not to
-the split.
+The snapshot and exclusive-operation primitives serve compound key reset and construction of a household's first
+directory. They belong to the persistent topology.
 
 **Source counter.** den-edge keeps, for every library, a durable monotone safe-integer counter in the
-**profile-migration fence namespace** (the name is historical and stays on the wire and on disk). Reading it does not
+historical **profile-migration fence namespace** (the stored name remains for compatibility). Reading it does not
 advance it; every visible mutation of that library (an applied ordinary batch, a rewrite, a restore) advances it
 atomically. It is never restored backwards or reused: a restore advances from the provider-retained high-water mark,
 and the vanishingly unlikely safe-integer exhaustion refuses mutation rather than wrapping. It is not the public
@@ -129,14 +74,12 @@ accepted input domain.
 
 The two are domain-separated by their distinct exact shapes. `profiles_snapshot_digest(kind, input)` is the den-core
 boundary, with `kind` exactly `source` or `owner` (the profile-library head); any other kind is
-`invalid_migration_digest_kind`. `profiles_migration_digest` answers those two kinds identically, and is the only
-operation for §8.1's split-only `backup` and `staged` kinds. `migrationDigestCases` in `vectors/profiles-v1.json`
-pin the answers, which both operations give. Neither performs I/O.
+`invalid_migration_digest_kind`. `snapshotDigestCases` in `vectors/profiles-v1.json` pin both answers. The operation
+performs no I/O.
 
-**Exclusive-operation lock.** A library carries at most one durable exclusive-operation lock, of any purpose (the §9.1
-key reset, or §8's `split` and `restore`). It is acquired only at an exact `{generation, head}` the caller observed,
-and only while no other lock is held; the one way a held lock changes hands is an atomic handoff or takeover its
-operation defines (§8.1's recovery handoff, §9.1's journal-less recovery). Repeating the acquiring request is a
+**Exclusive-operation lock.** A library carries at most one durable exclusive-operation lock for the §9.1 key reset.
+It is acquired only at an exact `{generation, head}` the caller observed, and only while no other lock is held; the
+only takeover is §9.1's journal-less recovery. Repeating the acquiring request is a
 lookup that returns the stored answer; anyone else is refused with exactly `409 {"error":"migration_in_progress"}` and no attempt, purpose, fence, source or
 timing metadata, before any comparison with the current source. While it is held, every ordinary mutation of the
 library is refused before ordinary generation and rewrite handling with that same `409` and no effect; reads continue.
@@ -165,7 +108,7 @@ only Owner and Kid creation, but the representation accepts any number of `kid` 
 kept write, write-back, merge, link or restore. The profile-scoped rows are `title:*`, `season:*`, `dlv:*`,
 `set:deliver:*`, `set:handoff:*`, `set:trackers`, `set:assistant-applied`, the legacy `rec:*`, `wat:*`, `snt:*`,
 `ep:*` and `set:tracker-event:*`, `set:prefs` in full (§6), and the `simkl` value of `set:keys`. A household-scoped value in `set:keys` may be
-written; only the profile-scoped values are withheld. `profile_household_write` (§8.2) is the one rule every
+written; only the profile-scoped values are withheld. `profile_household_write` (§8) is the one rule every
 client asks, so Swift and web cannot disagree on it.
 Clients MUST use the same profile-store path for Owner and every other persistent profile; there is no permanent
 Owner projection in the household and no Kid-specific row format.
@@ -173,7 +116,7 @@ Owner projection in the household and no Kid-specific row format.
 A profile library MUST NOT hold the profile directory, owner PIN, household credentials, connections, devices,
 downloads, Visitor state, or another profile's data. Household values are read from the simultaneously open
 household control log; they are never copied into every profile log. The one exception is the one-time services
-and region seed of §6.3.
+and region seed of §6.2.
 
 ## 3. Profile-directory document
 
@@ -230,16 +173,15 @@ The directory is one document named `profiles`. Its row key is
   library-v2 §4. A deletion is permanent: a deleted id cannot become live again, its library is retired by the
   lifecycle operation, and recreation uses a new id and key. The tombstone retains the last library reference so
   interrupted retirement can be completed; no activity is read from it.
-- A directory stored by the initial split MUST contain `migration`. `attempt` is a random 16-byte id. `source`
-  identifies the exact den-edge rewrite generation and head that the backup and copy came from. `backup.id` is the
-  durable provider handle and `backup.digest` authenticates the verified backup artifact. `ownerProfile` MUST equal
+- A stored directory MUST contain its immutable historical `migration` provenance. `attempt` is a random 16-byte id.
+  `source` identifies the exact source generation and head used to construct it. `backup.id` and `backup.digest`
+  retain the verified rollout evidence. `ownerProfile` MUST equal
   `owner`, and `ownerHead` is the verified activity-snapshot digest of that entry's destination library before
   commit: §1.2's profile-library head. It is deliberately not den-edge's opaque public sync generation and cannot reuse the
   household source head, whose input contains a provider-only migration generation. All digests and heads are 32
   bytes in lowercase hexadecimal. These values are immutable evidence, not a progress register;
-  pre-commit progress lives only in the local journal in §8. `migration` is persistent directory provenance, not
-  split machinery: stored validation (§3.1) requires it of every stored directory, whatever constructed it (§6.2),
-  and it stays when §8's split transport retires.
+  `migration` is persistent directory provenance, not active split machinery: stored validation (§3.1) requires it
+  of every stored directory, whatever constructed it (§6.1).
 
 The schema permits extension fields so a newer client can add display or lifecycle facts. A writer keeps unknown
 fields byte-for-byte in the logical document unless den-core tells it how to merge them. A client that does not know
@@ -321,7 +263,7 @@ The journal's durable state then drives these effects, pinned by `profileCreateC
 - Every candidate directory is passed to `profiles_materialize`. The household's authenticated profiles-row read
   supplies both its safe-integer row `base` and opaque `x-den-generation` string; `cas-directory` submits the
   materialized sealed row using the existing batch compare-and-swap over that exact pair. This is the ordinary
-  library generation, not §8.1's integer profile-migration generation. No new den-edge endpoint is defined.
+  library generation, not the historical source counter. No new den-edge endpoint is defined.
 - A CAS conflict first performs a fresh authenticated read, calls `profiles_merge(candidate,current)` in den-core,
   materializes the merged result, and retries against the fresh `{base,generation}`. It never performs a blind
   last-write-wins retry.
@@ -486,139 +428,12 @@ The following device categories are intentionally non-exhaustive and are not par
 | transient play-once authorization and retained navigation | Clear at the boundaries in §§5.1 and 7 |
 
 Every persistent profile opens its own `set:prefs` and reads and writes only that. Personal values are never copied
-between profiles (the seed of §6.3 reads the household, not a profile).
+between profiles (the seed of §6.2 reads the household, not a profile).
 
-`profiles_partition_preferences(values)` is den-core's canonical pure split operation for the legacy
-`set:prefs.values` object. It returns three outputs:
+### 6.1 Initial Owner-directory construction
 
-- `household` is always the empty object;
-- `owner` contains every key except `den.maturityCeiling`, with each complete stamped value kept byte-for-byte; and
-- `ownerMaturity` contains the complete legacy `den.maturityCeiling` stamped value, or `null` when absent. It is an
-  input to Owner-policy migration and is retained in neither output settings row.
-
-The operation never infers scope from a prefix, never interprets a stamped setting value, and rejects a non-object
-input. An empty `owner` object means that destination has no `set:prefs` row to write; the executor does not invent
-an empty row.
-
-### 6.1 Canonical initial-split row materialization
-
-The initial split MUST NOT classify the remaining rows independently in Swift and TypeScript.
-`profiles_migration_partition_rows(input)` is den-core's pure, canonical boundary. Its input is:
-
-```json
-{
-  "base": 418,
-  "ownerPolicyAt": [1800000000000, 2, "a1b2c3d4e5f60718"],
-  "rows": [
-    {
-      "k": "<64 lowercase hex>", "seq": 7, "v": "<original sealed value>",
-      "opened": {"status": "row", "name": "set:prefs", "legacy": false, "row": {}}
-    }
-  ]
-}
-```
-
-`rows` contains every source row through `base` exactly once. `k` and `seq` are unique, `seq` is positive and at
-most `base`, and `v` is the exact sealed value in the verified backup. `opened` is the result of authenticated
-opening under the household key, including the row-key/logical-name binding, and then applying library-v4
-`doc_decode`: `document`, `row`, or `newer`. An `unreadable` result, an AEAD failure, a failed name binding, a known
-document with any dropped part, or a missing row is an error; none is converted into an opaque preserved row.
-
-The result is:
-
-```json
-{
-  "household": [
-    {"source": {"k": "<source k>", "seq": 7},
-     "mode": "preserve", "k": "<same k>", "v": "<same v>"}
-  ],
-  "owner": [
-    {"source": {"k": "<source k>", "seq": 9},
-     "mode": "materialize", "name": "title:movie:550", "row": {}}
-  ],
-  "ownerPolicy": {
-    "value": {"maximumAge": 13, "unknownRatings": "allow"},
-    "at": [1800000000000, 2, "a1b2c3d4e5f60718"]
-  },
-  "accounting": [
-    {"k": "<source k>", "seq": 7, "destinations": ["household"]},
-    {"k": "<source k>", "seq": 9, "destinations": ["owner"]}
-  ]
-}
-```
-
-Every input row has exactly one `accounting` entry. `destinations` is sorted in the fixed order `household`,
-`owner`, `ownerPolicy`, contains no duplicate, and names every output derived from that source. A source may feed
-both libraries only for the two split settings rows below. A maturity-only preferences row has destination
-`ownerPolicy` and no invented empty settings row. `household` and `owner` projections are ordered by source `k` raw
-UTF-8 bytes; `accounting` has the same order.
-
-- A `preserve` projection is permitted only in `household` and repeats the input `k` and `v` byte-for-byte. It is
-  used for whole household settings and for an authenticated unknown/newer logical row whose scope cannot safely be
-  inferred. For every decoded status, not only `newer`, an authenticated name that is profile-scoped or needs
-  splitting is rejected before an unknown kind/framing can preserve. A client must not infer household scope merely
-  because it does not understand the logical body.
-- The authenticated pre-v4 activity identities `rec:*`, `wat:*`, `snt:*`, `ep:*`, and
-  `set:tracker-event:*` are `legacy_source_row` for every decoded status, including `newer` and an unknown decoded
-  row kind. Likewise the authenticated control identities `profiles` and `kid-title-approvals:*` are
-  `profiles_already_present` for every decoded status. Identity classification precedes opaque preservation: a
-  future framing or kind cannot smuggle known profile state or profile controls into the household.
-- A `materialize` projection gives one authenticated logical `name` and complete logical `row`. The executor passes
-  those two members, unchanged and with no extras, to
-  `profiles_migration_materialize_plaintext({name, row})`. The operation checks that the row's library-v4 identity
-  spells exactly `name`, applies the existing library-v4 writer validation, and returns
-  `{jcs, plaintext}`. Both values are unpadded base64url: `jcs` is the row's RFC 8785 UTF-8 bytes, while `plaintext`
-  is the exact byte string to seal. For a settings row the two are identical. For a `title`, `season` or `delivery`
-  document, `plaintext` is library-v4 `doc_encode`: `0x00` followed by raw DEFLATE of those JCS bytes. DEFLATE has
-  no unique byte representation, so a conforming implementation may produce a different stream from the example
-  vector only when it inflates exactly to the returned `jcs`; both clients call the same den-core implementation
-  and never compress or serialize the logical row themselves. Writer validation includes library-v4's self-check:
-  decoding the returned plaintext MUST reproduce the input row exactly. A row that the decoder would normalize —
-  for example, a play register beyond the 8-kept selection — is `invalid_materialize_input`, not a lossy successful
-  materialization. Unknown kinds, newer formats, control documents, extra/missing input members and name/identity
-  disagreement are errors. The executor seals only the returned `plaintext`, then verifies destination readback.
-  It never trusts a client-side classification to decide the destination.
-- `title:*`, `season:*`, `dlv:*`, `set:trackers`, `set:deliver:*`, `set:handoff:*`, and
-  `set:assistant-applied` materialize only in Owner. They carry activity, credentials, receipts, pending/held
-  decisions, lease epochs and delivery state together. `set:assistant-applied` is the durable receipt/replay guard
-  for assistant actions that default to Owner; this is an exact-name rule, not an `assistant` prefix rule.
-- The assistant connection/configuration rows `set:assistant`, `set:assistant-grants`, `set:assistant-read`, and
-  `set:assistant-play` remain whole household rows.
-- `set:download:*`, `set:download-lease`, and every other ordinary household settings row preserve only in the
-  household. Successfully opened rows of a genuinely unknown kind or framing also preserve only there.
-- `set:prefs` is cloned with all unknown root members retained and its `values` replaced by the two results of
-  `profiles_partition_preferences`; an empty side is omitted. Its legacy maturity setting is omitted from both and
-  contributes `ownerPolicy`.
-- `set:keys` is cloned in the same way: the complete stamped `simkl` value, when present, materializes only in
-  Owner, while every other value preserves in the household. An empty side is omitted. Modern `set:trackers`
-  remains the authoritative credential row; retaining the legacy setting does not make it authoritative again.
-- Before any known `set` row is preserved or materialized, every setting is validated by library-v2's canonical
-  generic settings decoder: it has a valid stamp and its value is either null or exactly one of the `bool`, `int`,
-  `string`, `ints`, or `strings` tags with the corresponding type; every integer is an integral signed safe integer.
-  The canonical specialized validator is also applied for a setting name that has one. An unknown tag, malformed
-  stamp, non-integral/unsafe integer, or specialized validation failure is `invalid_settings_row`. This validation
-  happens in den-core, not in whichever client happened to decode the authenticated JSON.
-- `ownerPolicy.value` is `profile_policy_normalize_legacy` of the legacy maturity setting's tagged string
-  (`pg13`, `r`, or null). When present, its original stamp is retained. When absent, the explicit constructor stamp
-  `ownerPolicyAt` is used; den-core never invents a clock value.
-
-A pre-v4 `rec`, `wat`, `snt`, `ep` or `set:tracker-event:*` row, an already-present `profiles` or Kid-approval row,
-a duplicate authenticated logical name, malformed known identity/settings/policy, or any known row whose scope is
-ambiguous is an error. The caller must first finish the ordinary library-v4 conversion or stop for recovery. A
-`legacy_source_row` answer for an attempt that has not staged aborts that attempt, releasing the lock; the client then
-runs the library-v4 switch (library-v4 §10), which folds the stray rows into documents, and a later Enable Profiles
-opens a fresh attempt on the converted source. The frozen backup of the aborted attempt is never partitioned again.
-
-This operation deliberately does not fabricate the complete `profiles` document: Owner display, random id/key and
-their constructor stamps are explicit product inputs, while `migration.ownerHead` exists only after the Owner
-library is written and read back. The executor uses `ownerPolicy` and the verified Owner material to construct that
-document through the existing den-core lifecycle/validation operations.
-
-### 6.2 Initial Owner-directory construction
-
-`profiles_construct_directory(input)` is the only canonical constructor for the first stored directory, whether a §8
-split or a household's first profile-aware setup supplies its verified values. `profiles_migration_construct_directory`
-is the same operation under its earlier name and answers identically. It is pure and accepts no clock, randomness, ciphertext, storage handle or network authority beyond the explicit
+`profiles_construct_directory(input)` is the only canonical constructor for the first stored directory. It is pure
+and accepts no clock, randomness, ciphertext, storage handle or network authority beyond the explicit
 verified values below:
 
 ```json
@@ -659,18 +474,15 @@ with no trailing bytes. DEFLATE bitstreams are not canonical, so conformance com
 not compressor-specific bytes. The constructor accepts the complete finite JSON-number domain in preserved display
 and policy extensions and serializes every number exactly as RFC 8785 requires (ECMAScript number serialization,
 including `1.0` as `1` and negative zero as `0`); non-finite values are not JSON and are rejected. The caller must
-decode and seal `plaintext`; it must not independently serialize `directory`. This constructor-specific
-materialization does not make `profiles` a supported input to the generic
-`profiles_migration_materialize_plaintext` operation: that operation continues to reject every profile-control
-document.
+decode and seal `plaintext`; it must not independently serialize `directory`.
 
 The constructor then validates its result as a **stored** directory, including mandatory migration evidence. A
 malformed id, display, policy, stamp, canonical 32-byte key, attempt, source generation/head, backup id/digest or
 Owner head is an error; it never returns a partially valid document or caller-selected bytes. The caller seals the
-returned `plaintext` and passes it to the commit that publishes it (§8's atomic commit for a split). Constructing it does not activate profiles or raise a
-wire minimum.
+returned `plaintext` and publishes it through the ordinary authenticated household write path. Constructing it alone
+does not raise a wire minimum.
 
-### 6.3 Seeding a profile's preferences from an older household
+### 6.2 Seeding a profile preferences from an older household
 
 Each persistent profile, Owner and Kid alike, keeps its own preferences in its own `set:prefs`; a profile never reads
 from or writes to another's, and a client writes a preference change to the active profile's `set:prefs` only.
@@ -687,7 +499,7 @@ none. Any member already in the profile counts as a decision, including a cleare
   write identical stamped values, and a later edit in the profile (a later stamp) wins by the ordinary stamp rule.
   A client seeds a profile when it opens that profile's library, and writes only a non-empty answer.
 - **Household copy.** After seeding, the household's `set:prefs` is a stale seed that no profile reads for a key it
-  holds. It is removed by the §8.2 repair (`set:prefs` is `remove`), which a client runs only once every live
+  holds. It is removed by the §8 repair (`set:prefs` is `remove`), which a client runs only once every live
   profile has been seeded, because a profile created later is seeded from it too.
 
 ## 7. Sticky device-local selection
@@ -713,574 +525,24 @@ expiry.
 - Playback is dismissed, profile-owned delayed progress/tracker/recommendation work is cancelled, navigation is
   reset, and profile-specific caches are cleared before another mode becomes active. Household services stay open.
 
-## 8. Initial split: explicit, backed up and fenced
-
-**Retiring.** The split is one-time machinery for a household that predates profiles
-([den#294](https://github.com/oxyc/den/issues/294)). What retires with it: the split planner
-(`profiles_migration_next`), its authorization (`profiles_migration_authorization`), the backup and restore, the
-staged household commit, and the stale-candidate retirement transport of §8.1 (`/lib/{household}/profile-migration…`).
-What stays, because profile-aware households keep needing it: §1.2's source counter, snapshot digests and
-exclusive-operation lock; §6.2's first-directory constructor; the directory's stored `migration` provenance (§3);
-and §8.2's adoption and household write rule, which every client applies to a cache that predates its household's
-topology.
-
-The split starts only when Owner explicitly chooses **Enable Profiles** and supplies a fresh valid owner PIN. That
-single action authorizes preparation, verification and the final household commit for exactly one attempt. It does
-not authorize migrations generally. Before prompting, the client freshly authenticates and reads the source; before
-the first storage effect it chooses the random attempt id and durably records the den-core-produced
-`splitAuthorization`. Its intent digest covers `enable-profiles`, version 1, the attempt, household id, and the
-observed source generation/head. Upgrade, launch, opening these vectors, creating a directory in memory, merely
-seeing a capable peer, or possessing an old journal without that exact authorization MUST NOT start a split. With no
-journal and no current PIN-authorized action, the planner returns `no-op` and performs no storage I/O.
-
-The journal may automatically resume that exact authorized attempt after process death. Once backup, Owner and
-staged-household verification finish, den-core derives a commit binding over the intent digest, attempt, household
-id, source fence, backup digest, candidate key/head, staged digest and wire minimum 5. The client durably records
-that binding as `{state: "ready-to-commit", commitAuthorized: true}` before issuing commit I/O; this is a mechanical
-continuation of the original action and requires no second PIN or confirmation. `commitAuthorized` without the exact
-den-core binding is invalid. Changing any bound value invalidates the authorization, and a new explicit Enable
-Profiles action plus fresh PIN is required. Copying either the boolean or binding to another journal is invalid
-evidence. Recovery remains a separate owner-PIN action and cannot inherit or broaden split authorization.
-
-The states and only permitted next effects are:
-
-| Local state | Required durable evidence | Next effect |
-|---|---|---|
-| `idle` | explicit owner intent | Atomically open a den-edge rewrite with its provider-verified backup and record both as `fenced` |
-| `fenced` | source fence plus bound provider-verified backup | Fetch that backup and verify its digest, contents and restorability |
-| `backed-up` | source fence plus verified backup | Create one random Owner key/library and copy the Owner partition |
-| `owner-copied` | candidate library id/key | Verify every source row is accounted for and derived state and delivery pending state agree |
-| `awaiting-confirmation` | all preparation evidence, prepared exact-attempt authorization, `commitAuthorized: false` | Derive and durably record the exact commit binding; do not prompt again |
-| `ready-to-commit` | all prior evidence, exact commit binding and durable `commitAuthorized: true` | Commit the already staged configuration-only household form as `{base, wireMin: 5}` |
-| `commit-unknown` | durable authorization and an attempted commit | Look up the attempt, then freshly authenticate/read the household; never guess from a request outcome |
-| `adopting` | this attempt's valid committed directory | Open and verify its Owner library, then make its profile the local active mode |
-| `active` | the exact committed attempt is usable | Delete the local journal; use household wire 5 and profile wire 4 |
-| `restore-required` | verified backup and no valid committed directory | Stop; require a separate owner-PIN recovery action and fresh recovery attempt |
-
-The backup MUST be complete through the recorded head, restorable under the unchanged household key/id, readable
-after creation, and retained at least until `active`. No Owner destination write may occur first. The Owner copy
-contains every title and season document, every `set:prefs` value (§6), SIMKL credentials, commands,
-receipts, pending/held work, epochs and delivery documents, including facts needed to avoid replay. Its verification
-compares decoded/derived activity and pending delivery decisions, not merely row counts.
-
-The staged household is built from the same fenced source. It retains all household state named in §§2 and 6,
-adds the directory and its immutable migration evidence, and contains no activity, personal preference, tracker
-credential, command, receipt or delivery row. Its directory Owner key is the verified candidate key. The single
-den-edge generation/base-fenced rewrite commits the staged rows and `x-den-wire-min: 5` together. It keeps the
-existing household key, id, membership and links. A split is not a §12 reset and never asks a device to pair again.
-
-den-edge permits exactly one durable active migration attempt per household. Opening that attempt atomically checks
-the exact source and acquires the exclusive migration lock described in §8.1. There is no concurrent-winner path in
-the v1 launch flow. `profiles_migration_next(input)` in den-core is the canonical pure decision operation. Its input
-contains `state`, `observed` (`legacy`, `committed` or `corrupt`), and the following evidence when applicable:
-
-- `explicitIntent` is true before `idle` may return `acquire-fence`. It is accepted only with the exact
-  `splitAuthorization` returned for the current PIN-verified Enable Profiles action, plus matching `attempt`,
-  `householdId` and fresh `observedFence`;
-- `commitAuthorized` is false or absent throughout preparation. At `awaiting-confirmation`, the planner validates
-  `backupDigest`, `candidateKey`, `candidateHead`, `stagedDigest` and `wireMin: 5`, then returns
-  `record-commit-binding`. The client calls `profiles_migration_authorization` with that evidence, durably stores its
-  result and advances to `ready-to-commit` without user interaction. `ready-to-commit` and `commit-unknown` require
-  the exact binding; earlier states reject a binding as premature;
-- `cancelRequested` is a separate explicit owner action. It may abort and release the lock only when the planner
-  proves the attempt is still before household staging and before any irreversible effect. The abort records the
-  durable `aborted` lookup, performs a new authenticated household read, then retires a candidate only through
-  §8.1's conditional retirement proof, and finally discards the journal. Once staging or another irreversible phase
-  begins, cancellation is recovery-blocked and the exact attempt must resume. A pre-abort household observation
-  cannot authorize retirement. Cancellation never deletes a committed or otherwise referenced library;
-- `attemptLookup` is absent until durable attempt lookup completes, then is exactly `open`, `committed` or
-  `aborted`; `superseded` is accepted only as cleanup evidence from a provider state created before exclusive locks.
-  `householdFresh` is true only after a new authenticated household read performed after
-  that lookup. A `commit-unknown` journal requires both in that order before it can adopt or clean up;
-- `recoveryIntent` is true only for a new owner-PIN-verified Restore action. It is not carried from split preparation
-  action or derived commit binding and authorizes only opening a fresh `purpose: "restore"` attempt. When the
-  original split journal is unavailable, that fresh recovery attempt may take over the lock only through §8.1's
-  atomic verified-backup handoff; it never adopts or resumes the missing split authorization;
-- `fence` is the journal's `{generation, head}` and `observedFence` is the legacy household's current pair. Both use
-  a nonnegative safe-integer generation and a 32-byte lowercase-hex head. Post-`idle` legacy states require both;
-- `directory` is the stored, canonically validated committed directory. It is required for a `committed`
-  observation and forbidden as evidence of a legacy or corrupt household;
-- `backupVerified`, `ownerVerified` and `winnerVerified` are observations, not commands. A verified candidate Owner
-  also carries its authenticated `candidateHead`; an unverified candidate has no head;
-- `candidateKey`, when a candidate exists, is its canonical padded base64 32-byte library key.
-  `candidateAttempt` is the local journal's random attempt id when comparing that candidate with a committed
-  directory, and `candidateRetired` reports confirmed absence. For `commit-unknown`, `candidateAttempt` MUST equal
-  the attempt in the validated split authorization before a `committed` lookup can verify or activate anything; a
-  caller-supplied attempt copied from the fresh directory cannot replace the authorized journal identity. Legacy
-  `superseded` evidence may authorize only safe cleanup of a distinct, unreferenced stale candidate;
-- `legacyStaleCandidate` is true only when the storage adapter has verified a durable journal and terminal provider
-  result created by a pre-exclusive-lock implementation. It is false for every newly opened attempt. A bare caller
-  boolean, a different committed directory, or a candidate library's existence is not such evidence.
-
-`profiles_migration_authorization({intent, evidence})` is the only operation that constructs the durable
-authorization value. `intent` has exactly `{version: 1, action: "enable-profiles", attempt, householdId, source}`;
-`source` is exactly `{generation, head}`. With `evidence: null`, it returns
-`{intent, intentDigest, commitBinding: null}`, where `intentDigest` is SHA-256 of the intent's RFC 8785 bytes. The
-caller may request this form only while handling the fresh-PIN Enable Profiles action. With evidence, the input has
-exactly `{attempt, householdId, fence, backupDigest, candidateKey, candidateHead, stagedDigest, wireMin}`. The first
-three identities must equal the intent, every digest is lowercase 32-byte hex, the key is canonical padded base64 for
-32 bytes, and `wireMin` is exactly 5. The operation returns the same intent and intent digest plus `commitBinding`,
-SHA-256 of RFC 8785 `{authorization: intentDigest, ...evidence}`. The planner independently recomputes both digests;
-clients cannot assert them with a boolean. These digests bind authority logically and cryptographically to journal
-evidence; the device's secure journal protects the authorization object at rest.
-
-The operation validates all supplied evidence before deciding. The local candidate is the committed Owner only when
-its `candidateAttempt`, `candidateKey` and verified `candidateHead` equal the directory's immutable migration
-attempt, Owner key and Owner head. That exact attempt is verified and activated. There is no second candidate in the
-exclusive launch flow. For backward-compatible recovery only, cleanup may inspect a candidate recorded by an older
-concurrent-attempt implementation. It compares that stale `candidateKey` with the library key of **every live
-profile** in the committed directory. A referenced key while in legacy `cleaning-loser` returns
-`cleanup_targets_winner`; the same mismatch outside cleanup is `winner_evidence_mismatch`. Evidence claiming that a
-committed key is already retired is the contradiction `committed_key_retired`. Only valid legacy evidence for a
-distinct, unreferenced stale candidate may produce `retire-losing-candidate`; new exclusive attempts never enter
-that phase and missing `legacyStaleCandidate` evidence is `legacy_cleanup_evidence_required`. A malformed/missing
-committed directory, malformed fence or key, verified copy without a head, or
-phase/evidence contradiction is an error rather than a next effect. Missing initial intent is the explicit `no-op`
-case and cannot acquire a fence. The operation
-returns one of the effects named in the table or an error. Swift and web MUST execute that answer and MUST NOT infer
-success from their own request outcome.
-
-After any conflict, timeout or process death, resolve the durable journal as follows:
-
-- An `awaiting-confirmation` journal with the exact prepared authorization may resume verification or be cancelled.
-  Once preparation is complete it returns `record-commit-binding`; after that den-core result is durably recorded it
-  advances to `ready-to-commit` and continues without another prompt. A missing, malformed, copied, source-stale or
-  evidence-mismatched authorization never reaches commit. Restart may resume only the byte-identical authorized
-  attempt and cannot manufacture authorization from a capable server or an ordinary launch.
-- `commit-unknown` first returns `lookup-attempt`. Only after that durable result does it return `read-household`.
-  This ordering takes precedence over a missing, stale or corrupt household observation: none is interpreted before
-  lookup and the subsequent fresh read. After both, the local candidate attempt must still equal the exact
-  authorized journal attempt. A `committed` lookup is valid only when the fresh directory's migration attempt,
-  Owner key and Owner head are the exact local attempt and verified candidate evidence. A committed directory for
-  another attempt is inconsistent under the exclusive contract and fails closed; it is not adopted as a competing
-  winner. An `open` lookup plus the exact unchanged legacy fence may retry only the already-bound,
-  byte-identical authorized commit; it cannot construct a new commit. `aborted` cleans up and discards the journal
-  only after the same fresh-read checks.
-
-- A valid newly committed directory MUST name the exact active attempt. Another attempt id is corruption unless
-  durable legacy terminal evidence proves it predates exclusive locks. That compatibility path may clean a stale
-  candidate but MUST NOT be reachable from a newly opened exclusive attempt.
-- Legacy cleanup MUST compare the stale candidate key with every live key in the committed directory. Equal or
-  referenced means `cleanup_targets_winner` and no delete. Only a distinct, unreferenced candidate may be retired.
-  Absence counts as success, so a retry cannot create a storage-counting orphan.
-- If the household remains legacy and the original fence and authorization source still match, resume the journal's
-  next effect. A source change cannot be caused by an ordinary mutation while the exclusive lock is open. If legacy
-  state nevertheless proves an older source changed, safely retire any unreferenced stale candidate, discard the
-  old attempt and its authorization, and return to `idle`; only a new explicit Enable Profiles action with a fresh
-  owner PIN may start another attempt.
-- An atomic fenced rewrite failure leaves the old household authoritative; do not restore over it. An unreadable or
-  partial household with no valid committed directory enters `restore-required`. Recovery first proves the backup's
-  digest and source fence, then stops. A new owner-PIN-verified Restore action opens a fresh recovery attempt, using
-  §8.1's atomic handoff when an open split still owns the household lock, and restores only if den-core answers
-  `restore-backup`. Split intent, preparation and commit binding do not authorize restore. A backup
-  MUST NOT restore over a valid wire-5 directory or lower its minimum.
-- When the splitting device is lost before commit, the household is still the intact legacy household: the
-  exclusive lock froze it and nothing committed. After the §8.1 handoff the recovering device holds a `restore`
-  attempt bound to the split's verified backup with nothing staged, and `restore-required` is paired with an
-  `observed: "legacy"` household. Without `recoveryIntent`, or without `backupVerified`, the answer is
-  `recovery-blocked`, so clients surface the Restore action. With both, and `fence` (the bound backup's frozen
-  source) equal to `observedFence`, the answer is `abort-attempt`: the household already equals the backed-up
-  source, so a restore would be a no-op rewrite, and aborting releases the lock. A differing `observedFence` cannot
-  happen while the lock is held and is `recovery_source_mismatch`, never a restore. After `attemptLookup: "aborted"`
-  the answer is `read-household` until `householdFresh` is true, then `discard-journal`; the household may legitimately
-  have changed once the lock was released, so the fences are not compared after the abort. A `committed` or
-  `superseded` lookup beside a legacy household is `terminal_household_mismatch`. This case needs no
-  `splitAuthorization`.
-- A valid committed directory whose Owner library cannot yet be verified remains `adopting`; it never falls back to
-  household activity and never lowers the wire minimum. Repair/finish the referenced Owner library from the verified
-  candidate/backup facts, or stop for recovery.
-
-Until product activation is separately approved, `profiles_migration_next` may be implemented and tested but no UI
-or background path may supply the explicit owner intent, publish the directory, commit the rewrite or change a live
-minimum.
-
-### 8.1 den-edge storage transaction
-
-The initial split requires a storage transaction in addition to the pure den-core planner. It is not conforming to
-assemble these effects from an ordinary `/changes` read, a best-effort file copy, the existing short-lived generic
-rewrite stage and an ordinary `DELETE`: those operations leave gaps in which a source write, process death or a
-newly committed profile directory can make the evidence stale.
-
-This section names the required operations. The route names in the vectors are the interoperable HTTP surface;
-an in-process store may expose equivalent calls, but it MUST return the same evidence and errors. Every request is
-authenticated as the household library and carries exactly `x-den-wire: 5`. The surface is unavailable for an `off`
-legacy household, available for a `prepare` legacy household, and remains available once the stored minimum is 5
-even when ordinary runtime is recovery-blocked by a missing or invalid directory. Defining the routes does not place
-any household in `prepare` or authorize activation.
-
-#### Canonical migration digests
-
-The canonicalization rules are §1.2's; a staged row is exactly `{k, v}`, sorted the same way. The
-`profiles_migration_digest(kind, input)` den-core operation is the cross-client canonical boundary and is pinned by
-`vectors/profiles-v1.json`:
-
-- `kind: "source"` is §1.2's source digest. This is the authenticated `head` in an opened household source
-  fence.
-- `kind: "backup"` hashes JCS of the complete immutable manifest
-  `{id, householdId, attempt, source, wireMin, authorization, rows}`. `source` is the complete four-field storage
-  fence `{generation, base, head, rewrite}`; `authorization` is the provider's non-secret
-  `{tokenHash, memberHash}` representation, with `memberHash: null` when no member exists.
-- `kind: "staged"` hashes JCS of the sorted array of complete staged `{k, v}` rows. There is no wrapper object and
-  sequences are absent because the in-place rewrite assigns them atomically.
-- `kind: "owner"` is §1.2's profile-library head of the verified ordinary library-v4 Owner destination. This value
-  is the directory's `migration.ownerHead` and the planner's `candidateHead`; `wireMin` is 4 for the initial Owner
-  library.
-
-`source` and `owner` are also answered by §1.2's `profiles_snapshot_digest`. The four kinds are domain-separated by their distinct exact JSON shapes. Extra or missing members, a malformed id,
-digest, fence or row, values outside the safe-integer range, an unsatisfied `base`/sequence snapshot, or a digest
-request of another kind is an error. The operation computes evidence only; it performs no I/O and does not authorize
-or activate a migration. Wire 5 remains library-v4 row encoding plus the profile topology, not a new row format.
-
-#### Source fence and durable lookup
-
-Before asking for the Owner PIN, a client reads the exact source it proposes to authorize with
-`GET /lib/{household}/profile-migration/source`. The response is exactly:
-
-```json
-{"source":{"generation":7,"head":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}
-```
-
-This route uses the same household authentication and exact `x-den-wire: 5` requirement as every other migration
-route. It is read-only: it MUST NOT create an attempt, freeze a snapshot, allocate a rewrite handle, create a backup
-or staging area, or advance any counter. `generation` is the household's §1.2 source counter; `head` is its §1.2
-source digest. The observation deliberately excludes the public sync
-generation, `base` and a rewrite handle. The client binds this exact `{generation,head}` into the fresh Owner-PIN
-authorization for its newly generated attempt id.
-
-`POST /lib/{household}/profile-migration` with
-`{"attempt":"<32 lowercase hex>","purpose":"split","expectedSource":{"generation":7,"head":"<64 lowercase hex>"}}`
-or `purpose: "restore"` opens the transaction. `expectedSource` is required and exact. For a new attempt, the
-provider MUST hold the same per-library serialization used for source validation, first establish that no active
-migration attempt exists, read the current authoritative generation and authenticated head, and compare both with
-`expectedSource`. While still holding that serialization it creates the complete source backup, durably flushes it,
-reopens and verifies its manifest digest, then atomically records the durable attempt, exclusive household migration
-lock, frozen-source state and exact backup reference. The lock is never externally visible without that verified
-backup. A mismatch is
-`409 {"error":"migration_source_changed"}` and has no side effect: in particular it creates no attempt record,
-source snapshot, rewrite handle, backup, staging area or counter change. The client invalidates the associated
-authorization. A split requires another explicit Enable Profiles action plus a fresh Owner PIN against a fresh
-source observation; a restore requires another explicit Restore action plus its own fresh Owner PIN and source
-observation. Recovery may not broaden or refresh either old authorization.
-
-The split's lock is §1.2's exclusive-operation lock: at most one active lock on a household, of any purpose:
-`split`, `restore` or the §9.1 key reset.
-A different split attempt, a second restore attempt, any open while a §9.1 key-reset lock is active, or a restore
-faced with corrupt legacy state lacking the invariant bound backup returns exactly
-`409 {"error":"migration_in_progress"}` with no active attempt id, purpose, fence, source, backup, staging or
-timing metadata and with no side effect. This check happens before current-source comparison, so an ineligible
-caller cannot use mismatched expected-source values to probe the active attempt. The sole exception is the atomic
-recovery handoff below. The lock and its attempt record are durable across client and den-edge restart and do not
-expire because a client disconnects.
-
-A fresh owner-PIN-authorized `purpose: "restore"` request may atomically replace an open `split` lock only when
-den-edge proves that the split has a durable provider-read-back-verified backup and that the request's
-`expectedSource`, the split's frozen source and the current authoritative source are identical. The transaction
-tombstones the split as `aborted` by recovery handoff, opens the caller's new restore attempt on that same source, transfers
-and binds the exact immutable backup reference `{attempt,id,digest}`, and returns the normal open restore result plus
-that backup reference. It is one storage commit: a crash before it leaves the split open; a crash after it leaves the
-new restore attempt open and replayable with the bound backup. It never exposes a backup or active-attempt metadata
-on a failed handoff, never transfers an unverified backup, and never allows one split to replace another split.
-
-Purpose and expected source are immutable. Repeating the same authenticated household, attempt, purpose and
-`expectedSource` is a lookup and returns the already stored result even if the household has since changed. This
-same-attempt lookup-first rule resolves an unknown open response without accidentally creating a second attempt.
-It is the only open request allowed through an active lock. Reusing that same
-attempt with another purpose or expected source is `409 migration_attempt_mismatch`. It does not fall through to a
-current-source comparison and has no side effect. A successful new-open answer is:
-
-```json
-{
-  "attempt": "0123456789abcdef0123456789abcdef",
-  "state": "open",
-  "purpose": "split",
-  "wireMin": 4,
-  "backup": {
-    "attempt": "0123456789abcdef0123456789abcdef",
-    "id": "backup-0123456789abcdef",
-    "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-  },
-  "fence": {
-    "generation": 7,
-    "base": 418,
-    "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "rewrite": "opaque-provider-handle"
-  }
-}
-```
-
-`wireMin` is the minimum observed in the same locked read as `fence`. `generation` is the household's §1.2 source
-counter, a durable monotone safe-integer counter in the **profile-migration fence namespace**.
-Opening an attempt reads the current value; it does not allocate a random value or advance it. Every visible
-household mutation (an applied ordinary batch, migration rewrite or restore) advances it atomically. Outside an
-active migration lock, later writes therefore invalidate an earlier source observation. While the lock is active,
-ordinary household mutations cannot advance it. It
-is never restored backwards or reused; restoration advances from the provider-retained high-water mark, and the
-vanishingly unlikely safe-integer exhaustion refuses mutation rather than wrapping. It is
-not the public `x-den-generation` sync header, is not parsed from that header and need not change when that header
-changes. `base` is the household sequence head frozen by this transaction. `head` is the lowercase SHA-256 digest
-of RFC 8785 JCS for `{libraryId, generation, base, wireMin, rows}`, where `rows` contains every `{k, seq, v}`
-through `base` ordered by raw row-key bytes. A client calls it authenticated only after opening every known row,
-checking each AEAD and logical-name binding, preserving every unknown row, and recomputing this digest. `rewrite`
-is an opaque handle.
-
-The opened fence **does block ordinary household mutations** until its terminal release or atomic recovery handoff. A mutation that is not an
-effect of the active migration attempt is refused before ordinary generation/rewrite handling with exactly
-`409 {"error":"migration_in_progress"}` and no effect. Reads may continue. The active attempt's backup, staging,
-commit, restore and planner-safe abort routes remain available only to that exact attempt. The source snapshot,
-lock and staging area are durable across client process death, den-edge restart and an arbitrarily long Owner copy.
-They MUST NOT disappear on an idle timer. Updated clients map `migration_in_progress` from an ordinary mutation to
-a blocking **Profile setup is in progress** state and pause automatic write retries; they do not present it as data
-loss or silently continue accepting local writes. Ordinary authenticated reads remain available, so playback and
-inspection can continue from the frozen legacy household. A pre-profile client may show its generic sync-conflict
-UI, but the server still refuses its mutation atomically. A migration-capable client with no matching local journal
-offers the explicit owner-PIN Restore action, which attempts only the verified-backup handoff above.
-`GET /lib/{household}/profile-migration/{attempt}` returns the same open
-`{attempt,state,purpose,wireMin,fence,backup}`
-byte-for-byte, or a durable terminal `committed`, `restored` or `aborted` result. A provider may retain
-`superseded` only as historical lookup evidence created before this exclusive-lock contract; a new exclusive
-attempt cannot become superseded by another attempt. In particular, an
-open recovery attempt remains `state: "open", purpose: "restore"` across client/server restart and returns the
-original fence; it never silently refreshes to the current household. Thus a `commit-unknown` or `restore-unknown`
-journal can look up the attempt before deciding anything.
-`DELETE /lib/{household}/profile-migration/{attempt}` records a terminal abort and releases the lock only when the
-authenticated request names the active attempt and the den-core recovery planner proves it is before household
-staging and before any irreversible effect. After staging begins, abort returns a blocking conflict without
-changing the attempt or lock; the exact attempt must resume or enter verified recovery. Abort is never inferred
-from idleness or client disconnect. The terminal `aborted` result and lock release are atomic, so a new attempt
-cannot observe the old attempt as open or acquire the household before its abort is durable.
-
-The planner's and committed directory's `source` is the durable projection `{generation, head}`. `base` and
-`rewrite` remain in the local journal/storage transaction: they are needed to execute the compare-and-swap but are
-not immutable directory identity. A storage adapter MUST reject a journal projection whose generation/head differs
-from its reopened transaction.
-
-#### Verified backup before destination writes
-
-The successful open has already created and bound one immutable backup from the frozen source, never from a later
-read. `POST /lib/{household}/profile-migration/{attempt}/backup` remains idempotent for client compatibility: it
-reopens and verifies that same artifact and returns `{id, digest, source}`; it never creates a second backup.
-`source` is the complete four-field
-fence above. The backup contains the household's exact row snapshot with sequences, wire minimum, authorization
-credential hashes/member proof and provider metadata needed to restore the same library id and key. Pairing,
-recovery and other records outside the library object are not replaced by a restore and therefore remain attached
-to that same id.
-
-`digest` is lowercase SHA-256 of RFC 8785 JCS for the immutable manifest
-`{id, householdId, attempt, source, wireMin, authorization, rows}`, with rows in the same canonical order. The
-authorization member is the provider's non-secret credential-hash/member-proof representation, never the household
-key or raw token.
-
-The authorization representation is computed by the pure
-`profiles_migration_authorization_fingerprint({token, member})` operation. Its input has exactly those two members.
-`token` is the household's canonical lowercase 64-hex library-v2 token text; `member` is its canonical lowercase
-64-hex registered-member text or `null` when the provider has no registered member. The operation returns exactly
-`{tokenHash, memberHash}` where:
-
-- `tokenHash` is lowercase hexadecimal SHA-256 of the UTF-8 bytes of `token`;
-- `memberHash` is `null` for a null member, otherwise lowercase hexadecimal SHA-256 of the UTF-8 bytes of `member`.
-
-The two credential strings are hashed independently in that member order: they are never concatenated, hex-decoded
-or prefixed with another byte string. The distinct library-v2 HKDF info labels `token` and `member` provide the
-credential domain separation, and the named manifest members provide structural separation. This deliberately
-matches den-edge's deployed SHA-256 token/member lookup representation. Fingerprint output is lowercase hex, not
-base64url; unpadded base64url is used by the materialization operation above. A client recomputes this representation
-from the authenticated household credentials and compares both members before accepting a backup. Raw credentials
-never enter the backup request, response, manifest or digest.
-
-`GET /lib/{household}/profile-migration/{attempt}/backup` returns the immutable artifact and manifest. Verification
-requires all of the following:
-
-- the provider digest matches the complete artifact and manifest;
-- its household id, attempt and four-field source fence equal the journal;
-- every row through `base` is present exactly once with its original sequence and ciphertext;
-- every known row opens and passes its logical-name binding, and every unknown row is retained byte-for-byte; and
-- a dry restore can reconstruct the same id, authorization, wire minimum, base and authenticated head.
-
-Only then is `backupVerified` true. The backup is durable independently of the rewrite handle and retained until
-the client reaches `active` (or an explicit post-recovery retention policy keeps it longer). Creating an Owner
-library or writing its first row before this verification is a protocol violation. An artifact id, row count,
-filesystem-copy success or provider checksum alone is not verification.
-
-Before publishing the open attempt den-edge MUST reopen the durable artifact, recompute its complete manifest
-digest and record `providerReadBackVerified: true` in the same attempt transaction. That provider proof is
-necessary but not sufficient for the client's `backupVerified`: the client still performs every semantic and AEAD
-check above. Only a backup carrying this durable provider proof is eligible for recovery handoff. The handoff binds
-the exact original attempt, artifact id and digest, so the new recovery client can fetch and fully verify those same
-bytes before den-core may answer `restore-backup`.
-
-After an atomic recovery handoff, the new restore attempt's backup-read route returns that exact bound original
-artifact and manifest without copying or rewriting them; their manifest `attempt` remains the original split attempt
-named by the transferred reference. This is the only cross-attempt backup access. It is authorized by the durable
-handoff sidecar, not by a caller-supplied old attempt id, and the provider retains the artifact until the new restore
-attempt is terminal. Backup creation, staging, commit, restore and abort remain confined to the active attempt.
-
-Open and backup publication have one crash boundary. A crash before the attempt/lock transaction commits exposes no
-lock; an unreferenced fully written backup may be garbage-collected. A crash after it commits always leaves an open
-attempt with its exact provider-verified backup, so the original journal can resume or a fresh authorized restore
-can perform the atomic handoff. There is no durable locked-without-recovery-evidence state.
-
-#### Fenced in-place commit
-
-Rows are staged with `POST /lib/{household}/profile-migration/{attempt}/rows`. Staging is idempotent by row key and
-does not change the visible household. The server binds every staged row set to the transaction fence and verified
-backup. The client separately verifies that the staged projection is configuration-only, contains the canonical
-profile directory and accounts for every source row according to §§2, 6 and 8.
-
-`POST /lib/{household}/profile-migration/{attempt}/commit` supplies the complete four-field `fence`, backup
-`{id,digest}`, a digest of the complete staged row set, and `wireMin: 5`. Under the household lock den-edge MUST
-atomically verify the attempt/fence/backup/staged digest, replace the rows under the **same** library id and token,
-raise the minimum to 5, advance the visible library generation, record the terminal result and release the
-exclusive migration lock as one atomic effect. There is no observable committed-but-locked or unlocked-before-
-commit state. A mismatch returns
-`409 migration_fence_moved` and changes neither rows nor minimum. No response or a 5xx is `commit-unknown`; the
-client uses attempt lookup and a fresh authenticated household read, never blindly submits another logical commit.
-A committed lookup returns the resulting base/generation and staged digest, so a retry cannot commit twice.
-
-Restore is not a side effect of a failed commit: an atomic commit failure leaves the legacy source authoritative.
-
-#### Explicit backup restore
-
-Restoring a verified backup is a **fresh**, attempt-addressed transaction. It never reopens or reuses the original
-migration attempt or its generation. After an explicit owner recovery action, the client chooses a new random
-`recoveryAttempt`, reads `GET /lib/{household}/profile-migration/source`, and binds that exact observation into the
-fresh recovery authorization. It MUST then open with
-`POST /lib/{household}/profile-migration
-{"attempt":recoveryAttempt,"purpose":"restore","expectedSource":observedSource}`. Only the returned
-`state: "open", purpose: "restore"`, four-field `fence` and `wireMin` authorize the next step. If an open split held
-the lock, this response also contains the atomically bound original backup reference from the recovery handoff; its
-attempt, id and digest replace no value by inference. The client records that response, freshly reads and
-authenticates the household as far as possible against those exact bytes, proves
-that no den-core-valid committed directory is present, and asks den-core for `restore-backup`. Neither the public
-`x-den-generation` header nor an ordinary `/changes` read can manufacture or substitute for this authority.
-
-The idempotent operation is
-`POST /lib/{household}/profile-migration/{recoveryAttempt}/restore`. Its request is:
-
-```json
-{
-  "backup": {
-    "attempt": "0123456789abcdef0123456789abcdef",
-    "id": "backup-0123456789abcdef",
-    "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-  },
-  "fence": {
-    "generation": 9,
-    "base": 7,
-    "head": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-    "rewrite": "rewrite-fedcba9876543210"
-  },
-  "wireMin": 5,
-  "profilesRow": {"present": true, "seq": 7, "digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"},
-  "directoryState": "invalid",
-  "plannerDecision": "restore-backup"
-}
-```
-
-`backup.attempt` identifies the original attempt that created the immutable backup; it MUST differ from
-`recoveryAttempt`. The provider re-verifies the artifact digest, manifest, original four-field source fence,
-household id and authorization member before using it. The request contains neither the household key nor raw
-credentials. `fence` and `wireMin` MUST equal the values returned when this same `recoveryAttempt` was opened; an
-attempt that is absent, terminal, opened for `split`, or supplied with any other fence/minimum is rejected without
-mutation. `profilesRow` is either `{"present":false}` or the exact sequence plus ciphertext digest of the
-current sealed `profiles` row. `directoryState` is the result of authenticating that exact row and running den-core:
-only `absent` or `invalid` is accepted. A valid committed directory forbids restore regardless of which attempt
-created it.
-
-On the first restore request den-edge durably binds the complete request to the already-open `recoveryAttempt`; a
-retry with different bytes returns `409 migration_attempt_mismatch`. Under the household lock it re-reads the exact
-generation, base, authenticated row-set head, wire minimum and sealed `profiles` row. Any difference returns
-`409 migration_fence_moved`, changes nothing and leaves the attempt open and locked for fail-closed recovery. Such a
-difference cannot result from an ordinary mutation under this contract; it is an invariant/storage failure, not a
-competing winner. This compare-and-swap pins the client's den-core decision to the bytes it inspected; den-edge
-cannot decrypt or independently validate the directory.
-
-If the CAS still matches, den-edge atomically restores the backup's rows, sequences, authorization representation
-and provider metadata under the **same** household id and token. Pairing/recovery records attached outside the
-library object remain attached. The resulting minimum is `max(current wireMin, backup wireMin)`, so restoration can
-never lower wire 5 (or any later minimum). The provider advances the migration generation exactly once from its
-retained high-water mark, refusing exhaustion rather than wrapping; it never restores the backup's old generation.
-It recomputes base and authenticated head from the restored visible state, advances the ordinary visible sync
-generation as usual, durably records the terminal result and releases the exclusive migration lock as one atomic
-effect. The restore is permitted only after the client and den-core verified the backup and authorized this exact
-recovery attempt; there is no unlocked interval between verification and replacement. It records:
-
-```json
-{
-  "attempt": "fedcba9876543210fedcba9876543210",
-  "state": "restored",
-  "generation": 10,
-  "base": 418,
-  "head": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-  "wireMin": 5,
-  "backup": {"id": "backup-0123456789abcdef", "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
-}
-```
-
-A lost response is `restore-unknown`: the client first calls the ordinary attempt lookup. `restored` is success;
-`open` may resubmit only the identical request; `aborted` requires a new recovery attempt. Historical
-`superseded` evidence from before exclusive locks requires a fresh authenticated read and den-core decision, but a
-new exclusive recovery attempt cannot produce it. The same request after `restored` returns the identical terminal
-result without advancing generation again. An explicit abort may tombstone a planner-safe open recovery attempt,
-but never a terminal one.
-
-#### Atomic stale-candidate retirement
-
-The cleanup operation is `POST /lib/{household}/profile-migration/{attempt}/retire-candidate`. The household token
-uses `x-den-library-token`; the candidate token uses `x-den-candidate-library-token`. Its JSON contains
-`{source, authority, profilesRow, protectedLibraryIds, candidateLibraryId}` and contains no library key or decrypted
-directory. New exclusive attempts never create competing candidates; this operation remains for planner-safe abort
-cleanup and for stale candidate evidence left by implementations that predate exclusive locks. It is one storage
-effect even though its implementation may read, validate and then conditionally commit:
-
-1. Under a fresh household read, the client authenticates every row and either den-core-validates the committed
-   directory, establishes that the household is still legacy at a source fence that has genuinely changed, or—for
-   explicit cancellation only—proves that this attempt is durably `aborted` and the household is still the exact
-   uncommitted legacy source.
-2. For a committed directory it derives a library id from every live profile key. Locally, before sending any
-   delete request, it proves the candidate id **and key** differ from the household and every live entry. The
-   plaintext directory and profile keys are never sent to den-edge.
-3. The request carries the exact fresh authority `{generation, base, head, kind}`, the sealed `profiles` row
-   identity/sequence when `kind` is `committed`, the exact set of protected derived library ids, and the candidate
-   id. The candidate token is carried in a separate authorization header, never a profile key in JSON.
-4. den-edge locks the household and candidate in deterministic id order, rechecks that the complete authority is
-   still current, that the sealed directory row is byte-identical, and that the candidate id is neither the
-   household nor a protected id. It then retires the candidate or reports that it is already absent. The check and
-   retirement commit atomically.
-
-The protected-id set MUST equal the household id plus the ids derived from every live entry in the den-core-valid
-directory; a subset is invalid. Deleted entries are excluded. A committed authority without a valid directory, a
-same-source legacy authority without a durable `aborted` result for that exact attempt, corrupt household,
-candidate/protected collision, missing candidate authorization or changed authority returns a blocking/conflict
-result and performs no retirement. Cancellation sends authority kind `cancelled-legacy`; it is valid only when the
-attempt lookup is durably `aborted`, the fresh authority still equals the original source, and the protected set is
-exactly the household id. It cannot race a commit because abort is terminal. `retired` and `absent` are the
-only successful results and are idempotent. The server cannot decrypt the directory, so completeness of the live
-set is a client/den-core obligation; the server's exact sealed-row compare-and-swap makes that validated decision
-atomic with respect to later directory changes.
-
-The client keeps the local attempt journal until the terminal transaction result, committed-attempt verification
-and any stale candidate retirement have all been re-read and confirmed. A provider may garbage-collect an aborted
-transaction only after recording a durable terminal tombstone, so lookup never turns an unknown commit into a
-fresh open.
-
-### 8.2 Adoption is not a restore
+## 8. Adoption and household filtering
 
 A generation change that brings in profile topology is **adoption**, never a restore. It is any generation change
 after which the household's wire minimum is 5 where the client's held state had a lower minimum, or after which the
-household carries a valid `profiles` directory that the held state lacked. The §8 commit is the canonical case: it is
-a rewrite (library-v4 §11's generation change), and a device that did not perform it sees only the new generation.
+household carries a valid `profiles` directory that the held state lacked. A topology-establishing rewrite is a
+library-v4 §11 generation change, and a device that did not perform it sees only the new generation.
 
 On adoption a client MUST, for that household:
 
 - **discard** every held row, document and kept write that the §2 rule bars from a profile-aware household, together
-  with any cached snapshot of the pre-split household and any pending restore or write-back work built from it. Held
+  with any cached snapshot of the pre-profile household and any pending restore or write-back work built from it. Held
   work is dropped, not deferred, and is not reported as a conflict;
 - **not write back** any of it. library-v4 §11's write-back applies only to a generation change that does not add
   profile topology, and even then every row passes the §2 rule first;
-- re-read the household from 0 and derive state from the committed rows alone. The pre-split Owner's activity now
+- re-read the household from 0 and derive state from the committed rows alone. The earlier Owner activity now
   lives in the Owner library; a device cache of it is neither merged into the household nor into Owner.
 
-The same rule holds after adoption: a client that later holds a pre-split cache (a browser profile restored from a
+The same rule holds after adoption: a client that later holds a pre-profile cache (a browser profile restored from a
 backup, a device offline across the commit) filters it through `profile_household_write` before any write.
 
 `profile_household_write(row)` answers whether a row may be written to a profile-aware household. `row` is exactly
@@ -1299,8 +561,7 @@ A `set:prefs` or `set:keys` row without a `values` object is `invalid_household_
 `rows` is a list of `row` values as above (a name may appear once; a repeat is `invalid_household_write`). The answer is
 `{remove: [name…], rewrite: [{name, values}…]}`, in input order: `remove` lists the rows that are `refuse`, `rewrite`
 lists the `restrict` rows with their household-only values, and an `allow` row appears in neither. A repair deletes
-or rewrites by the library-v4 rules (a tombstone for a removed row) and does not touch the Owner library, which was
-written by the split.
+or rewrites by the library-v4 rules (a tombstone for a removed row) and does not touch the Owner library.
 
 ## 9. Multi-profile key reset and revocation
 
@@ -1309,8 +570,7 @@ successor key for every live persistent profile, increments each profile's `keyV
 each complete ordinary library-v4 log while preserving delivery state. Deleted profiles are not moved. No successor
 profile key may equal any old or other successor key. The whole move runs under one durable exclusive lock per
 library, the household and every live persistent profile, acquired before the first copy and defined in §9.1:
-without that set a device could write an old library after it was copied, or a second reset or a migration could
-race this one.
+without that set a device could write an old library after it was copied, or a second reset could race this one.
 
 `profiles_reset_next(input)` is den-core's canonical pure planner. It receives the validated committed directory,
 the household move fence, and for each live profile the old key/version, proposed new key/version, copy head and
@@ -1347,9 +607,8 @@ old profile key usable is not a reset.
 
 A compound reset is not conforming if it is assembled from ordinary reads, ordinary writes and an ordinary `DELETE`
 (library-v4 §12): a device could write an old library after it was copied and then lose the write to retirement, two
-resets could mint different successors for one household, and a migration could replace the household under a
-reset. The reset therefore holds §1.2's **per-library durable exclusive-operation lock** (the one §8.1's split also
-takes), with `purpose: "key-reset"`, on the household and on every live persistent profile library. The store primitive is the
+resets could mint different successors for one household. The reset therefore holds §1.2's **per-library durable
+exclusive-operation lock**, with `purpose: "key-reset"`, on the household and on every live persistent profile library. The store primitive is the
 generic one (compare-and-set at an exact source, same-attempt replay, metadata-free refusal of everyone else,
 atomic release with the terminal effect, atomic handoff) and needs no knowledge of profiles beyond the lock record
 below.
@@ -1357,9 +616,7 @@ below.
 This section names the required operations. The routes are the interoperable HTTP surface; an in-process store may
 expose equivalent calls but MUST return the same evidence and errors. Every request is authenticated as the library
 it names (`x-den-library-token`) and carries exactly the `x-den-wire` that library requires: 5 for the household, 4
-for a profile library (§1). The surface is unavailable for an `off` household and follows the §1.1 capability and
-wire gate. It does not depend on the split's §8.1 surface, which may be disabled or removed while this one stays.
-Defining it activates nothing.
+for a profile library (§1). The surface follows the §1.1 runtime wire gate.
 
 | Route | Result |
 |---|---|
@@ -1513,17 +770,14 @@ den-core is consulted for any copy.
 
 While a library holds a key-reset lock **in force**, every mutation that is not an effect of the owning reset is refused
 before ordinary generation and rewrite handling with exactly `409 {"error":"migration_in_progress"}` and no effect:
-`/batch`, member registration, an ordinary `DELETE /lib/{id}`, rewrite open/rows/commit/abort, and any §8.1 open on
+`/batch`, member registration, an ordinary `DELETE /lib/{id}`, and rewrite open/rows/commit/abort on
 the household. Reads continue, so playback and inspection work from the frozen old libraries and the executor copies
 from them. The one error code is deliberate: deployed clients already map `migration_in_progress` to a blocking
-setup-in-progress state and pause write retries (§8.1). The lock and its record are durable across client and
+setup-in-progress state and pause write retries. The lock and its record are durable across client and
 den-edge restart and MUST NOT disappear on an idle timer or a client disconnect; it ends only through the
 terminal effects below. The successor libraries are not locked: they are new ids, created by ordinary batches that
 name an old library of the same store as `x-den-library-member` (library-v3 §10). Reading an old library to prove
 that membership is not a mutation of it.
-
-A key-reset lock blocks a §8.1 migration and a §8.1 lock blocks a key-reset acquisition, both with the same
-metadata-free `409 migration_in_progress`.
 
 #### Successor commit
 
@@ -1581,9 +835,8 @@ recovery is refused (fail-closed, the old libraries stay readable). The conditio
    that right for its own retirements; an unrelated attempt gets `410`. This is the idempotent replay a lost
    response needs. The `410` body of a library retired by a key-reset lock is exactly `{"error":"library_moved"}`
    and never names the successor; only a legacy library-v4 §12 retirement marker may still carry one.
-2. A library holding a §8.1 `split` or `restore` lock answers any request with these headers
-   `409 {"error":"migration_in_progress"}`, never `lock_not_held`. Otherwise, no lock in force (no record, or a void
-   member lock): `409 {"error":"lock_not_held"}` when the headers are present. A `DELETE` of a locked library with
+2. No lock in force (no record, or a void member lock): `409 {"error":"lock_not_held"}` when the headers are
+   present. A `DELETE` of a locked library with
    **no** attempt header, or an attempt that is not the owner, is `409 migration_in_progress` with no effect;
    retiring a locked library under a different or missing attempt is refused.
 3. A successor that differs from the declared one: `409 {"error":"successor_mismatch"}`.
@@ -1807,7 +1060,7 @@ without planner evidence, using only the server-recorded phase and declaration a
 ## 10. Vectors and operation boundary
 
 [`vectors/profiles-v1.json`](../vectors/profiles-v1.json) pins directory schema and operations, numeric policy,
-approvals, the exact settings table, sticky selection, activation/recovery decisions, stale-candidate cleanup, wire topology
-multi-profile reset and its exclusive-lock contract (`resetLockContract`, §9.1) and the profile-aware household write rule (`householdWriteCases`,
-`householdAuditCases`, §8.2). `python3 tools/validate_profiles.py` checks the canonical input boundary and expected pure
-answers. The vectors specify den-core behavior; they do not authorize a production caller to activate profiles.
+approvals, the exact settings table, sticky selection, snapshot digests, initial directory construction, wire
+topology, multi-profile reset and its exclusive-lock contract (`resetLockContract`, §9.1), and the profile-aware
+household write rule (`householdWriteCases`, `householdAuditCases`, §8). `python3 tools/validate_profiles.py` checks
+the canonical input boundary and expected pure answers.
