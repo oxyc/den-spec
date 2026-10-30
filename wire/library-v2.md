@@ -96,7 +96,7 @@ A **stamp** is `[t, c, d]`: Unix ms, a counter and a device id (§4). A **stampe
   "kind": "rec", "schema": 2,
   "title": {"type": "movie", "id": 550},
   "status": {"value": "watchlist", "at": [1789000000000, 0, "a1b2c3d4e5f60718"]},
-  "resume": {"value": 0.42, "at": […], "viewing": 0, "seconds": 2531.5},
+  "resume": {"value": 0.42, "at": […], "viewing": 0, "seconds": 2531.5, "playing": true},
   "reaction": {"value": null, "at": […]},
   "deleted": {"value": false, "at": […]},
   "dismissed": {"value": false, "at": […]},
@@ -107,8 +107,12 @@ A **stamp** is `[t, c, d]`: Unix ms, a counter and a device id (§4). A **stampe
 ```
 
 - `status`: `none`, `watchlist`, `inProgress` or `watched`.
-- `resume`: the resume fraction 0…1, which viewing it belongs to, and the absolute position in seconds
-  (optional). Starting a finished title again, or un-watching it, starts a new viewing.
+- `resume`: the resume fraction 0…1, which viewing it belongs to, the absolute position in seconds (optional),
+  and whether the player was advancing when it wrote the position (`playing`, optional for older clients). Starting
+  a finished title again, or un-watching it, starts a new viewing. `playing` is activity evidence, not another merge
+  key: it travels with whichever complete resume point wins §5. A reader of an older point without it may infer
+  activity from successive positions, but an explicit value is authoritative. This distinction is necessary because
+  starting at a saved second and deliberately pausing at that second otherwise produce the same position write.
 - `reaction`: `null`, `seen`, `dislike`, `like` or `love`.
 - `deleted`: the tombstone. Rows are never removed.
 - `dismissed`: taken out of Continue Watching. It holds until activity newer than its stamp (a `resume` or an
@@ -123,7 +127,7 @@ A **stamp** is `[t, c, d]`: Unix ms, a counter and a device id (§4). A **stampe
 {
   "kind": "ep", "schema": 2,
   "title": {"type": "tv", "id": 1399}, "season": 1, "episode": 2,
-  "progress": {"value": 1, "at": […], "viewing": 0, "seconds": 3000}
+  "progress": {"value": 1, "at": […], "viewing": 0, "seconds": 3000, "playing": false}
 }
 ```
 

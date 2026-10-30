@@ -265,7 +265,8 @@ A merge of two versions of one document MUST give the same result in either orde
 a document with itself changes nothing.
 
 - **Title documents**: v2 §5 per field — `status`, `reaction`, `deleted`, `dismissed` by the later stamp; `resume` by
-  viewing, then value, then stamp, then `seconds`; `episodesReset` by the later stamp, null lowest; `addedAt` the
+  viewing, then value, then stamp, then `seconds` (`playing`, when present, travels with the winning resume and does
+  not participate in ordering); `episodesReset` by the later stamp, null lowest; `addedAt` the
   minimum; `watchedAt` the minimum of the non-null values. A field only one version has is kept. `watch` merges as a
   v3 register: `plays` by v3 §3 (union, the lesser watchedAt per key, then the least key and the 7 greatest), `cleared`
   by v3 §3.
