@@ -53,6 +53,11 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
   including the tombstone written by Web builds predating the explicit marker. Interface language distinguishes
   inheritable absence from explicit English and preserves unsupported future language codes. Validate with
   `python3 tools/validate_preferences.py`.
+- [`wire/headings-v1.md`](wire/headings-v1.md),
+  [`schemas/headings-v1.schema.json`](schemas/headings-v1.schema.json), and
+  [`vectors/headings-v1.json`](vectors/headings-v1.json): semantic UI headings shared by Den clients. A heading
+  carries a stable message id, bounded named arguments and an English fallback, while legacy strings remain
+  readable during migration. Validate them with `python3 tools/validate_headings.py`.
 - [`wire/recovery-code.md`](wire/recovery-code.md) (proposal): a recovery code that unwraps the library key on a
   new device, with no device that holds the library at hand. Argon2id-wrapped, stored at den-edge under a locator
   it cannot tie to a library.

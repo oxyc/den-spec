@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec.den.invalid/headings-v1.schema.json",
+  "title": "Den semantic heading v1 migration value",
+  "oneOf": [
+    { "$ref": "#/$defs/heading" },
+    { "type": "string", "minLength": 1, "maxLength": 1024 }
+  ],
+  "$defs": {
+    "heading": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "args", "fallback"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "args": {
+          "type": "object",
+          "maxProperties": 16,
+          "propertyNames": { "$ref": "#/$defs/argumentName" },
+          "additionalProperties": { "$ref": "#/$defs/argument" }
+        },
+        "fallback": { "type": "string", "minLength": 1, "maxLength": 1024 }
+      }
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
+    },
+    "argumentName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$"
+    },
+    "argument": {
+      "oneOf": [
+        { "type": "string", "maxLength": 512 },
+        { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 }
+      ]
+    }
+  }
+}
