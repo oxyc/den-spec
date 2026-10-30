@@ -49,8 +49,9 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
 - [`wire/preferences-v1.md`](wire/preferences-v1.md),
   [`schemas/preferences-v1.schema.json`](schemas/preferences-v1.schema.json), and
   [`vectors/preferences-v1.json`](vectors/preferences-v1.json): the atomic, profile-scoped subtitle preference
-  shared by Apple and Web. It preserves the three distinct choices Automatic, Off, and a language, including the
-  tombstone written by Web builds predating the explicit marker. Validate with
+  and synced interface language shared by Apple and Web. Subtitle state preserves Automatic, Off, and a language,
+  including the tombstone written by Web builds predating the explicit marker. Interface language distinguishes
+  inheritable absence from explicit English and preserves unsupported future language codes. Validate with
   `python3 tools/validate_preferences.py`.
 - [`wire/recovery-code.md`](wire/recovery-code.md) (proposal): a recovery code that unwraps the library key on a
   new device, with no device that holds the library at hand. Argon2id-wrapped, stored at den-edge under a locator

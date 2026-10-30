@@ -33,3 +33,37 @@ It returns `{ "version": 1, "choice": ... }`. `operation: "write"` accepts `choi
 
 Edge remains ciphertext-blind: this operation runs only after a holder of the profile key authenticates and opens
 the row. Hearth consumes the resulting playback choice and never stores profile preferences.
+
+## Interface language
+
+`den.interfaceLanguage` is the profile-owned language used for Den's interface, localized metadata and the
+Automatic subtitle viewer language. Current writers support `en`, `es` and `sv`. Audio language is a separate
+preference: changing interface language never writes `den.preferredAudioLanguage`.
+
+Key presence distinguishes inheritance from an independent English decision:
+
+| Stored member | Effective language | Explicit | Supported |
+| --- | --- | --- | --- |
+| absent | `en` | false | true |
+| tombstone | `en` | true | true |
+| `{ "string": "en" }` | `en` | true | true |
+| `{ "string": "es" }` | `es` | true | true |
+| `{ "string": "sv" }` | `sv` | true | true |
+| canonical future language, e.g. `{ "string": "fr" }` | `en` | true | false |
+
+An absent member is eligible for the profiles-v1 inheritance seed. A tombstone is a held legacy/reset decision
+and therefore is not eligible. New writers always materialize a choice as a string, including English. An older
+reader preserves a canonical unsupported two-letter string, renders English, exposes the stored language for an
+unsupported-choice explanation, and never rewrites it. Invalid types and non-canonical strings fail closed.
+
+The den-core operation is `preferences_interface_language_v1`:
+
+- `operation: "read"` accepts `values` with the same key-preserving config-value representation as the subtitle
+  operation and returns `{ "version": 1, "selection": { "language", "explicit", "supported",
+  "storedLanguage"? } }`.
+- `operation: "write"` accepts `language: "en" | "es" | "sv"` and returns one-member `changes` containing an
+  explicit tagged string. The caller commits it with one settings-row stamp.
+
+Profile inheritance materializes the Owner's effective language, including explicit `en`, only after both Owner
+and child settings have reached authenticated heads. Existing members, including tombstones and unsupported future
+strings, are decisions and are never overwritten.
