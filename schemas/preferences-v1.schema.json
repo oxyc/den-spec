@@ -22,6 +22,26 @@
         "operation": { "const": "write" },
         "choice": { "$ref": "#/$defs/choice" }
       }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "operation", "values"],
+      "properties": {
+        "op": { "const": "preferences_interface_language_v1" },
+        "operation": { "const": "read" },
+        "values": { "$ref": "#/$defs/values" }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "operation", "language"],
+      "properties": {
+        "op": { "const": "preferences_interface_language_v1" },
+        "operation": { "const": "write" },
+        "language": { "enum": ["en", "es", "sv"] }
+      }
     }
   ],
   "$defs": {

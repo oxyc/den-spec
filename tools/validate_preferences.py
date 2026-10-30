@@ -7,6 +7,8 @@ VECTORS = ROOT / "vectors/preferences-v1.json"
 LANGUAGE = __import__("re").compile(r"^[a-z]{2}$")
 PREFERRED = "den.preferredSubtitleLanguage"
 EXPLICIT = "den.hasExplicitSubtitlePreference"
+INTERFACE_LANGUAGE = "den.interfaceLanguage"
+SUPPORTED_INTERFACE_LANGUAGES = {"en", "es", "sv"}
 
 
 def read(values):
@@ -46,6 +48,38 @@ def write(choice):
     return {PREFERRED: language, EXPLICIT: explicit}
 
 
+def read_interface_language(values):
+    if not isinstance(values, dict) or len(values) > 4096:
+        raise ValueError("invalid_preferences")
+    if INTERFACE_LANGUAGE not in values:
+        return {"language": "en", "explicit": False, "supported": True}
+    stored = values[INTERFACE_LANGUAGE]
+    if stored is None:
+        return {"language": "en", "explicit": True, "supported": True}
+    if (
+        not isinstance(stored, dict)
+        or set(stored) != {"string"}
+        or not isinstance(stored["string"], str)
+        or not LANGUAGE.fullmatch(stored["string"])
+    ):
+        raise ValueError("invalid_interface_language")
+    language = stored["string"]
+    if language in SUPPORTED_INTERFACE_LANGUAGES:
+        return {"language": language, "explicit": True, "supported": True}
+    return {
+        "language": "en",
+        "explicit": True,
+        "supported": False,
+        "storedLanguage": language,
+    }
+
+
+def write_interface_language(language):
+    if language not in SUPPORTED_INTERFACE_LANGUAGES:
+        raise ValueError("invalid_interface_language")
+    return {INTERFACE_LANGUAGE: {"string": language}}
+
+
 def main():
     vectors = json.loads(VECTORS.read_text())
     assert vectors["version"] == 1
@@ -59,7 +93,25 @@ def main():
         except ValueError:
             continue
         raise AssertionError(case["name"])
-    print(f"preferences-v1: {len(vectors['readCases'])} read, {len(vectors['writeCases'])} write, {len(vectors['invalidCases'])} invalid cases")
+    for case in vectors["interfaceLanguageReadCases"]:
+        assert read_interface_language(case["values"]) == case["selection"], case["name"]
+    for case in vectors["interfaceLanguageWriteCases"]:
+        assert write_interface_language(case["language"]) == case["changes"], case["name"]
+    for case in vectors["interfaceLanguageInvalidCases"]:
+        try:
+            if case["operation"] == "read":
+                read_interface_language(case["values"])
+            else:
+                write_interface_language(case["language"])
+        except (TypeError, ValueError):
+            continue
+        raise AssertionError(case["name"])
+    print(
+        "preferences-v1: "
+        f"{len(vectors['readCases']) + len(vectors['interfaceLanguageReadCases'])} read, "
+        f"{len(vectors['writeCases']) + len(vectors['interfaceLanguageWriteCases'])} write, "
+        f"{len(vectors['invalidCases']) + len(vectors['interfaceLanguageInvalidCases'])} invalid cases"
+    )
     return 0
 
 
