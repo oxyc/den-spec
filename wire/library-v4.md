@@ -320,7 +320,20 @@ stored state, exactly as v3 §7 decides it on rows:
 | Series reset | the series title document's `episodesReset` | v2 |
 | Episode import | the season document | v3 §7 *Import*, the clauses below |
 | Film import, title imports (rating, watchlist add, watchlist removal) | the title document | v3 §7 *Title imports* |
+| Watchlist removal (a person's) | the title document | *Watchlist removal* below |
 | Status, list, reaction, delete, dismiss | the title document | v2 §3 |
+
+- **Watchlist removal** (`watchlist_remove`, `{kind, at}`) takes a title off the watchlist and nothing else: watched
+  state is the viewer's until they mark it unseen, so a removal never tombstones a title (no client writes `deleted`
+  for it). Only where `status` is `watchlist` on a title not `deleted`, and not older than that status (*Replays
+  write nothing*), it writes `status` at `at`: `watched` for a film whose `watch` holds a play it still shows (not
+  cleared, §7), else `none`. A series' episodes go on saying how far it was watched — Seen, Continue and a series'
+  standing read them, not the status. It is v3 §7's tracker watchlist removal, made by a person with a real stamp,
+  and counting every play the film shows rather than only imported ones. A removal of a title that is not listed
+  writes nothing.
+- **`deleted` never hides watched state.** A title `deleted` by a removal before `watchlist_remove` existed is off
+  the watchlist and the lists of titles, but its plays and its episodes still count wherever watched state is read
+  (History, the assistant's `seen`), so no repair is needed.
 
 - **Episode import** keeps these clauses of v3 §7 *Import*: the condition (no unhidden `progress`, not in progress, no
   covering reset at or later than the import's newest play) and its reset comparison on the play as written; a

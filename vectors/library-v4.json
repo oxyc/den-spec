@@ -180,7 +180,7 @@
       "section": "§4 Plaintext"
     },
     {
-      "name": "an old-format row decodes as restore evidence for the read-only refusal",
+      "name": "a v3 row reads as a legacy row, which runs the switch",
       "ok_subset": {
         "legacy": true,
         "name": "rec:movie:550",
@@ -1566,6 +1566,182 @@
       "section": "§7"
     },
     {
+      "name": "one season projection preserves every single-episode state",
+      "ok": {
+        "1": {
+          "first_play": null,
+          "plays": [],
+          "resume": null,
+          "viewing": 0,
+          "watched": false,
+          "watched_at": null
+        },
+        "2": {
+          "first_play": 3000,
+          "plays": [
+            [
+              -9007199254737992,
+              3000
+            ]
+          ],
+          "resume": null,
+          "viewing": 0,
+          "watched": true,
+          "watched_at": 3000
+        },
+        "3": {
+          "first_play": 3000,
+          "plays": [
+            [
+              1,
+              3000
+            ]
+          ],
+          "resume": {
+            "at": [
+              3000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": 0.4,
+            "viewing": 1
+          },
+          "viewing": 1,
+          "watched": false,
+          "watched_at": 3000
+        },
+        "4": {
+          "first_play": null,
+          "plays": [],
+          "resume": null,
+          "viewing": 4,
+          "watched": false,
+          "watched_at": null
+        },
+        "5": {
+          "first_play": null,
+          "plays": [],
+          "resume": null,
+          "viewing": 0,
+          "watched": false,
+          "watched_at": null
+        }
+      },
+      "request": {
+        "now": 4000,
+        "op": "season_state_v4",
+        "season": {
+          "episodes": {
+            "01": {
+              "futureExtension": true
+            },
+            "1": {
+              "cleared": null,
+              "imported": false,
+              "plays": {
+                "0": 1000
+              },
+              "progress": {
+                "at": [
+                  1000,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ],
+                "value": 1,
+                "viewing": 0
+              }
+            },
+            "100000": {
+              "futureExtension": true
+            },
+            "2": {
+              "cleared": null,
+              "imported": true,
+              "plays": {
+                "-9007199254737992": 3000
+              }
+            },
+            "3": {
+              "cleared": [
+                0,
+                [
+                  2500,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ]
+              ],
+              "imported": false,
+              "plays": {
+                "0": 1000,
+                "1": 3000
+              },
+              "progress": {
+                "at": [
+                  3000,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ],
+                "value": 0.4,
+                "viewing": 1
+              }
+            },
+            "4": {
+              "cleared": null,
+              "imported": false,
+              "plays": {},
+              "progress": {
+                "at": [
+                  864000000,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ],
+                "value": 1,
+                "viewing": 4
+              }
+            },
+            "5": {}
+          },
+          "format": 4,
+          "kind": "season",
+          "season": 1,
+          "seasonReset": [
+            1500,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "title": {
+            "id": 1399,
+            "type": "tv"
+          }
+        },
+        "title": {
+          "episodesReset": [
+            2000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "format": 4,
+          "kind": "title",
+          "title": {
+            "id": 1399,
+            "type": "tv"
+          }
+        }
+      },
+      "section": "§7"
+    },
+    {
+      "name": "an absent season projects no episode registers",
+      "ok": {},
+      "request": {
+        "now": 4000,
+        "op": "season_state_v4",
+        "season": null,
+        "title": null
+      },
+      "section": "§7"
+    },
+    {
       "name": "a film's watched-at before its play lands",
       "ok": {
         "first_play": null,
@@ -1765,6 +1941,7 @@
                     0,
                     "a1b2c3d4e5f60718"
                   ],
+                  "playing": true,
                   "seconds": 600,
                   "value": 0.5,
                   "viewing": 0
@@ -1802,6 +1979,7 @@
             1
           ],
           "kind": "progress",
+          "playing": true,
           "seconds": 600,
           "value": 0.5
         }
@@ -3025,6 +3203,415 @@
         }
       },
       "section": "§8"
+    },
+    {
+      "name": "a watchlist removal of a film watched before it was listed keeps it watched",
+      "ok": {
+        "documents": [
+          {
+            "format": 4,
+            "kind": "title",
+            "resume": {
+              "at": [
+                1000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": 1,
+              "viewing": 0
+            },
+            "status": {
+              "at": [
+                3000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "watched"
+            },
+            "title": {
+              "id": 550,
+              "type": "movie"
+            },
+            "watch": {
+              "cleared": null,
+              "imported": false,
+              "plays": {
+                "0": 1000
+              }
+            }
+          }
+        ]
+      },
+      "request": {
+        "now": 1800000000000,
+        "op": "apply_write",
+        "seasons": [],
+        "target": {
+          "id": 550,
+          "type": "movie"
+        },
+        "title": {
+          "format": 4,
+          "kind": "title",
+          "resume": {
+            "at": [
+              1000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": 1,
+            "viewing": 0
+          },
+          "status": {
+            "at": [
+              2000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": "watchlist"
+          },
+          "title": {
+            "id": 550,
+            "type": "movie"
+          },
+          "watch": {
+            "cleared": null,
+            "imported": false,
+            "plays": {
+              "0": 1000
+            }
+          }
+        },
+        "write": {
+          "at": [
+            3000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "kind": "watchlist_remove"
+        }
+      },
+      "section": "§8 Watchlist removal"
+    },
+    {
+      "name": "a watchlist removal of a film never watched leaves it in no list, not deleted",
+      "ok": {
+        "documents": [
+          {
+            "deleted": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": false
+            },
+            "format": 4,
+            "kind": "title",
+            "status": {
+              "at": [
+                3000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "none"
+            },
+            "title": {
+              "id": 550,
+              "type": "movie"
+            }
+          }
+        ]
+      },
+      "request": {
+        "now": 1800000000000,
+        "op": "apply_write",
+        "seasons": [],
+        "target": {
+          "id": 550,
+          "type": "movie"
+        },
+        "title": {
+          "deleted": {
+            "at": [
+              2000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": false
+          },
+          "format": 4,
+          "kind": "title",
+          "status": {
+            "at": [
+              2000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": "watchlist"
+          },
+          "title": {
+            "id": 550,
+            "type": "movie"
+          }
+        },
+        "write": {
+          "at": [
+            3000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "kind": "watchlist_remove"
+        }
+      },
+      "section": "§8 Watchlist removal"
+    },
+    {
+      "name": "a watchlist removal of an un-watched film does not bring its play back",
+      "ok": {
+        "documents": [
+          {
+            "format": 4,
+            "kind": "title",
+            "resume": {
+              "at": [
+                1500,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": 0,
+              "viewing": 1
+            },
+            "status": {
+              "at": [
+                3000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "none"
+            },
+            "title": {
+              "id": 550,
+              "type": "movie"
+            },
+            "watch": {
+              "cleared": [
+                0,
+                [
+                  1500,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ]
+              ],
+              "imported": false,
+              "plays": {
+                "0": 1000
+              }
+            }
+          }
+        ]
+      },
+      "request": {
+        "now": 1800000000000,
+        "op": "apply_write",
+        "seasons": [],
+        "target": {
+          "id": 550,
+          "type": "movie"
+        },
+        "title": {
+          "format": 4,
+          "kind": "title",
+          "resume": {
+            "at": [
+              1500,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": 0,
+            "viewing": 1
+          },
+          "status": {
+            "at": [
+              2000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": "watchlist"
+          },
+          "title": {
+            "id": 550,
+            "type": "movie"
+          },
+          "watch": {
+            "cleared": [
+              0,
+              [
+                1500,
+                0,
+                "a1b2c3d4e5f60718"
+              ]
+            ],
+            "imported": false,
+            "plays": {
+              "0": 1000
+            }
+          }
+        },
+        "write": {
+          "at": [
+            3000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "kind": "watchlist_remove"
+        }
+      },
+      "section": "§8 Watchlist removal"
+    },
+    {
+      "name": "a watchlist removal of a series leaves its episodes to say how far it was watched",
+      "ok": {
+        "documents": [
+          {
+            "format": 4,
+            "kind": "title",
+            "status": {
+              "at": [
+                3000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "none"
+            },
+            "title": {
+              "id": 1399,
+              "type": "tv"
+            }
+          }
+        ]
+      },
+      "request": {
+        "now": 1800000000000,
+        "op": "apply_write",
+        "seasons": [],
+        "target": {
+          "id": 1399,
+          "type": "tv"
+        },
+        "title": {
+          "format": 4,
+          "kind": "title",
+          "status": {
+            "at": [
+              2000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": "watchlist"
+          },
+          "title": {
+            "id": 1399,
+            "type": "tv"
+          }
+        },
+        "write": {
+          "at": [
+            3000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "kind": "watchlist_remove"
+        }
+      },
+      "section": "§8 Watchlist removal"
+    },
+    {
+      "name": "a watchlist removal of a title not on the watchlist writes nothing",
+      "ok": {
+        "documents": []
+      },
+      "request": {
+        "now": 1800000000000,
+        "op": "apply_write",
+        "seasons": [],
+        "target": {
+          "id": 550,
+          "type": "movie"
+        },
+        "title": {
+          "format": 4,
+          "kind": "title",
+          "status": {
+            "at": [
+              2000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": "watched"
+          },
+          "title": {
+            "id": 550,
+            "type": "movie"
+          },
+          "watch": {
+            "cleared": null,
+            "imported": false,
+            "plays": {
+              "0": 2000
+            }
+          }
+        },
+        "write": {
+          "at": [
+            3000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "kind": "watchlist_remove"
+        }
+      },
+      "section": "§8 Watchlist removal"
+    },
+    {
+      "name": "a watchlist removal older than the listing writes nothing",
+      "ok": {
+        "documents": []
+      },
+      "request": {
+        "now": 1800000000000,
+        "op": "apply_write",
+        "seasons": [],
+        "target": {
+          "id": 550,
+          "type": "movie"
+        },
+        "title": {
+          "format": 4,
+          "kind": "title",
+          "status": {
+            "at": [
+              2000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": "watchlist"
+          },
+          "title": {
+            "id": 550,
+            "type": "movie"
+          }
+        },
+        "write": {
+          "at": [
+            1500,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "kind": "watchlist_remove"
+        }
+      },
+      "section": "§8 Watchlist removal"
     },
     {
       "error": "timeless_write",
@@ -8966,6 +9553,87 @@
             "title": {
               "id": 550,
               "type": "movie"
+            }
+          }
+        ],
+        "now": 4000,
+        "op": "pending_targets_v4"
+      },
+      "section": "v3 §6 command table"
+    },
+    {
+      "name": "a watchlist removal of a title the account holds as listed is a list removal",
+      "ok_subset": {
+        "commands": [
+          {
+            "added": false,
+            "at": 3000,
+            "built_from": {
+              "key": "list",
+              "kind": "list",
+              "stamp": [
+                3000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "gone"
+            },
+            "key": "list",
+            "kind": "list"
+          }
+        ]
+      },
+      "request": {
+        "deliver": {
+          "account": "4812736",
+          "provider": "simkl",
+          "removals_sent": [],
+          "since": [
+            500,
+            0,
+            "a1b2c3d4e5f60718"
+          ]
+        },
+        "documents": [
+          {
+            "format": 4,
+            "kind": "title",
+            "status": {
+              "at": [
+                3000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "none"
+            },
+            "title": {
+              "id": 1399,
+              "type": "tv"
+            }
+          },
+          {
+            "account": "4812736",
+            "entries": {
+              "list": [
+                "in",
+                [
+                  1000,
+                  0,
+                  "a1b2c3d4e5f60718"
+                ],
+                [
+                  2,
+                  1,
+                  "a1b2c3d4e5f60718"
+                ]
+              ]
+            },
+            "format": 4,
+            "kind": "delivery",
+            "provider": "simkl",
+            "title": {
+              "id": 1399,
+              "type": "tv"
             }
           }
         ],
