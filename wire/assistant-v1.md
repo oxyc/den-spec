@@ -561,7 +561,8 @@ A projection is the **whole** library's lists — no list is cut short, whatever
   by an import has no time and comes last. `at` is that time.
 - **`seen`**: one entry per visible play of a film or an episode (`film_state_v4` / `episode_state_v4`'s `plays`), at
   its time; one entry with `at` null for something watched with no play to date it. Newest first, untimed last.
-  Deleted titles are left out of every list.
+  Deleted titles are left out of every other list; their plays stay here, since a watchlist removal never hides watched
+  state (library-v4 §8 *Watchlist removal*).
 - **`rated`**: every title document whose `reaction` is a rating — `dislike` (shown as "Not for me"), `like` or
   `love`; a `seen` reaction or a cleared one is no rating — not `deleted`, at the reaction's time (`null` when it is
   timeless, an import's). Newest first, untimed last, whole.

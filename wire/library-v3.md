@@ -257,7 +257,9 @@ deliver for it; one at a time.
 
     An imported watched value's stamp is `[0, 0, ""]`.
   - **List** (every title): `in` when status is `watchlist` and not `deleted`; `gone` when `deleted` and status is
-    `watchlist`; `out` otherwise. Its stamp is the later of the two fields'.
+    `watchlist`, or when status is `none` at a real stamp while the account's `list` receipt is `in` (library-v4 §8
+    *Watchlist removal*, which writes `none` rather than `deleted`); `out` otherwise. Its stamp is the later of the
+    two fields'.
   - **Film watch** (films): `watched` when `rec.status` is `watched`, with `p` = `resume.viewing`, watched-at (§5)
     and the status stamp; `unwatched` only for an **explicit** un-watch — status `none` with `cleared` =
     `[resume.viewing − 1, …]`, with the `cleared` stamp; anything else (`watchlist`, `inProgress`, a `none` that is
