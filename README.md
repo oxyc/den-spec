@@ -23,6 +23,10 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
 - [`vectors/wake-controller-v1.json`](vectors/wake-controller-v1.json): the household inbox wake-id and existing
   assistant-lane derivations. Generated: `node tools/wake-controller-vectors.mjs >
   vectors/wake-controller-v1.json`; validate with `python3 tools/validate_wake_controller.py`.
+- [`vectors/library-v4.json`](vectors/library-v4.json): den-core's authoritative library operation and merge cases,
+  generated and semantically replayed by `crates/den-sync/tests/library_v4.rs` in den-core. This repository's
+  required contracts job validates the generated file's framing and watchlist-removal requests with
+  `python3 tools/validate_library_vectors.py`, before downstream den-core CI replays every answer.
 - [`vectors/library-v4-moves.json`](vectors/library-v4-moves.json): moving a library to another key
   (library-v4 §12) — rows sealed under one fixed key, and what the other holds after the move. Generated:
   `node tools/move-vectors.mjs > vectors/library-v4-moves.json`.

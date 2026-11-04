@@ -17,6 +17,12 @@ class HeadingVectorsTests(unittest.TestCase):
         heading = {"id": "den.verbatim", "args": {"value": "Watchlist"}, "fallback": "Watchlist"}
         self.assertEqual(validate_headings.normalize(heading), heading)
 
+    def test_malformed_semantic_heading_fails(self):
+        with self.assertRaisesRegex(ValueError, "invalid_heading"):
+            validate_headings.normalize(
+                {"id": "den.shelf.watchlist", "fallback": "Watchlist"}
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
