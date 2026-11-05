@@ -2312,6 +2312,14 @@
       "ok": {
         "documents": [
           {
+            "deleted": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": false
+            },
             "format": 4,
             "kind": "title",
             "resume": {
@@ -2383,10 +2391,170 @@
       "section": "§8 Films"
     },
     {
+      "name": "positive film playback re-adds a deleted title",
+      "ok": {
+        "documents": [
+          {
+            "deleted": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": false
+            },
+            "format": 4,
+            "kind": "title",
+            "resume": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "seconds": 1200,
+              "value": 0.4,
+              "viewing": 0
+            },
+            "status": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "inProgress"
+            },
+            "title": {
+              "id": 550,
+              "type": "movie"
+            }
+          }
+        ]
+      },
+      "request": {
+        "now": 1800000000000,
+        "op": "apply_write",
+        "seasons": [],
+        "target": {
+          "id": 550,
+          "type": "movie"
+        },
+        "title": {
+          "deleted": {
+            "at": [
+              1500,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": true
+          },
+          "format": 4,
+          "kind": "title",
+          "title": {
+            "id": 550,
+            "type": "movie"
+          }
+        },
+        "write": {
+          "at": [
+            2000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "kind": "progress",
+          "seconds": 1200,
+          "value": 0.4
+        }
+      },
+      "section": "§8 Films"
+    },
+    {
+      "name": "playback older than the tombstone keeps the film deleted",
+      "ok": {
+        "documents": [
+          {
+            "deleted": {
+              "at": [
+                3000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": true
+            },
+            "format": 4,
+            "kind": "title",
+            "resume": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": 0.4,
+              "viewing": 0
+            },
+            "status": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": "inProgress"
+            },
+            "title": {
+              "id": 550,
+              "type": "movie"
+            }
+          }
+        ]
+      },
+      "request": {
+        "now": 1800000000000,
+        "op": "apply_write",
+        "seasons": [],
+        "target": {
+          "id": 550,
+          "type": "movie"
+        },
+        "title": {
+          "deleted": {
+            "at": [
+              3000,
+              0,
+              "a1b2c3d4e5f60718"
+            ],
+            "value": true
+          },
+          "format": 4,
+          "kind": "title",
+          "title": {
+            "id": 550,
+            "type": "movie"
+          }
+        },
+        "write": {
+          "at": [
+            2000,
+            0,
+            "a1b2c3d4e5f60718"
+          ],
+          "kind": "progress",
+          "value": 0.4
+        }
+      },
+      "section": "§8 Films"
+    },
+    {
       "name": "a finished film's next finishing tick stays in its viewing",
       "ok": {
         "documents": [
           {
+            "deleted": {
+              "at": [
+                3000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": false
+            },
             "format": 4,
             "kind": "title",
             "resume": {
@@ -9085,6 +9253,14 @@
       "ok": {
         "documents": [
           {
+            "deleted": {
+              "at": [
+                2000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": false
+            },
             "format": 4,
             "kind": "title",
             "resume": {
@@ -9175,6 +9351,14 @@
       "ok": {
         "documents": [
           {
+            "deleted": {
+              "at": [
+                3000,
+                0,
+                "a1b2c3d4e5f60718"
+              ],
+              "value": false
+            },
             "format": 4,
             "kind": "title",
             "resume": {
