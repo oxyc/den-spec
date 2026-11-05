@@ -312,7 +312,7 @@ stored state, exactly as v3 §7 decides it on rows:
 
 | Write | Touches | Rule |
 |---|---|---|
-| Playback progress, finishing by playing | the season document (episode); the title document (film: `resume`, and the play in `watch` on reaching 0.95) | v3 §7 *Playback*, *Films* |
+| Playback progress, finishing by playing | the season document (episode); the title document (film: `resume`, `deleted: false` once progress is above 0, and the play in `watch` on reaching 0.95) | v3 §7 *Playback*, *Films* |
 | Mark watched (episode, season, series, film) | each season document with an episode it marks; the film's title document | v3 §7 *Mark watched*; a film's status, resume and play are one document write |
 | Un-watch (episode, film) | the season document; the film's title document (`cleared` and `resume` in one write) | v3 §7 *Un-watch*, *Films* |
 | Rewatch | as playback | v3 §7 *Rewatch* |
@@ -349,6 +349,12 @@ stored state, exactly as v3 §7 decides it on rows:
   status set, as shipped clients write it. It is written when the value changes or the write starts a new viewing.
   So a watched film played again is `inProgress` in its new viewing, and the next progress write stays there (a
   `watched` status left in place would start another viewing on every write, v3 §7 *Films*).
+- **Playing a deleted film re-adds it.** An accepted film progress write above 0 writes `deleted: false` at the
+  progress stamp. The ordinary stamped-field merge keeps a deletion at the same or a later stamp, so stale playback
+  cannot resurrect the title. A zero-position write does not re-add it. The positive write and its active-library
+  projection are one title-document update: after relaunch the film is eligible for Continue Watching rather than
+  retaining hidden progress behind its tombstone. Watchlist removal remains the separate non-tombstoning operation
+  above and never gains this side effect by itself.
 - **Replays write nothing.** A write whose stamp is not later than one the state it writes already holds — a title
   field's own stamp (the field's merge rule, §6), an episode register's `progress.at` or `cleared` stamp, a film's
   `resume.at`, `status.at` or `watch.cleared` stamp — writes nothing to it, a stored stamp more than a day ahead
