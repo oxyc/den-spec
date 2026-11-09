@@ -18,6 +18,74 @@
     "tag": "da24c8e50f65510c3a1477d0cd5d9266bc41f8ab656fb1dc31b173636fb4a12d",
     "tagDomain": "den/playback-receipt-retired/v2"
   },
+  "retirementCapacityPath": {
+    "capacity": 512,
+    "household": "00000000000000000000000000000001",
+    "initialLiveRoutes": 512,
+    "retainedKeys": [
+      {
+        "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+        "version": 7
+      },
+      {
+        "key": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8",
+        "version": 8
+      }
+    ],
+    "steps": [
+      {
+        "event": "retire",
+        "route": "d4b68422b2b00134a42a7a585c60a5ea"
+      },
+      {
+        "event": "register",
+        "route": "ffffffffffffffffffffffffffffffff"
+      },
+      {
+        "event": "compact",
+        "keyVersion": 7,
+        "route": "d4b68422b2b00134a42a7a585c60a5ea"
+      },
+      {
+        "event": "register",
+        "route": "d4b68422b2b00134a42a7a585c60a5ea"
+      }
+    ],
+    "expected": [
+      {
+        "activeTombstones": 1,
+        "event": "retire",
+        "liveRoutes": 511,
+        "outcome": "retired",
+        "reserved": 512,
+        "retiredTags": 0
+      },
+      {
+        "activeTombstones": 1,
+        "event": "register",
+        "liveRoutes": 511,
+        "outcome": "receipt_route_history_full",
+        "reserved": 512,
+        "retiredTags": 0
+      },
+      {
+        "activeTombstones": 0,
+        "event": "compact",
+        "liveRoutes": 511,
+        "outcome": "compacted",
+        "reserved": 512,
+        "retiredTags": 1
+      },
+      {
+        "activeTombstones": 0,
+        "event": "register",
+        "liveRoutes": 511,
+        "outcome": "receipt_route_retired",
+        "reserved": 512,
+        "retiredTags": 1
+      }
+    ]
+  },
   "integerTokenCases": [
     {
       "name": "canonical positive integer",

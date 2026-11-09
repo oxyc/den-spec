@@ -143,6 +143,14 @@ class PlaybackReceiptV2Tests(unittest.TestCase):
             fixture["tag"],
         )
 
+    def test_full_capacity_retirement_keeps_its_slot_through_compaction_and_stale_replay(self):
+        fixture = self.vectors["retirementCapacityPath"]
+        snapshots = receipts.retirement_state_path(fixture)
+        self.assertEqual(snapshots, fixture["expected"])
+        self.assertEqual([step["reserved"] for step in snapshots], [512, 512, 512, 512])
+        self.assertEqual(snapshots[1]["outcome"], "receipt_route_history_full")
+        self.assertEqual(snapshots[3]["outcome"], "receipt_route_retired")
+
     def test_replay_wrong_route_expiry_newer_progress_and_runtime_fence_drive_ack(self):
         for case in self.vectors["applyCases"]:
             with self.subTest(case=case["name"]):

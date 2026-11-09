@@ -175,17 +175,24 @@ retiredTag = HMAC-SHA-256(
 `Kretire` is a dedicated durable Edge secret, versioned and backed up like other service credentials; it is never
 logged or exposed to clients. Edge stores only the 32-byte tag and key version in the owning household's receipt
 metadata, not the route, binding, activity, key, profile data, operation digest or ciphertext. Every generation-1
-registration derives this tag and fails with stable `410 {"error":"receipt_route_retired"}` if it is present, so an
-old authority/proof cannot resurrect a purged route. Comparison is constant time. Key rotation MUST either re-tag
-atomically before destroying the old key or retain the old version until every dependent household is deleted.
+registration derives and checks a candidate tag under every retained `Kretire` version before ordinary capacity
+admission, and fails with stable `410 {"error":"receipt_route_retired"}` if any candidate is present, so an old
+authority/proof cannot resurrect a purged route. Comparison is constant time. Key rotation MUST either re-tag
+an active tombstone atomically while its route is still available or retain the old version until every dependent
+household is deleted. A compact tag cannot be re-tagged because its route was deliberately discarded. At most two
+versions (current and previous) may remain readable; a later rotation MUST fail closed until no compact tag depends
+on the previous version. Rotation never destroys non-resurrection evidence or expands the lookup bound.
 
-The exact set plus live routes is capped at 512 per household (at most 16 KiB of eventual tag bytes, excluding
-bounded record overhead). Tags do not expire with route inactivity: they are deleted only after irreversible
-household deletion has invalidated all member claims and removed the household's routed-mode metadata. Registration
-reserves one history slot before creating a route and returns `409 {"error":"receipt_route_history_full"}` when
-`retired-tag count + live-route count` is 512; thus every accepted live route can always retire and compact without
-eviction. The household cannot register another route until deletion because retirement moves, rather than frees,
-its reserved slot. Edge MUST NOT evict a tag or accept a route on
+Live routes, active seven-day tombstones and retired tags share exactly 512 reserved history slots per household.
+The tag subset therefore uses at most 16 KiB of eventual tag bytes, excluding bounded live/tombstone/tag record
+overhead. Tags do not expire with route inactivity: they are deleted only after irreversible household deletion has
+invalidated all member claims and removed the household's routed-mode metadata. Registration atomically checks and
+reserves one slot in the same transaction that creates the route, and returns
+`409 {"error":"receipt_route_history_full"}` when `live-route count + active-tombstone count + retired-tag count`
+is already 512. Retirement moves its existing reservation from live route to active tombstone, and compaction moves
+that same reservation from tombstone to tag; neither transition frees a slot. Thus every accepted live route can
+always retire and compact without exceeding 512 or requiring eviction. The household cannot register another route
+until irreversible household deletion releases its reserved history. Edge MUST NOT evict a tag or accept a route on
 probabilistic membership. Backup/restore and restart preserve the set and key versions. This bounds storage while
 preferring bounded loss of new-registration availability over resurrection or cross-household disclosure.
 
@@ -379,10 +386,10 @@ queue exhaustion or Edge loss may lose a receipt, but cannot retarget it or over
 Implementations MUST preserve the exact request/body/ciphertext bounds above, bounded parsing depth, constant-time
 credential comparison, lazy crypto/module loading, one foreground drain, and no retained player, decoder or media
 state. Route lanes avoid cross-profile head-of-line blocking but add metadata, proof hashing and more request bodies;
-each drain entry now returns two additional 32-character fields (`kid` and `id`), and retirement adds one HMAC/tag
-lookup per generation-1 registration plus at most 16 KiB of tag bytes per household. Register/rotate also hash the
-decoded 1,216-byte public key once. These are bounded source-supported costs, not measurements; no performance gain
-is claimed.
+each drain entry now returns two additional 32-character fields (`kid` and `id`), and retirement adds at most two
+HMAC/tag lookups per generation-1 registration (one per retained `Kretire` version) plus at most 16 KiB of tag bytes
+and 512 total live/tombstone/tag records per household. Register/rotate also hash the decoded 1,216-byte public key
+once. These are bounded source-supported costs, not measurements; no performance gain is claimed.
 
 Downstream qualification must record matched before/after startup and complete-graph Web/TV bundle sizes; native
 artifact/slice sizes; registration/playback/drain/ACK request count and latency; Edge storage/lock contention and

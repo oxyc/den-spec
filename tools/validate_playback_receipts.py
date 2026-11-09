@@ -98,6 +98,73 @@ def derive_retired_tag(key_text: str, household: str, route: str) -> str:
     return hmac.new(key, message, hashlib.sha256).hexdigest()
 
 
+def retirement_state_path(case: dict) -> list[dict]:
+    """Run the focused reserved-slot state path used by the retirement fixture."""
+    capacity = case["capacity"]
+    live_routes = case["initialLiveRoutes"]
+    active_tombstones: set[str] = set()
+    retired_tags: dict[int, set[str]] = {}
+    retained_keys = {entry["version"]: entry["key"] for entry in case["retainedKeys"]}
+    target_route_live = True
+    snapshots = []
+
+    if not exact_uint(capacity, 1) or not exact_uint(live_routes) or live_routes > capacity:
+        raise ValueError("invalid_retirement_state")
+    if len(retained_keys) != len(case["retainedKeys"]) or not 1 <= len(retained_keys) <= 2:
+        raise ValueError("invalid_retirement_keys")
+
+    def reserved() -> int:
+        return live_routes + len(active_tombstones) + sum(len(tags) for tags in retired_tags.values())
+
+    for step in case["steps"]:
+        event = step["event"]
+        route = step["route"]
+        if event == "retire":
+            if not target_route_live or live_routes == 0:
+                raise ValueError("invalid_retirement_transition")
+            live_routes -= 1
+            target_route_live = False
+            active_tombstones.add(route)
+            outcome = "retired"
+        elif event == "compact":
+            version = step["keyVersion"]
+            if route not in active_tombstones or version not in retained_keys:
+                raise ValueError("invalid_retirement_transition")
+            active_tombstones.remove(route)
+            retired_tags.setdefault(version, set()).add(
+                derive_retired_tag(retained_keys[version], case["household"], route)
+            )
+            outcome = "compacted"
+        elif event == "register":
+            # A generation-1 replay is checked under every retained Kretire version
+            # before ordinary slot admission, so rotation cannot resurrect a route.
+            stale = any(
+                derive_retired_tag(key, case["household"], route) in retired_tags.get(version, set())
+                for version, key in retained_keys.items()
+            )
+            if route in active_tombstones or stale:
+                outcome = "receipt_route_retired"
+            elif reserved() >= capacity:
+                outcome = "receipt_route_history_full"
+            else:
+                live_routes += 1
+                outcome = "registered"
+        else:
+            raise ValueError("unknown_retirement_event")
+
+        if reserved() > capacity:
+            raise ValueError("retirement_capacity_exceeded")
+        snapshots.append({
+            "event": event,
+            "outcome": outcome,
+            "liveRoutes": live_routes,
+            "activeTombstones": len(active_tombstones),
+            "retiredTags": sum(len(tags) for tags in retired_tags.values()),
+            "reserved": reserved(),
+        })
+    return snapshots
+
+
 def validate_operation(operation: object) -> None:
     if not isinstance(operation, dict) or not isinstance(operation.get("op"), str):
         raise ValueError("invalid_operation")
@@ -308,6 +375,9 @@ def validate() -> None:
         raise ValueError("retired_domain_mismatch")
     if derive_retired_tag(retirement["key"], retirement["household"], retirement["route"]) != retirement["tag"]:
         raise ValueError("retired_tag_mismatch")
+    capacity_path = vectors["retirementCapacityPath"]
+    if retirement_state_path(capacity_path) != capacity_path["expected"]:
+        raise ValueError("retirement_capacity_path_mismatch")
     decisions = (
         ("authorityCases", authority_outcome),
         ("lifecycleCases", lifecycle_outcome),
