@@ -144,9 +144,25 @@ unpadded base64url.
   the currently authenticated persistent profile, so changing profiles removes the controls.
 - If the selected writer is not listening, while exactly one other control-capable household TV is listening, the
   sender may route there instead: simultaneous devices can overwrite one title's projected position, while the
-  receiver's exact-title guard below prevents the fallback from affecting unrelated playback. With no listening TV,
-  or more than one fallback, it reports that Den is not reachable instead of guessing. A TV without a command key is
-  too old for household play; one without the capability is too old for transport controls.
+  receiver's exact-title guard below prevents the fallback from affecting unrelated playback. More than one fallback
+  fails closed rather than guessing.
+- When every control-capable TV answers `listening: false`, the sender may query the member-authenticated
+  `GET /wake/targets` view from wake-controller-v1 §8. It may append the fresh command to the **selected exact
+  writer only** when that writer's assistant lane is listed with `wakeable: true`; a different wakeable TV is not a
+  fallback. The append is the wake trigger. The sender presents this as *queued/waking*, never applied or playing,
+  and keeps the TV's last durable progress as playback truth. It bounds the wait by the transport freshness window.
+  It cancels the wait and forbids its retry when the profile/library, exact writer, play key, title/episode coordinates
+  or requesting surface is replaced; when the writer no longer publishes `<d>.control` at version 1 or newer; or when
+  a newer transport command from that surface supersedes this request. Otherwise it may append one fresh retry only
+  after the exact writer is observed listening. The receiver's normal exact-coordinate, freshness and replay guards
+  apply independently to both messages. A timeout or failed retry is visible and remains an explicit new user retry;
+  it is not silently reported as success.
+- If the exact writer is not wakeable, the wake view is unavailable/refused/malformed, or the wait expires, the sender
+  reports that Den is not reachable and queues nothing further. A den-edge predating `/inbox/listening` cannot prove
+  every TV asleep; an upgraded sender retains its former exact-writer append rather than introducing a rollout
+  regression, but still treats append as unconfirmed. A den-edge predating `/wake/targets` therefore never enters the
+  waking path. A TV without a command key is too old for household play; one without the capability is too old for
+  transport controls.
 - The TV drains the queue with its link queues and applies its messages as it applies a paired link's (§3), except
   that it MUST drop every `type` but `play` and `transport`. It applies a transport command only while the command's
   exact title and episode coordinates still identify the active player; a delayed command cannot affect its
@@ -159,3 +175,8 @@ unpadded base64url.
 - When a pushed play starts, the TV writes `<d>.played` (library-v2 §3).
 - The stamp device id is not part of any derivation (library-v2 §4): the key is random, and the id only names where
   it is published.
+
+The waking path adds, at most, one member-authenticated wakeability read and one command append to the initial
+listening probes. Waiting uses bounded, foreground-owned listening checks and at most one retry append; it adds no
+startup request or background poll. Senders should measure awake and waking request count/bytes and latency without
+logging member proofs, household keys, queue credentials, sealed bodies, title/episode coordinates or profile data.
