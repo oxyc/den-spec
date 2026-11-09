@@ -150,11 +150,13 @@ unpadded base64url.
   `GET /wake/targets` view from wake-controller-v1 §8. It may append the fresh command to the **selected exact
   writer only** when that writer's assistant lane is listed with `wakeable: true`; a different wakeable TV is not a
   fallback. The append is the wake trigger. The sender presents this as *queued/waking*, never applied or playing,
-  and keeps the TV's last durable progress as playback truth. It bounds the wait by the transport freshness window,
-  cancels it when the profile/library, exact writer, play key, title/episode coordinates or requesting surface is
-  replaced, and may append one fresh retry only after the exact writer is observed listening. The receiver's normal
-  exact-coordinate, freshness and replay guards apply independently to both messages. A timeout or failed retry is
-  visible and remains an explicit new user retry; it is not silently reported as success.
+  and keeps the TV's last durable progress as playback truth. It bounds the wait by the transport freshness window.
+  It cancels the wait and forbids its retry when the profile/library, exact writer, play key, title/episode coordinates
+  or requesting surface is replaced; when the writer no longer publishes `<d>.control` at version 1 or newer; or when
+  a newer transport command from that surface supersedes this request. Otherwise it may append one fresh retry only
+  after the exact writer is observed listening. The receiver's normal exact-coordinate, freshness and replay guards
+  apply independently to both messages. A timeout or failed retry is visible and remains an explicit new user retry;
+  it is not silently reported as success.
 - If the exact writer is not wakeable, the wake view is unavailable/refused/malformed, or the wait expires, the sender
   reports that Den is not reachable and queues nothing further. A den-edge predating `/inbox/listening` cannot prove
   every TV asleep; an upgraded sender retains its former exact-writer append rather than introducing a rollout

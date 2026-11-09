@@ -42,7 +42,12 @@ class WakeControllerVectorsTests(unittest.TestCase):
             "34007208d5b887185865",
         )
 
+    def test_inbox_wake_wait_has_supersession_and_capability_fences(self):
+        contract = (validate_wake_controller.ROOT / "wire" / "inbox-v1.md").read_text()
+        self.assertIn("cancels the wait and forbids its retry", contract)
+        self.assertIn("writer no longer publishes `<d>.control` at version 1 or newer", contract)
+        self.assertIn("newer transport command from that surface supersedes this request", contract)
+
 
 if __name__ == "__main__":
     unittest.main()
-
