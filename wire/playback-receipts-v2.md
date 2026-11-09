@@ -55,6 +55,14 @@ proof = base64url(HMAC-SHA-256(
 an unsafe integer, a bad identifier, or a proof which does not compare in constant time is invalid. `nonce` is 16
 fresh random bytes as 32 lowercase hex. `issuedAt` is Unix ms and MUST be within five minutes of Edge's clock.
 
+Every field described as an integer uses an exact JSON integer token in `[0, 2^53 - 1]`, or `[1, 2^53 - 1]`
+where the field is positive. Booleans, negative zero, fractions, decimal points and exponent notation are invalid;
+decoders MUST reject them before numeric coercion. This rule includes `v`, `generation`, `issuedAt`, `upTo`, `seq`,
+receipt times/durations/positions/season/episode and title ids. The machine-readable structural contract is
+[`schemas/playback-receipts-v2.schema.json`](../schemas/playback-receipts-v2.schema.json); its
+`x-den-exactInteger` annotation records this stricter JSON-token rule because JSON Schema's standard `integer`
+type alone also considers representations such as `1.0` integral.
+
 Every proof-bearing request is authenticated first as an ordinary member of `operation.household`. Edge then
 decodes `authority`, derives `route`, requires it to equal `operation.route`, and verifies `proof`. The request body
 is exactly:
@@ -96,10 +104,15 @@ without support returns exactly `426 {"error":"playback_receipts_v2_unsupported"
 ```
 
 `household`, `activity`, `binding`, `route`, `kid` and `nonce` are 32 lowercase hex. `public` is the canonical
-base64url encoding of exactly one assistant-v1 X-Wing public key and `kid` MUST be its assistant-v1 key id. Before
+unpadded base64url encoding of exactly one 1,216-byte assistant-v1 X-Wing public key (therefore 1,622 characters),
+and `kid` MUST equal lowercase hex of the first 16 bytes of `SHA-256(public-key bytes)`. Edge decodes and checks both
+the exact length and relation before storing anything; an arbitrary non-empty value is invalid. Before
 accepting, Edge proves that the same requester can access both `household` and `activity`: the normal request member
 claim names the household and the sensitive `x-den-activity-member` header carries an ordinary member claim for the
 exact activity id. The header is never forwarded or logged. The activity library MUST differ from the household.
+The `base64url-x-wing-public-key` string above is a readability metavalue; the vectors contain a complete deterministic
+1,216-byte positive fixture and length/kid negative cases.
+
 Registration fails closed before storing anything if either membership is absent. The response is exactly:
 
 ```json
@@ -145,15 +158,41 @@ does not change route, binding, activity or already-sealed work.
 
 On profile deletion, or an explicit receipt-authority reset, the client revokes before retiring the activity
 library. Edge atomically marks the route retired, refuses new playback and callbacks, deletes its queued ciphertexts,
-wakes its waiters, and retains only a non-resurrectable route tombstone through the seven-day horizon. A late
+wakes its waiters, and retains an active route tombstone through the seven-day callback/queue horizon. A late
 callback is `410 {"error":"receipt_route_retired"}`. Drain and ACK give the same error. Exact revoke retry succeeds;
 no operation can make a retired route live. If deletion cannot prove revocation, profile deletion remains visibly
 pending/retryable and MUST NOT invent success or expose its activity to another route.
 
+After that horizon, Edge compacts the active tombstone to a durable retirement tag rather than deleting all memory
+of the route:
+
+```text
+retiredTag = HMAC-SHA-256(
+  key = Kretire,
+  message = UTF-8("den/playback-receipt-retired/v2") || 0x00 || householdBytes || routeBytes)
+```
+
+`Kretire` is a dedicated durable Edge secret, versioned and backed up like other service credentials; it is never
+logged or exposed to clients. Edge stores only the 32-byte tag and key version in the owning household's receipt
+metadata, not the route, binding, activity, key, profile data, operation digest or ciphertext. Every generation-1
+registration derives this tag and fails with stable `410 {"error":"receipt_route_retired"}` if it is present, so an
+old authority/proof cannot resurrect a purged route. Comparison is constant time. Key rotation MUST either re-tag
+atomically before destroying the old key or retain the old version until every dependent household is deleted.
+
+The exact set plus live routes is capped at 512 per household (at most 16 KiB of eventual tag bytes, excluding
+bounded record overhead). Tags do not expire with route inactivity: they are deleted only after irreversible
+household deletion has invalidated all member claims and removed the household's routed-mode metadata. Registration
+reserves one history slot before creating a route and returns `409 {"error":"receipt_route_history_full"}` when
+`retired-tag count + live-route count` is 512; thus every accepted live route can always retire and compact without
+eviction. The household cannot register another route until deletion because retirement moves, rather than frees,
+its reserved slot. Edge MUST NOT evict a tag or accept a route on
+probabilistic membership. Backup/restore and restart preserve the set and key versions. This bounds storage while
+preferring bounded loss of new-registration availability over resurrection or cross-household disclosure.
+
 Revoke returns exactly `{"retired":true,"route":"<route>","v":2}`. Rebind and rotation return registration's
 response shape at the accepted generation and refreshed expiry.
 
-Idle expiry is not deletion. At `expiresAt`, Edge performs the same retirement and purge. Any authenticated route
+Idle expiry is not deletion. At `expiresAt`, Edge performs the same active retirement and later compaction. Any authenticated route
 use except an invalid request, failed callback or empty long-poll refreshes expiry to `now + 7 days`; callback and
 entry expiry never extends past seven days from playback issue or `endedAt`, respectively. Re-registration after
 expiry uses a fresh authority, route and binding.
@@ -212,11 +251,16 @@ characters / 1,904 decoded bytes.
 It returns every waiting entry for only this route, without removing it:
 
 ```json
-{"binding":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","messages":[{"generation":2,"seq":1,"sealed":"base64url-hpke"},{"generation":3,"seq":2,"sealed":"base64url-hpke"}],"route":"d4b68422b2b00134a42a7a585c60a5ea","v":2}
+{"binding":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","messages":[{"generation":2,"id":"84619420c64002287a3ad7ecad5dfa6b","kid":"2a37dd6f422e1a735b8a9f7f8b377e12","seq":1,"sealed":"base64url-hpke"},{"generation":3,"id":"94619420c64002287a3ad7ecad5dfa6b","kid":"3a37dd6f422e1a735b8a9f7f8b377e12","seq":2,"sealed":"base64url-hpke"}],"route":"d4b68422b2b00134a42a7a585c60a5ea","v":2}
 ```
 
-A stale requested generation may drain because the authority and binding still own the route; the answer names each
-entry's sealed generation. A client drains only while the same profile runtime and successor activity are current.
+A stale requested generation may drain because the authority and binding still own the route. Each entry names the
+exact snapped `generation`, `kid` and receipt `id` from its callback binding; these values are authenticated again by
+HPKE AAD and plaintext and reveal no title or progress. The client selects only that generation/key and reconstructs
+§7 AAD from its authenticated current household, the response route/binding and the entry's generation/kid/id; it
+never guesses an id or probes keys.
+Entries are returned in increasing `seq`, and all five entry members are mandatory. A client drains only while the
+same profile runtime and successor activity are current.
 A device that lacks the profile, authority, target activity or required private key neither drains nor acknowledges.
 
 `POST /playback/receipts/v2/ack` uses the wrapper with this operation:
@@ -272,7 +316,8 @@ LG/webOS, browser, iPhone, iPad and tvOS have no protocol exclusion.
 
 ## 7. HPKE envelope and receipt
 
-X-Wing, `SealBase`, strict encoding and `kid` are assistant-v1 §§2–3. For the callback's snapped generation:
+X-Wing, `SealBase`, strict encoding and `kid` are assistant-v1 §§2–3. For the callback's snapped generation, Edge
+stores `generation`, `kid` and `id` beside the opaque ciphertext and returns them unchanged in §5's drain entry:
 
 ```text
 aad = JCS({"binding":binding,"generation":generation,"household":household,
@@ -334,7 +379,10 @@ queue exhaustion or Edge loss may lose a receipt, but cannot retarget it or over
 Implementations MUST preserve the exact request/body/ciphertext bounds above, bounded parsing depth, constant-time
 credential comparison, lazy crypto/module loading, one foreground drain, and no retained player, decoder or media
 state. Route lanes avoid cross-profile head-of-line blocking but add metadata, proof hashing and more request bodies;
-no performance gain is claimed.
+each drain entry now returns two additional 32-character fields (`kid` and `id`), and retirement adds one HMAC/tag
+lookup per generation-1 registration plus at most 16 KiB of tag bytes per household. Register/rotate also hash the
+decoded 1,216-byte public key once. These are bounded source-supported costs, not measurements; no performance gain
+is claimed.
 
 Downstream qualification must record matched before/after startup and complete-graph Web/TV bundle sizes; native
 artifact/slice sizes; registration/playback/drain/ACK request count and latency; Edge storage/lock contention and

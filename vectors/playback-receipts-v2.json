@@ -6,6 +6,67 @@
     "proofDomain": "den/playback-receipt-proof/v2",
     "route": "d4b68422b2b00134a42a7a585c60a5ea"
   },
+  "publicKey": {
+    "comment": "The public bytes are 0x00..0xff repeated four times, then 0x00..0xbf: exactly 1,216 bytes.",
+    "kid": "b74cbe6abeff8bf195ba39034fa8cb41",
+    "public": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn-AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq-wsbKztLW2t7i5uru8vb6_wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t_g4eLj5OXm5-jp6uvs7e7v8PHy8_T19vf4-fr7_P3-_wABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5_gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp-goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2-v8DBwsPExcbHyMnKy8zNzs_Q0dLT1NXW19jZ2tvc3d7f4OHi4-Tl5ufo6err7O3u7_Dx8vP09fb3-Pn6-_z9_v8AAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4_QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1-f4CBgoOEhYaHiImKi4yNjo-QkZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr_AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3-Dh4uPk5ebn6Onq6-zt7u_w8fLz9PX29_j5-vv8_f7_AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn-AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq-wsbKztLW2t7i5uru8vb6_wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t_g4eLj5OXm5-jp6uvs7e7v8PHy8_T19vf4-fr7_P3-_wABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5_gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp-goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2-vw"
+  },
+  "retirement": {
+    "household": "00000000000000000000000000000001",
+    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+    "route": "d4b68422b2b00134a42a7a585c60a5ea",
+    "tag": "da24c8e50f65510c3a1477d0cd5d9266bc41f8ab656fb1dc31b173636fb4a12d",
+    "tagDomain": "den/playback-receipt-retired/v2"
+  },
+  "integerTokenCases": [
+    {
+      "name": "canonical positive integer",
+      "token": "1",
+      "valid": true
+    },
+    {
+      "name": "JSON boolean is not an integer",
+      "token": "true",
+      "valid": false
+    },
+    {
+      "name": "decimal point is not exact",
+      "token": "1.0",
+      "valid": false
+    },
+    {
+      "name": "exponent notation is not exact",
+      "token": "1e0",
+      "valid": false
+    },
+    {
+      "name": "negative zero is not exact",
+      "token": "-0",
+      "valid": false
+    },
+    {
+      "name": "integer above the safe range",
+      "token": "9007199254740992",
+      "valid": false
+    }
+  ],
+  "publicKeyCases": [
+    {
+      "name": "exact 1216-byte key and derived kid",
+      "mutation": "none",
+      "valid": true
+    },
+    {
+      "name": "truncated X-Wing public key",
+      "mutation": "truncate",
+      "valid": false
+    },
+    {
+      "name": "kid unrelated to X-Wing public key",
+      "mutation": "wrongKid",
+      "valid": false
+    }
+  ],
   "proofs": [
     {
       "name": "activate is bound to the exact household route and generation",
@@ -77,56 +138,306 @@
       "positionSeconds": 2310,
       "route": "d4b68422b2b00134a42a7a585c60a5ea",
       "season": 2,
-      "title": {"id": 1399, "type": "tv"},
+      "title": {
+        "id": 1399,
+        "type": "tv"
+      },
       "v": 2
     },
     "receiptJcs": "{\"binding\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"completed\":false,\"durationSeconds\":2400,\"endedAt\":1790000400000,\"episode\":3,\"expiresAt\":1790605200000,\"generation\":3,\"household\":\"00000000000000000000000000000001\",\"id\":\"94619420c64002287a3ad7ecad5dfa6b\",\"kid\":\"3a37dd6f422e1a735b8a9f7f8b377e12\",\"positionSeconds\":2310,\"route\":\"d4b68422b2b00134a42a7a585c60a5ea\",\"season\":2,\"title\":{\"id\":1399,\"type\":\"tv\"},\"v\":2}"
   },
+  "drainResponse": {
+    "binding": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "messages": [
+      {
+        "generation": 2,
+        "id": "84619420c64002287a3ad7ecad5dfa6b",
+        "kid": "2a37dd6f422e1a735b8a9f7f8b377e12",
+        "sealed": "AAECAw",
+        "seq": 1
+      },
+      {
+        "generation": 3,
+        "id": "94619420c64002287a3ad7ecad5dfa6b",
+        "kid": "3a37dd6f422e1a735b8a9f7f8b377e12",
+        "sealed": "AQIDBA",
+        "seq": 2
+      }
+    ],
+    "route": "d4b68422b2b00134a42a7a585c60a5ea",
+    "v": 2
+  },
   "authorityCases": [
-    {"name": "exact owner route", "member": true, "authority": "owner", "requestedRoute": "owner", "binding": "current", "role": "owner", "expected": "allow"},
-    {"name": "exact kid route", "member": true, "authority": "kid-a", "requestedRoute": "kid-a", "binding": "current", "role": "kid", "expected": "allow"},
-    {"name": "owner cannot claim kid route", "member": true, "authority": "owner", "requestedRoute": "kid-a", "binding": "current", "role": "owner", "expected": "invalid_proof"},
-    {"name": "one kid cannot claim another kid route", "member": true, "authority": "kid-a", "requestedRoute": "kid-b", "binding": "current", "role": "kid", "expected": "invalid_proof"},
-    {"name": "visitor owns no authority", "member": true, "authority": null, "requestedRoute": null, "binding": null, "role": "visitor", "expected": "no_receipt"},
-    {"name": "wrong household member fails first", "member": false, "authority": "owner", "requestedRoute": "owner", "binding": "current", "role": "owner", "expected": "not_a_member"},
-    {"name": "stale binding cannot attach playback", "member": true, "authority": "kid-a", "requestedRoute": "kid-a", "binding": "retired", "role": "kid", "expected": "stale_binding"},
-    {"name": "missing authority never falls back", "member": true, "authority": null, "requestedRoute": "owner", "binding": "current", "role": "owner", "expected": "no_receipt"}
+    {
+      "name": "exact owner route",
+      "member": true,
+      "authority": "owner",
+      "requestedRoute": "owner",
+      "binding": "current",
+      "role": "owner",
+      "expected": "allow"
+    },
+    {
+      "name": "exact kid route",
+      "member": true,
+      "authority": "kid-a",
+      "requestedRoute": "kid-a",
+      "binding": "current",
+      "role": "kid",
+      "expected": "allow"
+    },
+    {
+      "name": "owner cannot claim kid route",
+      "member": true,
+      "authority": "owner",
+      "requestedRoute": "kid-a",
+      "binding": "current",
+      "role": "owner",
+      "expected": "invalid_proof"
+    },
+    {
+      "name": "one kid cannot claim another kid route",
+      "member": true,
+      "authority": "kid-a",
+      "requestedRoute": "kid-b",
+      "binding": "current",
+      "role": "kid",
+      "expected": "invalid_proof"
+    },
+    {
+      "name": "visitor owns no authority",
+      "member": true,
+      "authority": null,
+      "requestedRoute": null,
+      "binding": null,
+      "role": "visitor",
+      "expected": "no_receipt"
+    },
+    {
+      "name": "wrong household member fails first",
+      "member": false,
+      "authority": "owner",
+      "requestedRoute": "owner",
+      "binding": "current",
+      "role": "owner",
+      "expected": "not_a_member"
+    },
+    {
+      "name": "stale binding cannot attach playback",
+      "member": true,
+      "authority": "kid-a",
+      "requestedRoute": "kid-a",
+      "binding": "retired",
+      "role": "kid",
+      "expected": "stale_binding"
+    },
+    {
+      "name": "missing authority never falls back",
+      "member": true,
+      "authority": null,
+      "requestedRoute": "owner",
+      "binding": "current",
+      "role": "owner",
+      "expected": "no_receipt"
+    }
   ],
   "lifecycleCases": [
-    {"name": "same profile replacement preserves lane", "event": "rebind", "proof": "same", "newActivityMember": true, "expected": "rebind"},
-    {"name": "different profile cannot replace lane", "event": "rebind", "proof": "different", "newActivityMember": true, "expected": "invalid_proof"},
-    {"name": "replacement needs new activity membership", "event": "rebind", "proof": "same", "newActivityMember": false, "expected": "not_activity_member"},
-    {"name": "deletion retires and purges", "event": "delete", "proof": "same", "newActivityMember": false, "expected": "retire_and_purge"},
-    {"name": "rotation preserves old unexpired work", "event": "rotate", "proof": "same", "newActivityMember": true, "expected": "advance_keep_old"},
-    {"name": "expiry retires without resurrection", "event": "expire", "proof": "none", "newActivityMember": false, "expected": "retire_and_purge"}
+    {
+      "name": "same profile replacement preserves lane",
+      "event": "rebind",
+      "proof": "same",
+      "newActivityMember": true,
+      "expected": "rebind"
+    },
+    {
+      "name": "different profile cannot replace lane",
+      "event": "rebind",
+      "proof": "different",
+      "newActivityMember": true,
+      "expected": "invalid_proof"
+    },
+    {
+      "name": "replacement needs new activity membership",
+      "event": "rebind",
+      "proof": "same",
+      "newActivityMember": false,
+      "expected": "not_activity_member"
+    },
+    {
+      "name": "deletion retires and purges",
+      "event": "delete",
+      "proof": "same",
+      "newActivityMember": false,
+      "expected": "retire_purge_and_compact_tag"
+    },
+    {
+      "name": "rotation preserves old unexpired work",
+      "event": "rotate",
+      "proof": "same",
+      "newActivityMember": true,
+      "expected": "advance_keep_old"
+    },
+    {
+      "name": "expiry retires without resurrection",
+      "event": "expire",
+      "proof": "none",
+      "newActivityMember": false,
+      "expected": "retire_purge_and_compact_tag"
+    }
   ],
   "applyCases": [
-    {"name": "durable atomic write and readback advances ack", "result": "durable", "sameRuntime": true, "expected": "terminal"},
-    {"name": "already applied replay advances ack", "result": "replay", "sameRuntime": true, "expected": "terminal"},
-    {"name": "wrong route is terminal rejection", "result": "wrong_route", "sameRuntime": true, "expected": "terminal"},
-    {"name": "wrong household is terminal rejection", "result": "wrong_household", "sameRuntime": true, "expected": "terminal"},
-    {"name": "wrong key is terminal rejection", "result": "wrong_key", "sameRuntime": true, "expected": "terminal"},
-    {"name": "malformed envelope is terminal rejection", "result": "malformed", "sameRuntime": true, "expected": "terminal"},
-    {"name": "v1 in v2 lane is terminal rejection", "result": "wrong_version", "sameRuntime": true, "expected": "terminal"},
-    {"name": "expired receipt is terminal rejection", "result": "expired", "sameRuntime": true, "expected": "terminal"},
-    {"name": "newer progress wins and receipt is recorded", "result": "newer_progress", "sameRuntime": true, "expected": "terminal"},
-    {"name": "offline redelivery already durable advances ack", "result": "offline_redelivery", "sameRuntime": true, "expected": "terminal"},
-    {"name": "missing retained key stops this route", "result": "missing_key", "sameRuntime": true, "expected": "retry"},
-    {"name": "failed atomic write stops this route", "result": "write_failed", "sameRuntime": true, "expected": "retry"},
-    {"name": "profile replacement before ack cancels", "result": "durable", "sameRuntime": false, "expected": "retry"}
+    {
+      "name": "durable atomic write and readback advances ack",
+      "result": "durable",
+      "sameRuntime": true,
+      "expected": "terminal"
+    },
+    {
+      "name": "already applied replay advances ack",
+      "result": "replay",
+      "sameRuntime": true,
+      "expected": "terminal"
+    },
+    {
+      "name": "wrong route is terminal rejection",
+      "result": "wrong_route",
+      "sameRuntime": true,
+      "expected": "terminal"
+    },
+    {
+      "name": "wrong household is terminal rejection",
+      "result": "wrong_household",
+      "sameRuntime": true,
+      "expected": "terminal"
+    },
+    {
+      "name": "wrong key is terminal rejection",
+      "result": "wrong_key",
+      "sameRuntime": true,
+      "expected": "terminal"
+    },
+    {
+      "name": "malformed envelope is terminal rejection",
+      "result": "malformed",
+      "sameRuntime": true,
+      "expected": "terminal"
+    },
+    {
+      "name": "v1 in v2 lane is terminal rejection",
+      "result": "wrong_version",
+      "sameRuntime": true,
+      "expected": "terminal"
+    },
+    {
+      "name": "expired receipt is terminal rejection",
+      "result": "expired",
+      "sameRuntime": true,
+      "expected": "terminal"
+    },
+    {
+      "name": "newer progress wins and receipt is recorded",
+      "result": "newer_progress",
+      "sameRuntime": true,
+      "expected": "terminal"
+    },
+    {
+      "name": "offline redelivery already durable advances ack",
+      "result": "offline_redelivery",
+      "sameRuntime": true,
+      "expected": "terminal"
+    },
+    {
+      "name": "missing retained key stops this route",
+      "result": "missing_key",
+      "sameRuntime": true,
+      "expected": "retry"
+    },
+    {
+      "name": "failed atomic write stops this route",
+      "result": "write_failed",
+      "sameRuntime": true,
+      "expected": "retry"
+    },
+    {
+      "name": "profile replacement before ack cancels",
+      "result": "durable",
+      "sameRuntime": false,
+      "expected": "retry"
+    }
   ],
   "ackCases": [
-    {"name": "all terminal entries", "start": 10, "results": ["terminal", "terminal", "terminal"], "expected": 12},
-    {"name": "retryable entry stops contiguous prefix", "start": 10, "results": ["terminal", "retry", "terminal"], "expected": 10},
-    {"name": "first entry retryable", "start": 10, "results": ["retry", "terminal"], "expected": null},
-    {"name": "late duplicate ack has no new entries", "start": 10, "results": [], "expected": null},
-    {"name": "empty drain", "start": 10, "results": [], "expected": null}
+    {
+      "name": "all terminal entries",
+      "start": 10,
+      "results": [
+        "terminal",
+        "terminal",
+        "terminal"
+      ],
+      "expected": 12
+    },
+    {
+      "name": "retryable entry stops contiguous prefix",
+      "start": 10,
+      "results": [
+        "terminal",
+        "retry",
+        "terminal"
+      ],
+      "expected": 10
+    },
+    {
+      "name": "first entry retryable",
+      "start": 10,
+      "results": [
+        "retry",
+        "terminal"
+      ],
+      "expected": null
+    },
+    {
+      "name": "late duplicate ack has no new entries",
+      "start": 10,
+      "results": [],
+      "expected": null
+    },
+    {
+      "name": "empty drain",
+      "start": 10,
+      "results": [],
+      "expected": null
+    }
   ],
   "activationCases": [
-    {"name": "legacy household remains v1 before activation", "mode": "legacy", "client": "v1", "expected": "v1"},
-    {"name": "routed old client has stable unsupported lane", "mode": "routed", "client": "v1", "expected": "playback_receipts_v2_required"},
-    {"name": "routed v2 profile uses its route", "mode": "routed", "client": "v2", "expected": "v2"},
-    {"name": "visitor in routed household has no receipt", "mode": "routed", "client": "visitor", "expected": "no_receipt"},
-    {"name": "tizen 3 keeps handoff", "mode": "routed", "client": "tizen3", "expected": "handoff"}
+    {
+      "name": "legacy household remains v1 before activation",
+      "mode": "legacy",
+      "client": "v1",
+      "expected": "v1"
+    },
+    {
+      "name": "routed old client has stable unsupported lane",
+      "mode": "routed",
+      "client": "v1",
+      "expected": "playback_receipts_v2_required"
+    },
+    {
+      "name": "routed v2 profile uses its route",
+      "mode": "routed",
+      "client": "v2",
+      "expected": "v2"
+    },
+    {
+      "name": "visitor in routed household has no receipt",
+      "mode": "routed",
+      "client": "visitor",
+      "expected": "no_receipt"
+    },
+    {
+      "name": "tizen 3 keeps handoff",
+      "mode": "routed",
+      "client": "tizen3",
+      "expected": "handoff"
+    }
   ]
 }

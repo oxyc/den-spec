@@ -73,7 +73,8 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
   Continue Watching and Seen history devices publish sealed under each connection's read key.
 - [`wire/playback-receipts-v1.md`](wire/playback-receipts-v1.md): encrypted, replay-safe terminal playback evidence
   from Hearth, queued opaque by den-edge and applied by a household client through the ordinary progress path.
-- [`wire/playback-receipts-v2.md`](wire/playback-receipts-v2.md) and
+- [`wire/playback-receipts-v2.md`](wire/playback-receipts-v2.md),
+  [`schemas/playback-receipts-v2.schema.json`](schemas/playback-receipts-v2.schema.json), and
   [`vectors/playback-receipts-v2.json`](vectors/playback-receipts-v2.json): capability-gated profile-owned receipt
   routes for persistent Owner/Kid activity libraries, exact proof/route/envelope/queue/ACK semantics, Visitor and
   older-client fail-closed behavior, routed-only activation with v1 quarantine, replacement/deletion/rotation and
