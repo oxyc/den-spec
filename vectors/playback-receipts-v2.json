@@ -1,0 +1,132 @@
+{
+  "comment": "wire/playback-receipts-v2.md deterministic route/proof and state-decision fixtures. Authority and proofs are test data only. HPKE ciphertext vectors belong to den-core #120 because X-Wing is not reimplemented here.",
+  "derivation": {
+    "authority": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+    "routeDomain": "den/playback-receipt-route/v2",
+    "proofDomain": "den/playback-receipt-proof/v2",
+    "route": "d4b68422b2b00134a42a7a585c60a5ea"
+  },
+  "proofs": [
+    {
+      "name": "activate is bound to the exact household route and generation",
+      "operation": {
+        "binding": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "generation": 1,
+        "household": "00000000000000000000000000000001",
+        "issuedAt": 1790000300000,
+        "nonce": "08080808080808080808080808080808",
+        "op": "activate",
+        "route": "d4b68422b2b00134a42a7a585c60a5ea",
+        "v": 2
+      },
+      "proof": "TLehBiuL2uvu9TMConV3u1CHUgeemqXNZFZdQx2w20A"
+    },
+    {
+      "name": "ack proof covers the cumulative ceiling",
+      "operation": {
+        "binding": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "generation": 1,
+        "household": "00000000000000000000000000000001",
+        "issuedAt": 1790000301000,
+        "nonce": "07070707070707070707070707070707",
+        "op": "ack",
+        "route": "d4b68422b2b00134a42a7a585c60a5ea",
+        "upTo": 2,
+        "v": 2
+      },
+      "proof": "IUSWbFoWpmdwNa19I5pA5FJaE9lM0j20xBIxsASoT2Y"
+    },
+    {
+      "name": "drain is route scoped",
+      "operation": {
+        "binding": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "generation": 1,
+        "household": "00000000000000000000000000000001",
+        "issuedAt": 1790000302000,
+        "nonce": "06060606060606060606060606060606",
+        "op": "drain",
+        "route": "d4b68422b2b00134a42a7a585c60a5ea",
+        "v": 2
+      },
+      "proof": "Sje14eFRfIejBFLq4JIuDEEHwTturvsNJQNpwC1shTI"
+    }
+  ],
+  "envelope": {
+    "aad": {
+      "binding": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "generation": 3,
+      "household": "00000000000000000000000000000001",
+      "id": "94619420c64002287a3ad7ecad5dfa6b",
+      "kid": "3a37dd6f422e1a735b8a9f7f8b377e12",
+      "route": "d4b68422b2b00134a42a7a585c60a5ea",
+      "v": 2
+    },
+    "aadJcs": "{\"binding\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"generation\":3,\"household\":\"00000000000000000000000000000001\",\"id\":\"94619420c64002287a3ad7ecad5dfa6b\",\"kid\":\"3a37dd6f422e1a735b8a9f7f8b377e12\",\"route\":\"d4b68422b2b00134a42a7a585c60a5ea\",\"v\":2}",
+    "info": "den/playback-receipt/v2",
+    "receipt": {
+      "binding": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "completed": false,
+      "durationSeconds": 2400,
+      "endedAt": 1790000400000,
+      "episode": 3,
+      "expiresAt": 1790605200000,
+      "generation": 3,
+      "household": "00000000000000000000000000000001",
+      "id": "94619420c64002287a3ad7ecad5dfa6b",
+      "kid": "3a37dd6f422e1a735b8a9f7f8b377e12",
+      "positionSeconds": 2310,
+      "route": "d4b68422b2b00134a42a7a585c60a5ea",
+      "season": 2,
+      "title": {"id": 1399, "type": "tv"},
+      "v": 2
+    },
+    "receiptJcs": "{\"binding\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"completed\":false,\"durationSeconds\":2400,\"endedAt\":1790000400000,\"episode\":3,\"expiresAt\":1790605200000,\"generation\":3,\"household\":\"00000000000000000000000000000001\",\"id\":\"94619420c64002287a3ad7ecad5dfa6b\",\"kid\":\"3a37dd6f422e1a735b8a9f7f8b377e12\",\"positionSeconds\":2310,\"route\":\"d4b68422b2b00134a42a7a585c60a5ea\",\"season\":2,\"title\":{\"id\":1399,\"type\":\"tv\"},\"v\":2}"
+  },
+  "authorityCases": [
+    {"name": "exact owner route", "member": true, "authority": "owner", "requestedRoute": "owner", "binding": "current", "role": "owner", "expected": "allow"},
+    {"name": "exact kid route", "member": true, "authority": "kid-a", "requestedRoute": "kid-a", "binding": "current", "role": "kid", "expected": "allow"},
+    {"name": "owner cannot claim kid route", "member": true, "authority": "owner", "requestedRoute": "kid-a", "binding": "current", "role": "owner", "expected": "invalid_proof"},
+    {"name": "one kid cannot claim another kid route", "member": true, "authority": "kid-a", "requestedRoute": "kid-b", "binding": "current", "role": "kid", "expected": "invalid_proof"},
+    {"name": "visitor owns no authority", "member": true, "authority": null, "requestedRoute": null, "binding": null, "role": "visitor", "expected": "no_receipt"},
+    {"name": "wrong household member fails first", "member": false, "authority": "owner", "requestedRoute": "owner", "binding": "current", "role": "owner", "expected": "not_a_member"},
+    {"name": "stale binding cannot attach playback", "member": true, "authority": "kid-a", "requestedRoute": "kid-a", "binding": "retired", "role": "kid", "expected": "stale_binding"},
+    {"name": "missing authority never falls back", "member": true, "authority": null, "requestedRoute": "owner", "binding": "current", "role": "owner", "expected": "no_receipt"}
+  ],
+  "lifecycleCases": [
+    {"name": "same profile replacement preserves lane", "event": "rebind", "proof": "same", "newActivityMember": true, "expected": "rebind"},
+    {"name": "different profile cannot replace lane", "event": "rebind", "proof": "different", "newActivityMember": true, "expected": "invalid_proof"},
+    {"name": "replacement needs new activity membership", "event": "rebind", "proof": "same", "newActivityMember": false, "expected": "not_activity_member"},
+    {"name": "deletion retires and purges", "event": "delete", "proof": "same", "newActivityMember": false, "expected": "retire_and_purge"},
+    {"name": "rotation preserves old unexpired work", "event": "rotate", "proof": "same", "newActivityMember": true, "expected": "advance_keep_old"},
+    {"name": "expiry retires without resurrection", "event": "expire", "proof": "none", "newActivityMember": false, "expected": "retire_and_purge"}
+  ],
+  "applyCases": [
+    {"name": "durable atomic write and readback advances ack", "result": "durable", "sameRuntime": true, "expected": "terminal"},
+    {"name": "already applied replay advances ack", "result": "replay", "sameRuntime": true, "expected": "terminal"},
+    {"name": "wrong route is terminal rejection", "result": "wrong_route", "sameRuntime": true, "expected": "terminal"},
+    {"name": "wrong household is terminal rejection", "result": "wrong_household", "sameRuntime": true, "expected": "terminal"},
+    {"name": "wrong key is terminal rejection", "result": "wrong_key", "sameRuntime": true, "expected": "terminal"},
+    {"name": "malformed envelope is terminal rejection", "result": "malformed", "sameRuntime": true, "expected": "terminal"},
+    {"name": "v1 in v2 lane is terminal rejection", "result": "wrong_version", "sameRuntime": true, "expected": "terminal"},
+    {"name": "expired receipt is terminal rejection", "result": "expired", "sameRuntime": true, "expected": "terminal"},
+    {"name": "newer progress wins and receipt is recorded", "result": "newer_progress", "sameRuntime": true, "expected": "terminal"},
+    {"name": "offline redelivery already durable advances ack", "result": "offline_redelivery", "sameRuntime": true, "expected": "terminal"},
+    {"name": "missing retained key stops this route", "result": "missing_key", "sameRuntime": true, "expected": "retry"},
+    {"name": "failed atomic write stops this route", "result": "write_failed", "sameRuntime": true, "expected": "retry"},
+    {"name": "profile replacement before ack cancels", "result": "durable", "sameRuntime": false, "expected": "retry"}
+  ],
+  "ackCases": [
+    {"name": "all terminal entries", "start": 10, "results": ["terminal", "terminal", "terminal"], "expected": 12},
+    {"name": "retryable entry stops contiguous prefix", "start": 10, "results": ["terminal", "retry", "terminal"], "expected": 10},
+    {"name": "first entry retryable", "start": 10, "results": ["retry", "terminal"], "expected": null},
+    {"name": "late duplicate ack has no new entries", "start": 10, "results": [], "expected": null},
+    {"name": "empty drain", "start": 10, "results": [], "expected": null}
+  ],
+  "activationCases": [
+    {"name": "legacy household remains v1 before activation", "mode": "legacy", "client": "v1", "expected": "v1"},
+    {"name": "routed old client has stable unsupported lane", "mode": "routed", "client": "v1", "expected": "playback_receipts_v2_required"},
+    {"name": "routed v2 profile uses its route", "mode": "routed", "client": "v2", "expected": "v2"},
+    {"name": "visitor in routed household has no receipt", "mode": "routed", "client": "visitor", "expected": "no_receipt"},
+    {"name": "tizen 3 keeps handoff", "mode": "routed", "client": "tizen3", "expected": "handoff"}
+  ]
+}
