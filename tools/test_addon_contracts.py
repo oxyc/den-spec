@@ -36,8 +36,12 @@ class Service:
             return result
         if path == "/metrics":
             if authorization.startswith("Bearer ") and authorization[7:].strip() == "metrics-secret":
-                return contracts.Response(200, {"content-type": "text/plain; version=0.0.4",
-                                                "cache-control": "no-store"}, b"# TYPE fixture gauge\nfixture 1\n")
+                headers = {"content-type": "text/plain; version=0.0.4", "cache-control": "no-store"}
+                if method == "GET":
+                    return contracts.Response(200, headers, b"# TYPE fixture gauge\nfixture 1\n")
+                if method == "HEAD":
+                    return contracts.Response(200, headers, b"")
+                return response("method_not_allowed", 405, {"allow": "GET, HEAD"})
             return response("not_found", 404)
         if path == "/config-key":
             return response("sealed_key" if self.sealed else "plaintext_key", 200 if self.sealed else 404,
@@ -125,6 +129,24 @@ class ContractsTest(unittest.TestCase):
                 return result
             with self.subTest(broken=broken):
                 self.assertTrue(any(error for _, error in contracts.run_contracts("edge", request)))
+
+    def test_metrics_head_and_method_contract_regressions_fail(self):
+        for broken in ("head_body", "head_type", "method_status", "allow"):
+            def request(method, path, headers=None, body=None):
+                result = Service()(method, path, headers, body)
+                if path == "/metrics" and (headers or {}).get("Authorization", "").startswith("Bearer "):
+                    if broken == "head_body" and method == "HEAD":
+                        result.body = b"fixture 1\n"
+                    elif broken == "head_type" and method == "HEAD":
+                        result.headers["content-type"] = "application/json"
+                    elif broken == "method_status" and method == "POST":
+                        result.status = 200
+                    elif broken == "allow" and method == "POST":
+                        result.headers["allow"] = "GET"
+                return result
+            with self.subTest(broken=broken):
+                results = contracts.run_contracts("edge", request, metrics_token="metrics-secret")
+                self.assertIn("metrics correct token", [label for label, error in results if error])
 
     def test_http_errors_are_inspected_and_redirects_not_followed(self):
         transport = contracts.HTTP("http://127.0.0.1:8080")
