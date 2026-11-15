@@ -153,15 +153,33 @@ def run_contracts(service, request, *, metrics_token=None, browser_key=None,
         request("GET", "/metrics", {"Authorization": "Bearer " + wrong}), 404, "not_found"))
     check("metrics requires Bearer", lambda: error_response(
         request("GET", "/metrics", {"Authorization": metrics_token or wrong}), 404, "not_found"))
+    def concealed_metrics_method():
+        error_response(request("POST", "/metrics"), 404, "not_found")
+        error_response(request("POST", "/metrics", {"Authorization": "Bearer " + wrong}), 404, "not_found")
+    check("metrics conceals unsupported methods", concealed_metrics_method)
 
     if metrics_token:
         def authorized_metrics():
-            response = request("GET", "/metrics", {"Authorization": "Bearer   " + metrics_token + "  "})
+            authorization = {"Authorization": "Bearer   " + metrics_token + "  "}
+            response = request("GET", "/metrics", authorization)
             require(response.status == 200, f"expected HTTP 200, got {response.status}")
             no_store(response)
             require(response.headers.get("content-type", "").lower().startswith("text/plain"),
                     "metrics content type is not text/plain")
             require(b"# TYPE " in response.body, "metrics has no Prometheus type declarations")
+
+            head = request("HEAD", "/metrics", authorization)
+            require(head.status == response.status, f"HEAD returned HTTP {head.status}, GET returned {response.status}")
+            no_store(head)
+            require(head.headers.get("content-type") == response.headers.get("content-type"),
+                    "HEAD and GET metrics content types differ")
+            require(not head.body, "metrics HEAD returned a body")
+
+            for method in ("POST", "PUT", "DELETE", "OPTIONS"):
+                refused = request(method, "/metrics", authorization)
+                error_response(refused, 405, "method_not_allowed")
+                require(refused.headers.get("allow") == "GET, HEAD",
+                        f"metrics {method} did not advertise Allow: GET, HEAD")
         check("metrics correct token", authorized_metrics)
 
     if profile.sealed_config and config_mode != "skip":
