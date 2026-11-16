@@ -26,7 +26,8 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
 - [`vectors/library-v4.json`](vectors/library-v4.json): den-core's authoritative library operation and merge cases,
   generated and semantically replayed by `crates/den-sync/tests/library_v4.rs` in den-core. This repository's
   required contracts job validates the generated file's framing and watchlist-removal requests with
-  `python3 tools/validate_library_vectors.py`, before downstream den-core CI replays every answer.
+  `python3 tools/validate_library_vectors.py`, then checks out a pinned den-core revision and replays every answer
+  against the exact proposed den-spec revision.
 - [`vectors/library-v4-moves.json`](vectors/library-v4-moves.json): moving a library to another key
   (library-v4 §12) — rows sealed under one fixed key, and what the other holds after the move. Generated:
   `node tools/move-vectors.mjs > vectors/library-v4-moves.json`.

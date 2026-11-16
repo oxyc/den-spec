@@ -21,3 +21,45 @@ jobs:
       - uses: actions/checkout@v7
       - name: All contract validators
         run: python3 -B tools/run_contract_tests.py
+
+  library-v4-replay:
+    name: library-v4 authoritative replay
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the exact spec revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Check out pinned den-core
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: oxyc/den-core
+          ref: 77e0fb6576fc2ffe4e45c544c5a967ccc507caba
+          path: den-core
+      - name: Record contract revisions
+        run: |
+          echo "den-spec=$(git rev-parse HEAD)"
+          echo "den-core=$(git -C den-core rev-parse HEAD)"
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.95.0
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: den-core
+          shared-key: spec-library-v4-replay
+      - name: Replay the proposed vectors
+        run: >-
+          cargo test --locked --manifest-path den-core/Cargo.toml
+          -p den-sync --test library_v4 den_spec_library_v4_vectors -- --exact
+        env:
+          DEN_SPEC_DIR: ${{ github.workspace }}
+      - name: Prove a wrong watchlist outcome is rejected
+        run: |
+          python3 -B tools/prove_library_v4_reverse_contract.py vectors/library-v4.json
+          if cargo test --locked --manifest-path den-core/Cargo.toml \
+            -p den-sync --test library_v4 den_spec_library_v4_vectors -- --exact; then
+            echo "::error::den-core accepted the deliberately wrong watchlist-removal outcome"
+            exit 1
+          fi
+        env:
+          DEN_SPEC_DIR: ${{ github.workspace }}
