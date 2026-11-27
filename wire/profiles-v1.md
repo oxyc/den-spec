@@ -106,7 +106,8 @@ only Owner and Kid creation, but the representation accepts any number of `kid` 
 
 **Once a household is profile-aware, no client writes a profile-scoped row to it, on any path** — ordinary write,
 kept write, write-back, merge, link or restore. The profile-scoped rows are `title:*`, `season:*`, `dlv:*`,
-`set:deliver:*`, `set:handoff:*`, `set:trackers`, `set:assistant-applied`, the legacy `rec:*`, `wat:*`, `snt:*`,
+`set:deliver:*`, `set:handoff:*`, `set:trackers`, `set:assistant-applied`, `set:follows` and `set:updates`
+(follows-v1), the legacy `rec:*`, `wat:*`, `snt:*`,
 `ep:*` and `set:tracker-event:*`, `set:prefs` in full (§6), and the `simkl` value of `set:keys`. A household-scoped value in `set:keys` may be
 written; only the profile-scoped values are withheld. `profile_household_write` (§8) is the one rule every
 client asks, so Swift and web cannot disagree on it.

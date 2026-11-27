@@ -556,6 +556,8 @@
     {"name": "handoff setting is profile-scoped", "row": {"name": "set:handoff:simkl:4812736"}, "expect": {"effect": "refuse"}},
     {"name": "trackers row is profile-scoped", "row": {"name": "set:trackers"}, "expect": {"effect": "refuse"}},
     {"name": "assistant receipt guard is profile-scoped by exact name", "row": {"name": "set:assistant-applied"}, "expect": {"effect": "refuse"}},
+    {"name": "follows are profile-scoped", "row": {"name": "set:follows"}, "expect": {"effect": "refuse"}},
+    {"name": "update marks are profile-scoped", "row": {"name": "set:updates"}, "expect": {"effect": "refuse"}},
     {"name": "assistant configuration rows stay household", "row": {"name": "set:assistant-grants"}, "expect": {"effect": "allow"}},
     {"name": "pre-v4 activity rows are never written", "row": {"name": "rec:movie:550"}, "expect": {"effect": "refuse"}},
     {"name": "pre-v4 tracker event rows are never written", "row": {"name": "set:tracker-event:abc"}, "expect": {"effect": "refuse"}},
