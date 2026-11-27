@@ -766,21 +766,26 @@ The library queue's endpoints (§9) take a queue: `queue` in the append body, `?
   and `400 invalid_queue` for a `tv` without `"queue": "tv"`. A lane drain's body may be `{"name"}`; den-edge keeps
   the last name a lane gave, and a name that is not a clean label (at most 40 characters, no control, bidi or zero-width
   characters) is ignored. It remembers 16 lanes per library, in memory: a TV draining lists itself again within
-  seconds of a restart.
+  seconds of a restart. A TV that reports play results ([play-results-v1.md](play-results-v1.md)) adds `"results": 1`
+  to that body; den-edge keeps it with the name, and an older den-edge ignores it.
 - **`GET /assistant/tv`** — Bearer, write scope. `200 {"online": <bool>, "lastSeenAt": <ms | null>, "tvs": [{"tv":
   <lane id>, "name": <string | null>, "online": <bool>, "lastSeenAt": <ms>}]}`: `online` when a TV queue or lane was
   drained within the last **40 s** (a TV draining with `wait=25` drains at least that often), `lastSeenAt` the last
-  such drain, `null` if never; `tvs` each lane, the one drained last first.
+  such drain, `null` if never; `tvs` each lane, the one drained last first. Each lane also carries `"results":
+  <bool>`, whether its TV said it reports play results (play-results-v1 §6); absent is `false`.
 - **`GET /assistant/request/{seq}?queue=library|tv[&tv=<lane id>]`** — Bearer, write scope, for the session's library. `200 {"state":
   "queued" | "taken"}`: `queued` while the message waits, `taken` once a device acknowledged it. `404 unknown_request`
   for a seq this library's queue never issued or has expired. `taken` says nothing of whether the request was applied
-  or refused: devices tell den-edge only what they acknowledge.
+  or refused: devices tell den-edge only what they acknowledge. Whether a play started is a play result
+  ([play-results-v1.md](play-results-v1.md)), sealed under a key derived from the request's `id`, which den-edge
+  never sees.
 
 ### den-mcp
 
 `play` and `play_trailer` tools build and seal requests as §4 (`seal_request_with_rng`) and append them with `"queue":
 "tv"`. Before appending they may check `GET /assistant/tv` and say the TV is off or asleep rather than queue a play
-that will go stale; after appending, `GET /assistant/request/{seq}?queue=tv` tells whether a TV took it.
+that will go stale; after appending, `GET /assistant/request/{seq}?queue=tv` tells whether a TV took it, and a TV
+that reports results says whether it is preparing, playing or failed, and why (play-results-v1 §8).
 
 They take an optional TV, by the name its lane gave (any case). Given one, they play on that TV's lane, or say it is
 off; given none, on the one TV awake, or they name the TVs awake and ask which. A status answer names every TV and
