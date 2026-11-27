@@ -225,8 +225,9 @@ suppressed only from equivalent, current Den receiver evidence, never from a con
 den-edge started; then `online` is false and `lastSeenAt` is null. Older den-edge omits the fields, which means false.
 
 den-mcp may address a named TV when it is online **or wakeable**. With no name it chooses the sole online or wakeable
-TV; several possible TVs still require disambiguation. Its confirmation remains driven by queue/taken/progress
-state. A controller's launch report is not “Playing on &lt;TV&gt;”.
+TV; several possible TVs still require disambiguation. Its confirmation is the TV's own play result
+([play-results-v1.md](play-results-v1.md)), else queue/taken state. A controller's launch report is not “Playing on
+&lt;TV&gt;”; a sleeping, wakeable target is the requester's own `waking` (play-results-v1 §3).
 
 An authenticated member sender lists the same targets with `GET /wake/targets`; its `200` answer is
 `{"targets":[{"id","name","tv","registered","wakeable","online","lastSeenAt"}]}`. It never returns inbox wake
