@@ -50,9 +50,10 @@ valid, though no v1 client writes it. Two devices marking the same event resolve
 setting does.
 
 **Retention.** Events last at most 90 days (§3), so state about older ones is dead. A client writing the row first
-drops every setting whose stamp's `t` is more than 180 days before now. A reader ignores such settings. A version
-still holding one brings it back on merge, and the next write drops it again. If more than 2,000 settings remain,
-the writer keeps the 2,000 with the newest stamps.
+drops every setting whose stamp's `t` is more than 180 days before now. A reader ignores such settings, so an expired
+mark is hidden and never changes what is shown. The limit does not strictly bound the row: an older copy of it can
+bring an expired mark back on merge, where readers keep ignoring it and the next write drops it again. If more than
+2,000 settings remain, the writer keeps the 2,000 with the newest stamps.
 
 ## 2. Event identity
 
