@@ -23,6 +23,11 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
 - [`vectors/wake-controller-v1.json`](vectors/wake-controller-v1.json): the household inbox wake-id and existing
   assistant-lane derivations. Generated: `node tools/wake-controller-vectors.mjs >
   vectors/wake-controller-v1.json`; validate with `python3 tools/validate_wake_controller.py`.
+- [`wire/play-results-v1.md`](wire/play-results-v1.md): what a TV says back about a Play on TV request — preparing,
+  playing, or why not — sealed under a key derived from the request's own id, stored opaque by den-edge.
+- [`vectors/play-results-v1.json`](vectors/play-results-v1.json): one id's address and key and a sealed result of each
+  state. Generated: `node tools/play-results-vectors.mjs > vectors/play-results-v1.json`; validate with
+  `python3 tools/validate_play_results.py`.
 - [`vectors/library-v4.json`](vectors/library-v4.json): den-core's authoritative library operation and merge cases,
   generated and semantically replayed by `crates/den-sync/tests/library_v4.rs` in den-core. This repository's
   required contracts job validates the generated file's framing and watchlist-removal requests with

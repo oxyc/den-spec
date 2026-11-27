@@ -173,6 +173,9 @@ unpadded base64url.
 - A TV MUST make a new command key when its library key changes: a device shut out by a reset still knows the old
   one. Otherwise it keeps the key.
 - When a pushed play starts, the TV writes `<d>.played` (library-v2 §3).
+- A TV that reports whether each play prepared, started or failed ([play-results-v1.md](play-results-v1.md)) publishes
+  `<d>.control` at version 2. Version 2 keeps every version-1 rule; a sender that knows only version 1 reads it as
+  transport-capable, as before.
 - The stamp device id is not part of any derivation (library-v2 §4): the key is random, and the id only names where
   it is published.
 
