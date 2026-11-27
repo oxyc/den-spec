@@ -1,0 +1,410 @@
+{
+  "version": 1,
+  "followCases": [
+    {
+      "name": "active, unfollowed, unknown and invalid follows",
+      "values": {
+        "tv:1399": {"value": {"int": 1794312000000}, "at": [1794312000000, 0, "a1b2c3d4e5f60718"]},
+        "person:525": {"value": {"int": 1793491200000}, "at": [1793491200000, 0, "a1b2c3d4e5f60718"]},
+        "movie:550": {"value": null, "at": [1795000000000, 0, "0f1e2d3c4b5a6978"]},
+        "shelf:3": {"value": {"int": 1794312000000}, "at": [1794312000000, 0, "a1b2c3d4e5f60718"]},
+        "tv:0123": {"value": {"int": 1794312000000}, "at": [1794312000000, 0, "a1b2c3d4e5f60718"]},
+        "tv:x": {"value": {"int": 1794312000000}, "at": [1794312000000, 0, "a1b2c3d4e5f60718"]},
+        "tv:9007199254740992": {"value": {"int": 1794312000000}, "at": [1794312000000, 0, "a1b2c3d4e5f60718"]},
+        "movie:27205": {"value": {"string": "1794312000000"}, "at": [1794312000000, 0, "a1b2c3d4e5f60718"]},
+        "movie:27206": {"value": {"int": -1}, "at": [1794312000000, 0, "a1b2c3d4e5f60718"]}
+      },
+      "active": {"tv:1399": 1794312000000, "person:525": 1793491200000}
+    }
+  ],
+  "updateCases": [
+    {
+      "name": "read and dismissed marks; expired, cleared and unknown settings",
+      "now": 1795161600000,
+      "values": {
+        "episode:tv:1399:8:6": {"value": {"string": "read"}, "at": [1795000000000, 0, "a1b2c3d4e5f60718"]},
+        "release:movie:550": {"value": {"string": "dismissed"}, "at": [1795100000000, 2, "0f1e2d3c4b5a6978"]},
+        "returns:tv:1399:9": {"value": {"string": "read"}, "at": [1779523199999, 0, "a1b2c3d4e5f60718"]},
+        "episode:tv:1:1:1": {"value": null, "at": [1795000000000, 0, "a1b2c3d4e5f60718"]},
+        "episode:tv:2:1:1": {"value": {"string": "starred"}, "at": [1795000000000, 1, "a1b2c3d4e5f60718"]}
+      },
+      "marks": {"episode:tv:1399:8:6": "read", "release:movie:550": "dismissed"},
+      "kept": {
+        "episode:tv:1399:8:6": {"value": {"string": "read"}, "at": [1795000000000, 0, "a1b2c3d4e5f60718"]},
+        "episode:tv:1:1:1": {"value": null, "at": [1795000000000, 0, "a1b2c3d4e5f60718"]},
+        "episode:tv:2:1:1": {"value": {"string": "starred"}, "at": [1795000000000, 1, "a1b2c3d4e5f60718"]},
+        "release:movie:550": {"value": {"string": "dismissed"}, "at": [1795100000000, 2, "0f1e2d3c4b5a6978"]}
+      }
+    }
+  ],
+  "deriveCases": [
+    {
+      "name": "baseline: what aired before the follow day is history",
+      "today": "2026-11-20",
+      "follows": {"tv:1399": {"value": {"int": 1795161600000}, "at": [1795161600000, 0, "a1b2c3d4e5f60718"]}},
+      "facts": {
+        "airing": {
+          "1399": {
+            "source": "tvmaze", "observedAt": 1795165200000,
+            "previous": {"season": 8, "episode": 5, "date": "2026-11-17"},
+            "next": {"season": 8, "episode": 6, "date": "2026-11-24"},
+            "upcoming": [{"season": 8, "episode": 6, "date": "2026-11-24"}]
+          }
+        }
+      },
+      "expected": {"events": [], "unread": 0}
+    },
+    {
+      "name": "an episode aired after the follow day is listed once",
+      "today": "2026-11-20",
+      "follows": {"tv:1399": {"value": {"int": 1794312000000}, "at": [1794312000000, 0, "a1b2c3d4e5f60718"]}},
+      "facts": {
+        "airing": {
+          "1399": {
+            "source": "tvmaze", "observedAt": 1795165200000,
+            "previous": {"season": 8, "episode": 5, "date": "2026-11-17"},
+            "next": {"season": 8, "episode": 6, "date": "2026-11-24"},
+            "upcoming": [{"season": 8, "episode": 6, "date": "2026-11-24"}]
+          }
+        }
+      },
+      "expected": {
+        "events": [
+          {"id": "episode:tv:1399:8:5", "type": "episode", "title": {"type": "tv", "id": 1399}, "season": 8,
+           "episode": 5, "date": "2026-11-17", "precision": "day", "source": "tvmaze", "observedAt": 1795165200000,
+           "via": ["tv:1399"], "read": false}
+        ],
+        "unread": 1
+      }
+    },
+    {
+      "name": "the follow's own UTC day is baseline; the next day is not",
+      "today": "2026-11-20",
+      "follows": {
+        "tv:1399": {"value": {"int": 1795044600000}, "at": [1795044600000, 0, "a1b2c3d4e5f60718"]},
+        "tv:100": {"value": {"int": 1795044600000}, "at": [1795044600000, 0, "a1b2c3d4e5f60718"]}
+      },
+      "facts": {
+        "airing": {
+          "1399": {"source": "tvmaze", "observedAt": 1795165200000,
+                   "previous": {"season": 8, "episode": 5, "date": "2026-11-18"}, "upcoming": []},
+          "100": {"source": "tmdb", "observedAt": 1795165200000,
+                  "previous": {"season": 1, "episode": 3, "date": "2026-11-19"}, "upcoming": []}
+        }
+      },
+      "expected": {
+        "events": [
+          {"id": "episode:tv:100:1:3", "type": "episode", "title": {"type": "tv", "id": 100}, "season": 1,
+           "episode": 3, "date": "2026-11-19", "precision": "day", "source": "tmdb", "observedAt": 1795165200000,
+           "via": ["tv:100"], "read": false}
+        ],
+        "unread": 1
+      }
+    },
+    {
+      "name": "the newest episode out, today included, is the one event",
+      "today": "2026-11-20",
+      "follows": {"tv:200": {"value": {"int": 1794312000000}, "at": [1794312000000, 0, "a1b2c3d4e5f60718"]}},
+      "facts": {
+        "airing": {
+          "200": {"source": "tvmaze", "observedAt": 1795165200000,
+                  "previous": {"season": 3, "episode": 2, "date": "2026-11-19"},
+                  "next": {"season": 3, "episode": 3, "date": "2026-11-20"},
+                  "upcoming": [{"season": 3, "episode": 3, "date": "2026-11-20"},
+                               {"season": 3, "episode": 4, "date": "2026-11-27"}]}
+        }
+      },
+      "expected": {
+        "events": [
+          {"id": "episode:tv:200:3:3", "type": "episode", "title": {"type": "tv", "id": 200}, "season": 3,
+           "episode": 3, "date": "2026-11-20", "precision": "day", "source": "tvmaze", "observedAt": 1795165200000,
+           "via": ["tv:200"], "read": false}
+        ],
+        "unread": 1
+      }
+    },
+    {
+      "name": "an announced return",
+      "today": "2026-11-20",
+      "follows": {"tv:300": {"value": {"int": 1794312000000}, "at": [1794312000000, 0, "a1b2c3d4e5f60718"]}},
+      "facts": {
+        "airing": {
+          "300": {"source": "tvmaze", "observedAt": 1795165200000,
+                  "previous": {"season": 1, "episode": 10, "date": "2026-03-01"}, "upcoming": [],
+                  "seasonPremiere": {"season": 2, "date": "2027-01-15"}}
+        }
+      },
+      "expected": {
+        "events": [
+          {"id": "returns:tv:300:2", "type": "returns", "title": {"type": "tv", "id": 300}, "season": 2,
+           "date": "2027-01-15", "precision": "day", "source": "tvmaze", "observedAt": 1795165200000,
+           "via": ["tv:300"], "read": false}
+        ],
+        "unread": 1
+      }
+    },
+    {
+      "name": "a moved date keeps the id, and the mark made before the move",
+      "today": "2026-11-20",
+      "now": 1795161600000,
+      "follows": {"tv:300": {"value": {"int": 1794312000000}, "at": [1794312000000, 0, "a1b2c3d4e5f60718"]}},
+      "facts": {
+        "airing": {
+          "300": {"source": "tvmaze", "observedAt": 1795165200000,
+                  "previous": {"season": 1, "episode": 10, "date": "2026-03-01"}, "upcoming": [],
+                  "seasonPremiere": {"season": 2, "date": "2027-01-29"}}
+        }
+      },
+      "marks": {"returns:tv:300:2": {"value": {"string": "read"}, "at": [1795100000000, 0, "0f1e2d3c4b5a6978"]}},
+      "expected": {
+        "events": [
+          {"id": "returns:tv:300:2", "type": "returns", "title": {"type": "tv", "id": 300}, "season": 2,
+           "date": "2027-01-29", "precision": "day", "source": "tvmaze", "observedAt": 1795165200000,
+           "via": ["tv:300"], "read": true}
+        ],
+        "unread": 0
+      }
+    },
+    {
+      "name": "on its day a return becomes the premiere episode",
+      "today": "2026-11-20",
+      "follows": {"tv:300": {"value": {"int": 1794312000000}, "at": [1794312000000, 0, "a1b2c3d4e5f60718"]}},
+      "facts": {
+        "airing": {
+          "300": {"source": "tvmaze", "observedAt": 1795165200000,
+                  "previous": {"season": 2, "episode": 1, "date": "2026-11-20"},
+                  "next": {"season": 2, "episode": 2, "date": "2026-11-27"},
+                  "upcoming": [{"season": 2, "episode": 2, "date": "2026-11-27"}],
+                  "seasonPremiere": {"season": 2, "date": "2026-11-20"}}
+        }
+      },
+      "expected": {
+        "events": [
+          {"id": "episode:tv:300:2:1", "type": "episode", "title": {"type": "tv", "id": 300}, "season": 2,
+           "episode": 1, "date": "2026-11-20", "precision": "day", "source": "tvmaze", "observedAt": 1795165200000,
+           "via": ["tv:300"], "read": false}
+        ],
+        "unread": 1
+      }
+    },
+    {
+      "name": "a withdrawn date, and one past the 90-day window, list nothing",
+      "today": "2026-11-20",
+      "follows": {
+        "tv:300": {"value": {"int": 1794312000000}, "at": [1794312000000, 0, "a1b2c3d4e5f60718"]},
+        "tv:301": {"value": {"int": 1794312000000}, "at": [1794312000000, 0, "a1b2c3d4e5f60718"]}
+      },
+      "facts": {
+        "airing": {
+          "300": {"source": "tvmaze", "status": "tbd", "observedAt": 1795165200000,
+                  "previous": {"season": 1, "episode": 10, "date": "2026-03-01"}, "upcoming": []},
+          "301": {"source": "tvmaze", "observedAt": 1795165200000, "upcoming": [],
+                  "seasonPremiere": {"season": 4, "date": "2027-03-01"}}
+        }
+      },
+      "expected": {"events": [], "unread": 0}
+    },
+    {
+      "name": "a director and their film list the film once; coarse, old and future credits list nothing",
+      "today": "2026-11-20",
+      "follows": {
+        "person:525": {"value": {"int": 1793491200000}, "at": [1793491200000, 0, "a1b2c3d4e5f60718"]},
+        "movie:9001": {"value": {"int": 1794312000000}, "at": [1794312000000, 0, "0f1e2d3c4b5a6978"]}
+      },
+      "facts": {
+        "films": {"9001": {"date": "2026-11-13", "observedAt": 1795165200001}},
+        "credits": {
+          "525": {"observedAt": 1795165200002, "titles": [
+            {"type": "movie", "id": 9001, "date": "2026-11-13"},
+            {"type": "movie", "id": 9001, "date": "2026-11-13"},
+            {"type": "movie", "id": 9002, "date": "2026-10-01"},
+            {"type": "tv", "id": 9003, "date": "2026-11-05"},
+            {"type": "movie", "id": 9004, "date": "2027"},
+            {"type": "movie", "id": 9007, "date": "2026-12"},
+            {"type": "movie", "id": 9005, "date": ""},
+            {"type": "movie", "id": 9006, "date": "2026-12-01"}
+          ]}
+        }
+      },
+      "expected": {
+        "events": [
+          {"id": "release:movie:9001", "type": "release", "title": {"type": "movie", "id": 9001},
+           "date": "2026-11-13", "precision": "day", "source": "tmdb", "observedAt": 1795165200001,
+           "via": ["movie:9001", "person:525"], "read": false},
+          {"id": "release:tv:9003", "type": "release", "title": {"type": "tv", "id": 9003},
+           "date": "2026-11-05", "precision": "day", "source": "tmdb", "observedAt": 1795165200002,
+           "via": ["person:525"], "read": false}
+        ],
+        "unread": 2
+      }
+    },
+    {
+      "name": "the same facts in another order list the same events",
+      "today": "2026-11-20",
+      "follows": {
+        "movie:9001": {"value": {"int": 1794312000000}, "at": [1794312000000, 0, "0f1e2d3c4b5a6978"]},
+        "person:525": {"value": {"int": 1793491200000}, "at": [1793491200000, 0, "a1b2c3d4e5f60718"]}
+      },
+      "facts": {
+        "credits": {
+          "525": {"observedAt": 1795165200002, "titles": [
+            {"type": "movie", "id": 9006, "date": "2026-12-01"},
+            {"type": "tv", "id": 9003, "date": "2026-11-05"},
+            {"type": "movie", "id": 9001, "date": "2026-11-13"}
+          ]}
+        },
+        "films": {"9001": {"date": "2026-11-13", "observedAt": 1795165200001}}
+      },
+      "expected": {
+        "events": [
+          {"id": "release:movie:9001", "type": "release", "title": {"type": "movie", "id": 9001},
+           "date": "2026-11-13", "precision": "day", "source": "tmdb", "observedAt": 1795165200001,
+           "via": ["movie:9001", "person:525"], "read": false},
+          {"id": "release:tv:9003", "type": "release", "title": {"type": "tv", "id": 9003},
+           "date": "2026-11-05", "precision": "day", "source": "tmdb", "observedAt": 1795165200002,
+           "via": ["person:525"], "read": false}
+        ],
+        "unread": 2
+      }
+    },
+    {
+      "name": "each follow has its own baseline",
+      "today": "2026-11-20",
+      "follows": {
+        "person:525": {"value": {"int": 1793491200000}, "at": [1793491200000, 0, "a1b2c3d4e5f60718"]},
+        "movie:9001": {"value": {"int": 1795161600000}, "at": [1795161600000, 0, "0f1e2d3c4b5a6978"]}
+      },
+      "facts": {
+        "films": {"9001": {"date": "2026-11-13", "observedAt": 1795165200001}},
+        "credits": {"525": {"observedAt": 1795165200002, "titles": [{"type": "movie", "id": 9001, "date": "2026-11-13"}]}}
+      },
+      "expected": {
+        "events": [
+          {"id": "release:movie:9001", "type": "release", "title": {"type": "movie", "id": 9001},
+           "date": "2026-11-13", "precision": "day", "source": "tmdb", "observedAt": 1795165200002,
+           "via": ["person:525"], "read": false}
+        ],
+        "unread": 1
+      }
+    },
+    {
+      "name": "a followed series' premiere is its episodes', not a person's release",
+      "today": "2026-11-20",
+      "follows": {
+        "person:525": {"value": {"int": 1793491200000}, "at": [1793491200000, 0, "a1b2c3d4e5f60718"]},
+        "tv:9003": {"value": {"int": 1793491200000}, "at": [1793491200000, 0, "a1b2c3d4e5f60718"]}
+      },
+      "facts": {
+        "airing": {"9003": {"source": "tvmaze", "observedAt": 1795165200000,
+                            "previous": {"season": 1, "episode": 3, "date": "2026-11-19"}, "upcoming": []}},
+        "credits": {"525": {"observedAt": 1795165200002, "titles": [{"type": "tv", "id": 9003, "date": "2026-11-05"}]}}
+      },
+      "expected": {
+        "events": [
+          {"id": "episode:tv:9003:1:3", "type": "episode", "title": {"type": "tv", "id": 9003}, "season": 1,
+           "episode": 3, "date": "2026-11-19", "precision": "day", "source": "tvmaze", "observedAt": 1795165200000,
+           "via": ["tv:9003"], "read": false}
+        ],
+        "unread": 1
+      }
+    },
+    {
+      "name": "an unfollowed series lists nothing",
+      "today": "2026-11-20",
+      "follows": {"tv:1399": {"value": null, "at": [1795100000000, 0, "a1b2c3d4e5f60718"]}},
+      "facts": {
+        "airing": {"1399": {"source": "tvmaze", "observedAt": 1795165200000,
+                            "previous": {"season": 8, "episode": 5, "date": "2026-11-17"}, "upcoming": []}}
+      },
+      "expected": {"events": [], "unread": 0}
+    },
+    {
+      "name": "catch-up after days offline lists what the windows still hold",
+      "today": "2026-11-20",
+      "follows": {
+        "tv:400": {"value": {"int": 1777593600000}, "at": [1777593600000, 0, "a1b2c3d4e5f60718"]},
+        "tv:401": {"value": {"int": 1777593600000}, "at": [1777593600000, 0, "a1b2c3d4e5f60718"]},
+        "movie:402": {"value": {"int": 1777593600000}, "at": [1777593600000, 0, "a1b2c3d4e5f60718"]},
+        "movie:403": {"value": {"int": 1777593600000}, "at": [1777593600000, 0, "a1b2c3d4e5f60718"]}
+      },
+      "facts": {
+        "airing": {
+          "400": {"source": "tvmaze", "observedAt": 1795165200000,
+                  "previous": {"season": 5, "episode": 10, "date": "2026-11-13"}, "upcoming": []},
+          "401": {"source": "tvmaze", "observedAt": 1795165200000,
+                  "previous": {"season": 1, "episode": 8, "date": "2026-11-12"}, "upcoming": []}
+        },
+        "films": {
+          "402": {"date": "2026-10-21", "observedAt": 1795165200001},
+          "403": {"date": "2026-10-20", "observedAt": 1795165200001}
+        }
+      },
+      "expected": {
+        "events": [
+          {"id": "episode:tv:400:5:10", "type": "episode", "title": {"type": "tv", "id": 400}, "season": 5,
+           "episode": 10, "date": "2026-11-13", "precision": "day", "source": "tvmaze", "observedAt": 1795165200000,
+           "via": ["tv:400"], "read": false},
+          {"id": "release:movie:402", "type": "release", "title": {"type": "movie", "id": 402},
+           "date": "2026-10-21", "precision": "day", "source": "tmdb", "observedAt": 1795165200001,
+           "via": ["movie:402"], "read": false}
+        ],
+        "unread": 2
+      }
+    },
+    {
+      "name": "missing, partial and unsupported facts list nothing",
+      "today": "2026-11-20",
+      "follows": {
+        "tv:500": {"value": {"int": 1777593600000}, "at": [1777593600000, 0, "a1b2c3d4e5f60718"]},
+        "movie:501": {"value": {"int": 1777593600000}, "at": [1777593600000, 0, "a1b2c3d4e5f60718"]},
+        "person:502": {"value": {"int": 1777593600000}, "at": [1777593600000, 0, "a1b2c3d4e5f60718"]},
+        "tv:503": {"value": {"int": 1777593600000}, "at": [1777593600000, 0, "a1b2c3d4e5f60718"]},
+        "shelf:1": {"value": {"int": 1777593600000}, "at": [1777593600000, 0, "a1b2c3d4e5f60718"]}
+      },
+      "facts": {
+        "airing": {
+          "503": {"source": "tvmaze", "observedAt": 1795165200000,
+                  "previous": {"season": 2, "episode": 4, "date": "2026-11-31"},
+                  "upcoming": [{"season": 0, "episode": 1, "date": "2026-11-19"}]}
+        },
+        "films": {"501": {"date": "2026", "observedAt": 1795165200001}}
+      },
+      "expected": {"events": [], "unread": 0}
+    },
+    {
+      "name": "read, dismissed and expired marks",
+      "today": "2026-11-20",
+      "now": 1795161600000,
+      "follows": {
+        "tv:1399": {"value": {"int": 1794312000000}, "at": [1794312000000, 0, "a1b2c3d4e5f60718"]},
+        "tv:300": {"value": {"int": 1794312000000}, "at": [1794312000000, 0, "a1b2c3d4e5f60718"]},
+        "movie:9001": {"value": {"int": 1794312000000}, "at": [1794312000000, 0, "a1b2c3d4e5f60718"]}
+      },
+      "facts": {
+        "airing": {
+          "1399": {"source": "tvmaze", "observedAt": 1795165200000,
+                   "previous": {"season": 8, "episode": 5, "date": "2026-11-17"}, "upcoming": []},
+          "300": {"source": "tvmaze", "observedAt": 1795165200000, "upcoming": [],
+                  "seasonPremiere": {"season": 2, "date": "2027-01-15"}}
+        },
+        "films": {"9001": {"date": "2026-11-13", "observedAt": 1795165200001}}
+      },
+      "marks": {
+        "episode:tv:1399:8:5": {"value": {"string": "read"}, "at": [1795100000000, 0, "0f1e2d3c4b5a6978"]},
+        "release:movie:9001": {"value": {"string": "dismissed"}, "at": [1795100000000, 1, "0f1e2d3c4b5a6978"]},
+        "returns:tv:300:2": {"value": {"string": "read"}, "at": [1779523199999, 0, "0f1e2d3c4b5a6978"]}
+      },
+      "expected": {
+        "events": [
+          {"id": "returns:tv:300:2", "type": "returns", "title": {"type": "tv", "id": 300}, "season": 2,
+           "date": "2027-01-15", "precision": "day", "source": "tvmaze", "observedAt": 1795165200000,
+           "via": ["tv:300"], "read": false},
+          {"id": "episode:tv:1399:8:5", "type": "episode", "title": {"type": "tv", "id": 1399}, "season": 8,
+           "episode": 5, "date": "2026-11-17", "precision": "day", "source": "tvmaze", "observedAt": 1795165200000,
+           "via": ["tv:1399"], "read": true}
+        ],
+        "unread": 1
+      }
+    }
+  ]
+}

@@ -1140,7 +1140,7 @@ def household_write(row: object) -> dict:
             return {"effect": "refuse"}
         return {"effect": "restrict", "values": kept}
     scoped = name.startswith(("title:", "season:", "dlv:", "set:deliver:", "set:handoff:")) or name in (
-        "set:trackers", "set:assistant-applied")
+        "set:trackers", "set:assistant-applied", "set:follows", "set:updates")
     legacy = name.startswith(("rec:", "wat:", "snt:", "ep:", "set:tracker-event:"))
     return {"effect": "refuse" if scoped or legacy else "allow"}
 

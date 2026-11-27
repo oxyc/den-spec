@@ -63,6 +63,10 @@ tests, so a client that drifts from the spec fails its build rather than corrupt
   [`vectors/headings-v1.json`](vectors/headings-v1.json): semantic UI headings shared by Den clients. A heading
   carries a stable message id, bounded named arguments and an English fallback, while legacy strings remain
   readable during migration. Validate them with `python3 tools/validate_headings.py`.
+- [`wire/follows-v1.md`](wire/follows-v1.md) and [`vectors/follows-v1.json`](vectors/follows-v1.json): a profile's
+  follows (series, films, people) and its updates list: the two settings rows, the date-free event ids every device
+  derives alike, the baseline set by a follow, and the episode/return/release windows. Validate with
+  `python3 tools/validate_follows.py`.
 - [`wire/recovery-code.md`](wire/recovery-code.md) (proposal): a recovery code that unwraps the library key on a
   new device, with no device that holds the library at hand. Argon2id-wrapped, stored at den-edge under a locator
   it cannot tie to a library.
