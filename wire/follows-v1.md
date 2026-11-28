@@ -5,8 +5,9 @@ follows: "a new episode aired", "this series returns on 12 March", "a film by th
 [`../vectors/follows-v1.json`](../vectors/follows-v1.json) pins the rows, the event identity and the derivation;
 each client's tests load it.
 
-This is stage 1 of den#477: follows and an in-app list of updates, reconciled whenever a client comes to the
-foreground. There are no notifications, and no shelf follows (den#541 made those unsupported).
+This is stage 1 of den#477: follows and the updates they bring, shown on Home as a row of the followed titles, and
+reconciled whenever a client comes to the foreground. There are no notifications, and no shelf follows (den#541
+made those unsupported).
 
 Words: *MUST* is a rule a client breaks at the cost of another client or profile; *should* is advice.
 
@@ -137,10 +138,13 @@ and for an `episode` event that title's episode, under the same policy as any ot
 
 ## 5. Reconciling
 
-A client reconciles when it comes to the foreground and when the updates list is opened. It does not reconcile on a
-timer. It asks for facts through the caches it already has: one batched `/airing` request for the followed series,
-one TMDB detail for each followed film, and one filmography for each followed person. It should derive only while a
-profile with follows is active.
+A client reconciles when it comes to the foreground. It does not reconcile on a timer. It asks for facts through the
+caches it already has: one batched `/airing` request for the followed series, one TMDB detail for each followed film,
+and one filmography for each followed person. It should derive only while a profile with follows is active.
+
+Den's own clients show the unread events as one Home row, "From titles you follow", just below Continue Watching:
+one card for each title, newest first, and no row when there are none. Opening or playing a title marks its current
+events `read`, which takes it off the row. That is presentation: no wire format depends on it.
 
 ## 6. Versions
 
